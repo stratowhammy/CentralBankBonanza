@@ -13,8 +13,9 @@ import { BalanceSheetControl } from './game/BalanceSheetControl';
 import { MpcVotingDivisionModal } from './game/MpcVotingDivisionModal';
 import { ParliamentaryHearingModal } from './game/ParliamentaryHearingModal';
 import { TermReappointmentModal } from './game/TermReappointmentModal';
+import { VariableGraphOverlay } from './game/VariableGraphOverlay';
 import { api } from '../api';
-import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft } from 'lucide-react';
+import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft, LineChart } from 'lucide-react';
 
 interface GameDashboardProps {
   session: GameSession;
@@ -42,6 +43,8 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   const [isMpcVoteOpen, setIsMpcVoteOpen] = useState(false);
   const [isHearingOpen, setIsHearingOpen] = useState(false);
   const [isTermReviewOpen, setIsTermReviewOpen] = useState(false);
+  const [isGraphOverlayOpen, setIsGraphOverlayOpen] = useState(false);
+  const [activeTrackedVar, setActiveTrackedVar] = useState<string | undefined>(undefined);
 
   const handleStateUpdated = () => {
     onRefreshSession();
@@ -203,6 +206,20 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
+              onClick={() => setIsGraphOverlayOpen(prev => !prev)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isGraphOverlayOpen
+                  ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-md shadow-amber-950/40 ring-1 ring-amber-400/50'
+                  : 'bg-slate-900 border-slate-700 hover:border-amber-400 text-slate-200'
+              }`}
+            >
+              <LineChart className="w-3.5 h-3.5 text-amber-400" />
+              <span>Variable Graph Overlay</span>
+              {isGraphOverlayOpen && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping ml-0.5" />
+              )}
+            </button>
+            <button
               onClick={() => setIsDotPlotOpen(true)}
               className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-purple-500 text-purple-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             >
@@ -237,6 +254,10 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
           onOpenDotPlot={() => setIsDotPlotOpen(true)}
           onOpenBalanceSheet={() => setIsBalanceSheetOpen(true)}
           onOpenMpcVote={() => setIsMpcVoteOpen(true)}
+          onTrackVariable={(varId) => {
+            setActiveTrackedVar(varId);
+            setIsGraphOverlayOpen(true);
+          }}
         />
 
         {/* 4. Financial Charts: Yield Curve & Historical Trends */}
@@ -258,7 +279,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
 
       </div>
 
-      {/* Floating Action Button for Chief of Staff / Economic Advisor */}
+      {/* Floating Action Button for Chief of Staff / Economic Advisor (bottom-right) */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           onClick={() => setIsAdvisorDrawerOpen(true)}
@@ -271,6 +292,31 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
           <span>Chief of Staff & Counsel</span>
         </button>
       </div>
+
+      {/* Floating Action Button for Movable Variable Graph Overlay (bottom-left) */}
+      <div className="fixed bottom-6 left-6 z-40">
+        <button
+          onClick={() => setIsGraphOverlayOpen(prev => !prev)}
+          className={`px-4 py-3 rounded-full text-xs font-bold uppercase tracking-wider shadow-2xl border flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md ${
+            isGraphOverlayOpen
+              ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/60 shadow-amber-950/80 font-extrabold'
+              : 'bg-slate-900/90 hover:bg-slate-800 text-slate-100 border-slate-700 hover:border-amber-400 shadow-slate-950/80'
+          }`}
+          title="Open Movable Variable Graph Overlay"
+        >
+          <LineChart className={`w-4 h-4 ${isGraphOverlayOpen ? 'text-slate-950' : 'text-amber-400'}`} />
+          <span>Graph Tracker</span>
+          {isGraphOverlayOpen && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+        </button>
+      </div>
+
+      {/* Movable Variable Graph Overlay Component */}
+      <VariableGraphOverlay
+        session={session}
+        isOpen={isGraphOverlayOpen}
+        onClose={() => setIsGraphOverlayOpen(false)}
+        initialVariableId={activeTrackedVar}
+      />
 
       {/* Monthly Action Modal (Guidance or MPC Rate Decision) */}
       <MonthlyActionModal

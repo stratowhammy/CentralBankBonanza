@@ -12,7 +12,9 @@ import {
   BarChart3,
   Layers,
   AlertOctagon,
-  Flame
+  Flame,
+  LineChart,
+  BarChart2
 } from 'lucide-react';
 
 interface IndicatorsGridProps {
@@ -20,13 +22,15 @@ interface IndicatorsGridProps {
   onOpenDotPlot?: () => void;
   onOpenBalanceSheet?: () => void;
   onOpenMpcVote?: () => void;
+  onTrackVariable?: (variableId: string) => void;
 }
 
 export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({ 
   session,
   onOpenDotPlot,
   onOpenBalanceSheet,
-  onOpenMpcVote
+  onOpenMpcVote,
+  onTrackVariable
 }) => {
   const s = session.economic_state;
   const isNormalOrHard = session.difficulty === 'normal' || session.difficulty === 'hard';
@@ -97,10 +101,17 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         
         {/* Policy Rate */}
-        <div className="bg-slate-900/90 border border-amber-500/30 rounded-xl p-3.5 shadow-md flex flex-col justify-between">
+        <div 
+          onClick={() => onTrackVariable?.('interest_rate')}
+          className="bg-slate-900/90 border border-amber-500/30 hover:border-amber-400/80 rounded-xl p-3.5 shadow-md flex flex-col justify-between cursor-pointer transition group"
+          title="Click to track Policy Rate in Movable Graph Overlay"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Policy Rate</span>
-            <Percent className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center gap-1">
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-amber-400 font-mono transition">📈</span>
+              <Percent className="w-3.5 h-3.5 text-amber-400" />
+            </div>
           </div>
           <div className="font-data text-2xl font-bold text-amber-300">
             {s.interest_rate.toFixed(2)}%
@@ -112,16 +123,23 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
         </div>
 
         {/* CPI Inflation with Decoupled Flexible vs Sticky Breakdown */}
-        <div className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-md flex flex-col justify-between ${
-          s.inflation_cpi > 4.0 ? 'border-rose-500/40' : (s.inflation_cpi < 1.0 ? 'border-blue-500/40' : 'border-slate-800')
-        }`}>
+        <div 
+          onClick={() => onTrackVariable?.('inflation_cpi')}
+          className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-md flex flex-col justify-between cursor-pointer transition group ${
+            s.inflation_cpi > 4.0 ? 'border-rose-500/40 hover:border-rose-400' : (s.inflation_cpi < 1.0 ? 'border-blue-500/40 hover:border-blue-400' : 'border-slate-800 hover:border-amber-400/80')
+          }`}
+          title="Click to track CPI Inflation in Movable Graph Overlay"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Headline CPI</span>
-            {inflationGap > 0 ? (
-              <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
-            ) : (
-              <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
-            )}
+            <div className="flex items-center gap-1">
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-rose-400 font-mono transition">📈</span>
+              {inflationGap > 0 ? (
+                <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
+              ) : (
+                <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+            </div>
           </div>
           <div className={`font-data text-2xl font-bold ${
             s.inflation_cpi > 4.0 ? 'text-rose-400' : (Math.abs(inflationGap) <= 0.5 ? 'text-emerald-400' : 'text-amber-300')
@@ -143,10 +161,17 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
         </div>
 
         {/* Real GDP Growth */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-md flex flex-col justify-between">
+        <div 
+          onClick={() => onTrackVariable?.('gdp_growth')}
+          className="bg-slate-900/90 border border-slate-800 hover:border-emerald-400/80 rounded-xl p-3.5 shadow-md flex flex-col justify-between cursor-pointer transition group"
+          title="Click to track Real GDP Growth in Movable Graph Overlay"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Real GDP</span>
-            <Activity className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="flex items-center gap-1">
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-emerald-400 font-mono transition">📈</span>
+              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
           </div>
           <div className={`font-data text-2xl font-bold ${s.gdp_growth < 0 ? 'text-rose-400' : 'text-slate-100'}`}>
             {s.gdp_growth > 0 ? `+${s.gdp_growth.toFixed(2)}%` : `${s.gdp_growth.toFixed(2)}%`}
@@ -158,10 +183,17 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
         </div>
 
         {/* Unemployment */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-md flex flex-col justify-between">
+        <div 
+          onClick={() => onTrackVariable?.('unemployment_rate')}
+          className="bg-slate-900/90 border border-slate-800 hover:border-sky-400/80 rounded-xl p-3.5 shadow-md flex flex-col justify-between cursor-pointer transition group"
+          title="Click to track Unemployment in Movable Graph Overlay"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Unemployment</span>
-            <Users className="w-3.5 h-3.5 text-blue-400" />
+            <div className="flex items-center gap-1">
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-sky-400 font-mono transition">📈</span>
+              <Users className="w-3.5 h-3.5 text-blue-400" />
+            </div>
           </div>
           <div className={`font-data text-2xl font-bold ${s.unemployment_rate > 5.5 ? 'text-rose-400' : 'text-slate-100'}`}>
             {s.unemployment_rate.toFixed(2)}%
@@ -173,10 +205,17 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
         </div>
 
         {/* Doll Street Stock Index */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 shadow-md flex flex-col justify-between">
+        <div 
+          onClick={() => onTrackVariable?.('stock_market_index')}
+          className="bg-slate-900/90 border border-slate-800 hover:border-amber-400/80 rounded-xl p-3.5 shadow-md flex flex-col justify-between cursor-pointer transition group"
+          title="Click to track Doll Street Index in Movable Graph Overlay"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="font-semibold uppercase tracking-wider text-[10px]">Doll Street Idx</span>
-            <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center gap-1">
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-amber-400 font-mono transition">📈</span>
+              <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+            </div>
           </div>
           <div className="font-data text-2xl font-bold text-slate-100">
             {s.stock_market_index.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -188,16 +227,23 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
         </div>
 
         {/* 10Y Yield & Inversion Warning */}
-        <div className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-md flex flex-col justify-between ${
-          yieldInversion ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800'
-        }`}>
+        <div 
+          onClick={() => onTrackVariable?.('bond_yield_10y')}
+          className={`bg-slate-900/90 border rounded-xl p-3.5 shadow-md flex flex-col justify-between cursor-pointer transition group ${
+            yieldInversion ? 'border-rose-500/40 bg-rose-950/10 hover:border-rose-400' : 'border-slate-800 hover:border-indigo-400/80'
+          }`}
+          title="Click to track 10Y Yield in Movable Graph Overlay"
+        >
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1">
             <span className="font-semibold uppercase tracking-wider text-[10px]">10Y Treasury</span>
-            {yieldInversion && (
-              <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                Inverted
-              </span>
-            )}
+            <div className="flex items-center gap-1">
+              <span className="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-400 font-mono transition">📈</span>
+              {yieldInversion && (
+                <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  Inverted
+                </span>
+              )}
+            </div>
           </div>
           <div className="font-data text-2xl font-bold text-slate-100">
             {s.bond_yield_10y.toFixed(2)}%
@@ -305,26 +351,54 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
 
           {isNormalOrHard ? (
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Real Wage Growth</span>
+              <div 
+                onClick={() => onTrackVariable?.('real_wage_growth')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-teal-400/80 cursor-pointer transition group"
+                title="Click to track Real Wages in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Real Wage Growth</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-teal-400 font-mono">📈</span>
+                </div>
                 <span className={`font-data font-bold text-sm ${s.real_wage_growth < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                   {s.real_wage_growth > 0 ? `+${s.real_wage_growth.toFixed(1)}%` : `${s.real_wage_growth.toFixed(1)}%`}
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Housing Cost Index</span>
+              <div 
+                onClick={() => onTrackVariable?.('housing_cost_index')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-orange-400/80 cursor-pointer transition group"
+                title="Click to track Housing Costs in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Housing Cost Index</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-orange-400 font-mono">📈</span>
+                </div>
                 <span className="font-data font-bold text-sm text-slate-200">
                   {s.housing_cost_index.toFixed(1)}
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Consumer Sentiment</span>
+              <div 
+                onClick={() => onTrackVariable?.('consumer_confidence')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-pink-400/80 cursor-pointer transition group"
+                title="Click to track Consumer Sentiment in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Consumer Sentiment</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-pink-400 font-mono">📈</span>
+                </div>
                 <span className="font-data font-bold text-sm text-amber-300">
                   {s.consumer_confidence.toFixed(1)} / 100
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Strike & Discontent</span>
+              <div 
+                onClick={() => onTrackVariable?.('poverty_discontent')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-rose-400/80 cursor-pointer transition group"
+                title="Click to track Public Discontent in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Strike & Discontent</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-rose-400 font-mono">📈</span>
+                </div>
                 <span className={`font-data font-bold text-sm ${s.poverty_discontent > 60 ? 'text-rose-400' : 'text-slate-300'}`}>
                   {s.poverty_discontent.toFixed(1)} / 100
                 </span>
@@ -351,20 +425,41 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
 
           {isHard ? (
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Parliament Approval</span>
+              <div 
+                onClick={() => onTrackVariable?.('parliamentary_approval')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-purple-400/80 cursor-pointer transition group"
+                title="Click to track Parliament Approval in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Parliament Approval</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-purple-400 font-mono">📈</span>
+                </div>
                 <span className={`font-data font-bold text-sm ${s.parliamentary_approval < 40 ? 'text-rose-400' : 'text-purple-300'}`}>
                   {s.parliamentary_approval.toFixed(1)}%
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Fiscal Deficit</span>
+              <div 
+                onClick={() => onTrackVariable?.('fiscal_deficit')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-rose-400/80 cursor-pointer transition group"
+                title="Click to track Fiscal Deficit in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Fiscal Deficit</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-rose-400 font-mono">📈</span>
+                </div>
                 <span className="font-data font-bold text-sm text-rose-400">
                   {s.fiscal_deficit.toFixed(2)}% of GDP
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-                <span className="text-slate-400 text-[11px] block">Debt-to-GDP</span>
+              <div 
+                onClick={() => onTrackVariable?.('debt_to_gdp')}
+                className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-slate-400/80 cursor-pointer transition group"
+                title="Click to track Debt-to-GDP in Graph Overlay"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Debt-to-GDP</span>
+                  <span className="opacity-0 group-hover:opacity-100 text-[9px] text-slate-300 font-mono">📈</span>
+                </div>
                 <span className="font-data font-bold text-sm text-slate-200">
                   {s.debt_to_gdp.toFixed(1)}%
                 </span>
@@ -399,9 +494,16 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
 
           {session.play_mode === 'first_person' ? (
             <div className="space-y-2.5">
-              <div>
+              <div 
+                onClick={() => onTrackVariable?.('job_security')}
+                className="cursor-pointer group p-1.5 -m-1.5 rounded-lg hover:bg-slate-950/60 transition"
+                title="Click to track Job Security in Graph Overlay"
+              >
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-400">Survival Meter:</span>
+                  <span className="text-slate-400 group-hover:text-emerald-300 transition flex items-center gap-1">
+                    <span>Survival Meter:</span>
+                    <span className="opacity-0 group-hover:opacity-100 text-[9px] text-emerald-400 font-mono">📈</span>
+                  </span>
                   <span className={`font-mono font-bold ${s.job_security < 30 ? 'text-rose-400' : 'text-emerald-400'}`}>
                     {s.job_security.toFixed(1)}%
                   </span>
