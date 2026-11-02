@@ -94,6 +94,53 @@ export const api = {
     return res.json();
   },
 
+  async getDotPlot(sessionId: string) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/dot-plot`);
+    if (!res.ok) throw new Error('Failed to load dot plot');
+    return res.json();
+  },
+
+  async updateBalanceSheet(sessionId: string, params: { qt_monthly_pace?: number; discount_window_active?: boolean }) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/balance-sheet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) throw new Error('Failed to update balance sheet');
+    return res.json();
+  },
+
+  async getParliamentHearing(sessionId: string) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/parliament-hearing`);
+    if (!res.ok) throw new Error('Failed to load parliamentary hearing');
+    return res.json();
+  },
+
+  async submitParliamentHearing(sessionId: string, choices: Record<string, string>) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/parliament-hearing/testify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choices })
+    });
+    if (!res.ok) throw new Error('Failed to submit testimony');
+    return res.json();
+  },
+
+  async getTermReview(sessionId: string) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/term-review`);
+    if (!res.ok) throw new Error('Failed to load term review');
+    return res.json();
+  },
+
+  async acceptReappointment(sessionId: string) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/term-review/reappoint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Failed to accept reappointment');
+    return res.json();
+  },
+
   // Advisor
   async sendAdvisorChat(sessionId: string, message: string): Promise<{ success: boolean; reply: string }> {
     const res = await fetch(`${API_BASE}/advisor/chat`, {

@@ -269,6 +269,25 @@ export const MonthlyActionModal: React.FC<MonthlyActionModalProps> = ({
                   Select Policy Rate Adjustment (Quarter-Percent Increments)
                 </label>
 
+                {/* Flip-Flop Contradiction Warning */}
+                {(() => {
+                  const recent = session.economic_state.recent_guidance || [];
+                  const hasDovish = recent.some(g => g.stance === 'dovish');
+                  const hasHawkish = recent.some(g => g.stance === 'hawkish');
+                  const isContradiction = (hasDovish && rateDecisionBps > 0) || (hasHawkish && rateDecisionBps < 0);
+
+                  if (!isContradiction) return null;
+
+                  return (
+                    <div className="mb-3 p-3 rounded-xl bg-rose-950/40 border border-rose-500/50 text-xs text-rose-200 flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-rose-300 font-semibold">Taper Tantrum Risk:</strong> You delivered {hasDovish ? 'Dovish' : 'Hawkish'} guidance earlier in this quarter. Enacting an opposing rate {rateDecisionBps > 0 ? 'hike' : 'cut'} will trigger a severe Credibility Shock, dislocating 2Y bond yields (+28 bps) and sparking a sharp equity selloff on Doll Street.
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {[
                     { label: '-100 bps (-1.00%)', val: -100, color: 'text-emerald-400' },

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NewsArticle, PublisherType } from '../../types';
-import { Newspaper, Flame, AlertCircle, ArrowUpRight, TrendingUp, TrendingDown, BookOpen } from 'lucide-react';
+import { Newspaper, BookOpen, Quote } from 'lucide-react';
 
 interface NewspaperDeskProps {
   articles: NewsArticle[];
@@ -37,8 +37,8 @@ const PUBLISHER_THEMES: Record<PublisherType, {
   },
   gotham: {
     name: 'Gotham News Tribune',
-    masthead: 'Gotham News Tribune',
     tagline: 'The People\'s Voice • Living Costs • Labor • Metro Realities',
+    masthead: 'Gotham News Tribune',
     accentBg: 'bg-blue-500/10',
     accentText: 'text-blue-400',
     border: 'border-blue-500/30',
@@ -63,8 +63,8 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
   const activeArticle = articles.find(a => a.publisher === selectedPublisher) || articles[0];
   const theme = activeArticle ? PUBLISHER_THEMES[activeArticle.publisher] : PUBLISHER_THEMES.gloomberg;
 
-  // Approximate word count
   const wordCount = activeArticle ? activeArticle.body.split(/\s+/).filter(Boolean).length : 0;
+  const paragraphs = activeArticle ? activeArticle.body.split('\n\n') : [];
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-md">
@@ -124,8 +124,8 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
             </div>
           </div>
 
-          {/* Tone & Urgency Badge Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+          {/* Tone, Urgency & Byline Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-slate-800/60 pb-4">
             <div className="flex items-center gap-2">
               <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
                 Editorial Stance:
@@ -153,20 +153,37 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
               </span>
             </div>
 
-            <span className="text-xs text-slate-500 font-mono">
-              Focal Telemetry: <strong className="text-slate-300">{activeArticle.featured_variable}</strong>
-            </span>
+            <div className="text-xs text-slate-400 italic">
+              {activeArticle.byline || 'By Staff Macro Correspondent'}
+            </div>
           </div>
 
           {/* Headline */}
-          <h1 className="font-serif-headline text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 leading-tight mb-6">
+          <h1 className="font-serif-headline text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-100 leading-tight mb-4">
             {activeArticle.headline}
           </h1>
 
-          {/* Article Body - Multi-paragraph 250-500 words */}
+          {/* Trader Gossip / Street Reaction Callout */}
+          {activeArticle.whisper_quote && (
+            <div className="my-5 p-4 rounded-xl bg-slate-900/90 border-l-4 border-amber-400 border-slate-800 shadow-md">
+              <div className="text-[11px] uppercase font-mono tracking-wider text-amber-400 font-bold mb-1 flex items-center gap-1.5">
+                <Quote className="w-3.5 h-3.5" /> Trader Gossip & Hallway Whisper
+              </div>
+              <div className="font-serif italic text-sm text-slate-200">
+                {activeArticle.whisper_quote}
+              </div>
+            </div>
+          )}
+
+          {/* Article Body - Multi-paragraph with dateline */}
           <div className="font-editorial text-base sm:text-lg text-slate-200 leading-relaxed space-y-4 max-w-none border-l-2 border-slate-800 pl-4 sm:pl-6">
-            {activeArticle.body.split('\n\n').map((paragraph, idx) => (
+            {paragraphs.map((paragraph, idx) => (
               <p key={idx} className="first-letter:text-3xl first-letter:font-bold first-letter:text-amber-400 first-letter:float-left first-letter:mr-2">
+                {idx === 0 && activeArticle.dateline && (
+                  <strong className="font-mono text-xs uppercase tracking-wider text-amber-300 mr-2 not-italic">
+                    [{activeArticle.dateline}] —
+                  </strong>
+                )}
                 {paragraph}
               </p>
             ))}

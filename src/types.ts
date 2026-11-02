@@ -7,6 +7,8 @@ export interface EconomicState {
   // Core Macro Variables
   interest_rate: number;
   inflation_cpi: number;
+  flexible_cpi?: number;
+  sticky_cpi?: number;
   core_inflation: number;
   unemployment_rate: number;
   gdp_growth: number;
@@ -15,6 +17,17 @@ export interface EconomicState {
   bond_yield_2y: number;
   currency_index: number;
   bank_lending_rate: number;
+
+  // Pillar E: Balance Sheet & Emergency Tools
+  balance_sheet_size?: number; // $T
+  qt_monthly_pace?: number;    // $B/mo
+  discount_window_active?: boolean;
+  discount_window_rate?: number;
+
+  // Pillar C: Credibility & Taper Tantrum
+  market_credibility?: number;
+  recent_guidance?: { month: number; stance: string }[];
+  credibility_warning?: string | null;
 
   // Social & Living Standards (Normal + Hard)
   real_wage_growth: number;
@@ -31,12 +44,58 @@ export interface EconomicState {
   central_bank_autonomy: number;
   months_to_election: number;
 
-  // First Person Job Security
+  // First Person Job Security & Term Tracking
   job_security: number;
   warning_count: number;
+  term_months_completed?: number;
+  reappointment_count?: number;
 
-  // Active Shocks
+  // Active Shocks & MPC Votes
   active_events: ActiveEvent[];
+  last_mpc_vote?: MPCVotingResult | null;
+}
+
+export interface MPCMemberVote {
+  member_id: string;
+  name: string;
+  role: string;
+  hawkishness: number;
+  preferred_rate: number;
+  preferred_delta_bps: number;
+  vote: 'AYE' | 'DISSENT_HAWK' | 'DISSENT_DOVE';
+  rationale: string;
+}
+
+export interface MPCVotingResult {
+  proposed_rate: number;
+  proposed_delta_bps: number;
+  ayes: number;
+  dissents: number;
+  hawkish_dissents: number;
+  dovish_dissents: number;
+  passed: boolean;
+  tally_label: string;
+  member_votes: MPCMemberVote[];
+  consensus_summary: string;
+}
+
+export interface DotPlotMemberDot {
+  member_id: string;
+  name: string;
+  role: string;
+  year_1: string;
+  year_2: string;
+  long_run: string;
+}
+
+export interface DotPlotData {
+  current_rate: number;
+  median_projections: {
+    year_1: number;
+    year_2: number;
+    long_run: number;
+  };
+  dots: DotPlotMemberDot[];
 }
 
 export interface ActiveEvent {
@@ -79,6 +138,9 @@ export interface NewsArticle {
   tone: 'hawkish' | 'dovish' | 'alarmist' | 'bullish' | 'critical' | 'neutral';
   urgency: 'low' | 'medium' | 'high' | 'critical';
   featured_variable: string;
+  byline?: string;
+  dateline?: string;
+  whisper_quote?: string;
 }
 
 export interface TurnSnapshot {
@@ -120,6 +182,46 @@ export interface AdvisorMessage {
   created_at?: string;
 }
 
+export interface HearingStrategy {
+  key: string;
+  label: string;
+  dialogue: string;
+  parl_approval_delta: number;
+  autonomy_delta: number;
+  market_credibility_delta: number;
+  public_approval_delta: number;
+}
+
+export interface ParliamentaryQuestion {
+  id: string;
+  interrogator: string;
+  question: string;
+  strategies: HearingStrategy[];
+}
+
+export interface ParliamentaryHearingData {
+  session_id: string;
+  current_year: number;
+  current_month: number;
+  parliamentary_approval: number;
+  public_approval: number;
+  questions: ParliamentaryQuestion[];
+}
+
+export interface TermReviewScorecard {
+  chair_name: string;
+  months_in_office: number;
+  avg_inflation_deviation: string;
+  avg_gdp_growth: string;
+  avg_unemployment: string;
+  current_inflation: number;
+  parliamentary_approval: number;
+  market_credibility: number;
+  verdict: 'REAPPOINTED' | 'NOT_REAPPOINTED';
+  verdict_title: string;
+  citation: string;
+}
+
 export interface GameSession {
   id: string;
   user_id: string;
@@ -135,10 +237,14 @@ export interface GameSession {
   economic_state: EconomicState;
   chair_state: ChairState;
   taylor_rule: number;
+  dot_plot?: DotPlotData;
+  last_mpc_vote?: MPCVotingResult | null;
   news_articles: NewsArticle[];
   history?: TurnSnapshot[];
   policies?: PolicyProposal[];
   media_blitzes?: MediaBlitz[];
+  hearing_eligible?: boolean;
+  term_review_eligible?: boolean;
 }
 
 export interface User {

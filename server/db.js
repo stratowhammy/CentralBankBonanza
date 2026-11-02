@@ -118,6 +118,20 @@ db.exec(`
   );
 `);
 
+// Safe column migrations for Section 5 features
+try {
+  db.exec('ALTER TABLE news_articles ADD COLUMN byline TEXT');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE news_articles ADD COLUMN dateline TEXT');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE news_articles ADD COLUMN whisper_quote TEXT');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE game_sessions ADD COLUMN hearings_completed INTEGER DEFAULT 0');
+} catch (e) {}
+
 // Seed default admin and guest users if they don't exist
 const checkAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!checkAdmin) {
