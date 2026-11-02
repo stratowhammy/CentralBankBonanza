@@ -196,7 +196,7 @@ router.get('/:sessionId', (req, res) => {
     `).all(session.id);
 
     // Fetch media blitzes
-    const mediaBlitzes = db.prepare(`
+    const media_blitzes = db.prepare(`
       SELECT id, target_audience, strategic_message, public_response, impact_summary, created_at
       FROM media_blitzes
       WHERE session_id = ?

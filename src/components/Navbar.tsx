@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, GameSession } from '../types';
-import { Landmark, UserCircle, LogOut, Sliders, LayoutDashboard, Compass } from 'lucide-react';
+import { Landmark, UserCircle, LogOut, Sliders, LayoutDashboard, Compass, Play } from 'lucide-react';
 
 interface NavbarProps {
   user: User | null;
@@ -52,8 +52,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Center Live Status: Only shown if Admin is viewing the Macro Game */}
-        {isAdmin && activeSession && currentView === 'game' && (
+        {/* Center Live Status: Shown if viewing the Game */}
+        {activeSession && currentView === 'game' && (
           <div className="hidden md:flex items-center gap-3 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="font-medium text-slate-300">Year {activeSession.current_year}, Month {activeSession.current_month}</span>
@@ -67,6 +67,29 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Navigation & User Controls */}
         <div className="flex items-center gap-3">
           
+          {/* Regular user navigation */}
+          {!isAdmin && (
+            <>
+              {currentView === 'game' ? (
+                <button
+                  onClick={() => onNavigate('user_portal')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 transition cursor-pointer"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 text-amber-400" />
+                  <span>My Simulations</span>
+                </button>
+              ) : activeSession ? (
+                <button
+                  onClick={() => onNavigate('game')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Enter Simulation</span>
+                </button>
+              ) : null}
+            </>
+          )}
+
           {/* Admin-only navigation buttons */}
           {isAdmin && (
             <>

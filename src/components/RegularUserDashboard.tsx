@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { User, PlayMode, Difficulty, SimulationListItem } from '../types';
+import { User, PlayMode, Difficulty, SimulationListItem, GameSession } from '../types';
 import { api } from '../api';
-import { Play, Check, Trash2, Eye, X, RefreshCw, UserCheck, Users, Sliders } from 'lucide-react';
+import { Play, Check, Trash2, Eye, X, RefreshCw, UserCheck, Users, Sliders, Landmark } from 'lucide-react';
 
 interface RegularUserDashboardProps {
   user: User | null;
+  activeSession?: GameSession | null;
   onStartSimulation: (params: {
     chair_name: string;
     play_mode: PlayMode;
     difficulty: Difficulty;
   }) => Promise<void>;
+  onEnterSimulation: (sessionId: string) => Promise<void>;
   onOpenAuth: () => void;
   onLogout: () => void;
   onSwitchToAdmin?: () => void;
@@ -17,7 +19,9 @@ interface RegularUserDashboardProps {
 
 export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
   user,
+  activeSession,
   onStartSimulation,
+  onEnterSimulation,
   onOpenAuth,
   onLogout,
   onSwitchToAdmin
@@ -148,6 +152,72 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
       {/* Main Content */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-6 space-y-8">
         
+        {/* Active Simulation In Progress Banner */}
+        {activeSession && activeSession.status === 'active' ? (
+          <section className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-indigo-500/15 border-2 border-amber-500/50 rounded-xl p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
+                <Landmark className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                    Active Mandate In Progress
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-white mt-0.5">
+                  {activeSession.chair_name} — Year {activeSession.current_year}, Month {activeSession.current_month}
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  {activeSession.play_mode === 'first_person' ? 'First Person' : 'God Mode'} • {activeSession.difficulty.toUpperCase()} • Policy Rate: <span className="font-mono text-amber-300 font-semibold">{activeSession.economic_state.interest_rate.toFixed(2)}%</span> • CPI: <span className="font-mono text-emerald-400 font-semibold">{activeSession.economic_state.inflation_cpi.toFixed(2)}%</span>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onEnterSimulation(activeSession.id)}
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer flex-shrink-0"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>Enter Simulation</span>
+            </button>
+          </section>
+        ) : simulations.find(s => s.status === 'active') ? (
+          (() => {
+            const inProg = simulations.find(s => s.status === 'active')!;
+            return (
+              <section className="bg-gradient-to-r from-amber-500/15 via-slate-900 to-indigo-500/15 border-2 border-amber-500/50 rounded-xl p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
+                    <Landmark className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        Active Mandate In Progress
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-white mt-0.5">
+                      {inProg.chair_name} — Year {inProg.current_year}, Month {inProg.current_month}
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      {inProg.play_mode === 'first_person' ? 'First Person' : 'God Mode'} • {inProg.difficulty.toUpperCase()} • Policy Rate: <span className="font-mono text-amber-300 font-semibold">{inProg.results.interest_rate.toFixed(2)}%</span> • CPI: <span className="font-mono text-emerald-400 font-semibold">{inProg.results.inflation_cpi.toFixed(2)}%</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onEnterSimulation(inProg.id)}
+                  className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer flex-shrink-0"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>Enter Simulation</span>
+                </button>
+              </section>
+            );
+          })()
+        ) : null}
+
         {/* SECTION 1: Start New Simulation */}
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-bold text-white mb-4">New Simulation</h2>
@@ -343,16 +413,34 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
                       <td className="px-4 py-3 font-mono">
                         {sim.results.parliamentary_approval.toFixed(1)}%
                       </td>
-                      <td className="px-4 py-3 text-right space-x-2">
+                      <td className="px-4 py-3 text-right space-x-1.5 whitespace-nowrap">
+                        {sim.status === 'active' ? (
+                          <button
+                            onClick={() => onEnterSimulation(sim.id)}
+                            className="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-bold transition-colors inline-flex items-center gap-1 shadow-sm cursor-pointer"
+                          >
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>Enter</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => onEnterSimulation(sim.id)}
+                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 text-[11px] font-medium transition-colors inline-flex items-center gap-1 cursor-pointer border border-slate-700"
+                            title="Enter simulation to review past state & history"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>Review</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => setSelectedResult(sim)}
-                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition-colors"
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
                         >
-                          View Results
+                          Results
                         </button>
                         <button
                           onClick={() => handleDelete(sim.id)}
-                          className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
+                          className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
                           title="Delete record"
                         >
                           <Trash2 className="w-3.5 h-3.5 inline" />
@@ -446,10 +534,21 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex items-center justify-between gap-3">
+              <button
+                onClick={() => {
+                  const id = selectedResult.id;
+                  setSelectedResult(null);
+                  onEnterSimulation(id);
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-amber-500/20"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>{selectedResult.status === 'active' ? 'Enter This Simulation' : 'Review Simulation Game Board'}</span>
+              </button>
               <button
                 onClick={() => setSelectedResult(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >
                 Close
               </button>

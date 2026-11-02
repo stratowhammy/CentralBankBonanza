@@ -94,27 +94,33 @@ export const MonthlyCadenceBar: React.FC<MonthlyCadenceBarProps> = ({ session, o
 
         {/* Right: Action Button */}
         <div>
-          <button
-            onClick={onOpenActionModal}
-            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-98 cursor-pointer ${
-              isMpcMonth
-                ? 'bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 hover:from-rose-500 hover:to-rose-400 text-white shadow-rose-950/50 animate-pulse'
-                : 'bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 shadow-amber-950/40'
-            }`}
-          >
-            {isMpcMonth ? (
-              <>
-                <Vote className="w-4 h-4" />
-                <span>Convene MPC Rate Vote</span>
-              </>
-            ) : (
-              <>
-                <BellRing className="w-4 h-4" />
-                <span>Issue Guidance or Silence</span>
-              </>
-            )}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          {session.status === 'active' ? (
+            <button
+              onClick={onOpenActionModal}
+              className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-98 cursor-pointer ${
+                isMpcMonth
+                  ? 'bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 hover:from-rose-500 hover:to-rose-400 text-white shadow-rose-950/50 animate-pulse'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 shadow-amber-950/40'
+              }`}
+            >
+              {isMpcMonth ? (
+                <>
+                  <Vote className="w-4 h-4" />
+                  <span>Convene MPC Rate Vote</span>
+                </>
+              ) : (
+                <>
+                  <BellRing className="w-4 h-4" />
+                  <span>Issue Guidance or Silence</span>
+                </>
+              )}
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <div className="px-5 py-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 text-xs font-semibold uppercase tracking-wider text-center">
+              Mandate Concluded ({session.status === 'dismissed' ? 'Dismissed' : 'Completed'})
+            </div>
+          )}
         </div>
 
       </div>

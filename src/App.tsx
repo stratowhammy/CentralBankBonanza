@@ -57,7 +57,10 @@ export const App: React.FC = () => {
 
   // Safe navigation handler enforcing regular user boundary
   const handleNavigate = (view: 'landing' | 'game' | 'admin' | 'user_portal') => {
-    if (currentUser?.role !== 'admin' && view !== 'user_portal') {
+    const isKlimbus = currentUser?.username === 'kbunghole' || currentUser?.display_name?.toLowerCase().includes('klimbus');
+    const isAdmin = currentUser?.role === 'admin' && currentUser?.username === 'admin' && !isKlimbus;
+
+    if (!isAdmin && (view === 'admin' || view === 'landing')) {
       setCurrentView('user_portal');
       return;
     }
@@ -93,14 +96,22 @@ export const App: React.FC = () => {
       setActiveSession(res.session);
       localStorage.setItem('cbb_session_id', res.session.id);
       
-      // If admin, they can navigate to full macro view; if regular user, stay on clean user portal
-      if (user.role === 'admin') {
-        setCurrentView('game');
-      } else {
-        setCurrentView('user_portal');
-      }
+      // Directly enter into the simulation!
+      setCurrentView('game');
     } catch (err: any) {
       alert(err.message || 'Failed to start game session');
+    }
+  };
+
+  // Enter / Resume an existing simulation
+  const handleEnterSimulation = async (sessionId: string) => {
+    try {
+      const res = await api.getGameSession(sessionId);
+      setActiveSession(res.session);
+      localStorage.setItem('cbb_session_id', res.session.id);
+      setCurrentView('game');
+    } catch (err: any) {
+      alert(err.message || 'Failed to enter simulation');
     }
   };
 
@@ -206,26 +217,53 @@ export const App: React.FC = () => {
       <Navbar
         user={currentUser}
         activeSession={activeSession}
-        currentView={isRegularUser ? 'user_portal' : currentView}
+        currentView={currentView}
         onNavigate={handleNavigate}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenEventWeb={() => setIsEventWebOpen(true)}
         onLogout={handleLogout}
-        onNewGamePrompt={() => setCurrentView('landing')}
+        onNewGamePrompt={() => setCurrentView(isRegularUser ? 'user_portal' : 'landing')}
       />
 
       {/* Main View Router */}
       <main className="flex-1">
         
-        {/* Regular User Custom View (default for all non-admins) */}
-        {(isRegularUser || currentView === 'user_portal') && (
+        {/* Game Simulation View (when playing or reviewing an active/past session) */}
+        {currentView === 'game' && activeSession && (
+          <GameDashboard
+            session={activeSession}
+            onSubmitAction={handleSubmitAction}
+            onSwitchChair={handleSwitchChair}
+            onRefreshSession={handleRefreshSession}
+            onExit={() => setCurrentView('user_portal')}
+          />
+        )}
+
+        {/* Regular User Portal View */}
+        {currentView === 'user_portal' && (
           <RegularUserDashboard
             user={currentUser}
+            activeSession={activeSession}
             onStartSimulation={handleStartGame}
+            onEnterSimulation={handleEnterSimulation}
             onOpenAuth={() => setIsAuthModalOpen(true)}
             onLogout={handleLogout}
-            onSwitchToAdmin={currentUser?.role === 'admin' ? () => setCurrentView('admin') : undefined}
+            onSwitchToAdmin={!isRegularUser ? () => setCurrentView('admin') : undefined}
           />
+        )}
+
+        {/* If game view requested without an active session */}
+        {currentView === 'game' && !activeSession && (
+          <div className="max-w-md mx-auto my-20 p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
+            <h3 className="font-prestige font-bold text-lg mb-2">No Active Career Found</h3>
+            <p className="text-xs text-slate-400 mb-6">Select or start a new central bank appointment from your portal.</p>
+            <button
+              onClick={() => setCurrentView('user_portal')}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase"
+            >
+              Return to My Simulations
+            </button>
+          </div>
         )}
 
         {/* Admin-only views */}
@@ -236,28 +274,6 @@ export const App: React.FC = () => {
             onResumeGame={() => setCurrentView('game')}
             onOpenEventWeb={() => setIsEventWebOpen(true)}
           />
-        )}
-
-        {!isRegularUser && currentView === 'game' && activeSession && (
-          <GameDashboard
-            session={activeSession}
-            onSubmitAction={handleSubmitAction}
-            onSwitchChair={handleSwitchChair}
-            onRefreshSession={handleRefreshSession}
-          />
-        )}
-
-        {!isRegularUser && currentView === 'game' && !activeSession && (
-          <div className="max-w-md mx-auto my-20 p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
-            <h3 className="font-prestige font-bold text-lg mb-2">No Active Career Found</h3>
-            <p className="text-xs text-slate-400 mb-6">Start a new central bank appointment on the home screen.</p>
-            <button
-              onClick={() => setCurrentView('landing')}
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase"
-            >
-              Go to Landing Page
-            </button>
-          </div>
         )}
 
         {!isRegularUser && currentView === 'admin' && (

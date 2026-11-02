@@ -14,7 +14,7 @@ import { MpcVotingDivisionModal } from './game/MpcVotingDivisionModal';
 import { ParliamentaryHearingModal } from './game/ParliamentaryHearingModal';
 import { TermReappointmentModal } from './game/TermReappointmentModal';
 import { api } from '../api';
-import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2 } from 'lucide-react';
+import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft } from 'lucide-react';
 
 interface GameDashboardProps {
   session: GameSession;
@@ -25,13 +25,15 @@ interface GameDashboardProps {
   }) => Promise<void>;
   onSwitchChair: (nextChairId: string) => Promise<void>;
   onRefreshSession: () => Promise<void>;
+  onExit?: () => void;
 }
 
 export const GameDashboard: React.FC<GameDashboardProps> = ({
   session,
   onSubmitAction,
   onSwitchChair,
-  onRefreshSession
+  onRefreshSession,
+  onExit
 }) => {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isAdvisorDrawerOpen, setIsAdvisorDrawerOpen] = useState(false);
@@ -65,6 +67,44 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
+        {/* Top Navigation & Status Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 rounded-2xl px-5 py-3 shadow-md backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            {onExit && (
+              <button
+                onClick={onExit}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer border border-slate-700 hover:text-white"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Exit to My Simulations</span>
+              </button>
+            )}
+            <div className="text-xs text-slate-300">
+              <span className="font-semibold text-white">{session.chair_name}</span>
+              <span className="text-slate-500 mx-1.5">•</span>
+              <span className="capitalize text-slate-300">{session.play_mode === 'first_person' ? 'First Person' : 'God Mode'}</span>
+              <span className="text-slate-500 mx-1.5">•</span>
+              <span className="capitalize text-amber-400 font-medium">{session.difficulty} Scenario</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-slate-400 font-mono">
+              Year {session.current_year}, Month {session.current_month}
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+              session.status === 'active' 
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                : session.status === 'dismissed'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+            }`}>
+              {session.status === 'active' ? '● In Office' : session.status.toUpperCase()}
+            </span>
+          </div>
+        </div>
+
         {/* Dismissal / Term Over banner if game is not active */}
         {session.status === 'dismissed' && (
           <div className="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/60 shadow-2xl flex items-center justify-between text-rose-200">
