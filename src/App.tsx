@@ -7,19 +7,19 @@ import { GameDashboard } from './components/GameDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
 import { EventWebModal } from './components/EventWebModal';
+import { RegularUserDashboard } from './components/RegularUserDashboard';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeSession, setActiveSession] = useState<GameSession | null>(null);
-  const [currentView, setCurrentView] = useState<'landing' | 'game' | 'admin'>('landing');
+  const [currentView, setCurrentView] = useState<'landing' | 'game' | 'admin' | 'user_portal'>('user_portal');
 
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isEventWebOpen, setIsEventWebOpen] = useState(false);
 
-  // Auto-login guest or check existing session on mount
+  // Auto-login guest or restore saved user session
   useEffect(() => {
-    // Try to restore saved session or login as guest
     const savedUser = localStorage.getItem('cbb_user');
     const savedSessionId = localStorage.getItem('cbb_session_id');
 
@@ -27,6 +27,10 @@ export const App: React.FC = () => {
       try {
         const u = JSON.parse(savedUser);
         setCurrentUser(u);
+        // Regular users always stay in user_portal view
+        if (u.role !== 'admin') {
+          setCurrentView('user_portal');
+        }
         if (savedSessionId) {
           api.getGameSession(savedSessionId)
             .then(res => {
@@ -40,17 +44,27 @@ export const App: React.FC = () => {
         // ignore
       }
     } else {
-      // Automatic guest login for zero-friction launch
+      // Default to guest player
       api.guestLogin()
         .then(res => {
           setCurrentUser(res.user);
           localStorage.setItem('cbb_user', JSON.stringify(res.user));
+          setCurrentView('user_portal');
         })
         .catch(() => {});
     }
   }, []);
 
-  // Start new game
+  // Safe navigation handler enforcing regular user boundary
+  const handleNavigate = (view: 'landing' | 'game' | 'admin' | 'user_portal') => {
+    if (currentUser?.role !== 'admin' && view !== 'user_portal') {
+      setCurrentView('user_portal');
+      return;
+    }
+    setCurrentView(view);
+  };
+
+  // Start new game / simulation
   const handleStartGame = async (params: {
     chair_name: string;
     play_mode: PlayMode;
@@ -78,13 +92,19 @@ export const App: React.FC = () => {
       });
       setActiveSession(res.session);
       localStorage.setItem('cbb_session_id', res.session.id);
-      setCurrentView('game');
+      
+      // If admin, they can navigate to full macro view; if regular user, stay on clean user portal
+      if (user.role === 'admin') {
+        setCurrentView('game');
+      } else {
+        setCurrentView('user_portal');
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to start game session');
     }
   };
 
-  // Submit action in game
+  // Submit action in game (Admin / full simulator)
   const handleSubmitAction = async (params: {
     action_type: ActionType;
     action_value?: string;
@@ -94,7 +114,6 @@ export const App: React.FC = () => {
     try {
       const res = await api.submitAction(activeSession.id, params);
       
-      // Update session with new month data
       const updatedSession: GameSession = {
         ...activeSession,
         current_year: res.current_year,
@@ -107,6 +126,7 @@ export const App: React.FC = () => {
         chair_state: res.chair_state,
         taylor_rule: res.taylor_rule,
         news_articles: res.news_articles,
+        last_mpc_vote: res.last_mpc_vote,
         history: [
           ...(activeSession.history || []),
           {
@@ -158,12 +178,25 @@ export const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('cbb_user');
+    // Login back as guest
+    api.guestLogin().then(res => {
+      setCurrentUser(res.user);
+      localStorage.setItem('cbb_user', JSON.stringify(res.user));
+      setCurrentView('user_portal');
+    });
   };
 
   const handleAuthSuccess = (u: User) => {
     setCurrentUser(u);
     localStorage.setItem('cbb_user', JSON.stringify(u));
+    if (u.role === 'admin') {
+      setCurrentView('admin');
+    } else {
+      setCurrentView('user_portal');
+    }
   };
+
+  const isRegularUser = currentUser?.role !== 'admin';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -172,8 +205,8 @@ export const App: React.FC = () => {
       <Navbar
         user={currentUser}
         activeSession={activeSession}
-        currentView={currentView}
-        onNavigate={setCurrentView}
+        currentView={isRegularUser ? 'user_portal' : currentView}
+        onNavigate={handleNavigate}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenEventWeb={() => setIsEventWebOpen(true)}
         onLogout={handleLogout}
@@ -182,7 +215,20 @@ export const App: React.FC = () => {
 
       {/* Main View Router */}
       <main className="flex-1">
-        {currentView === 'landing' && (
+        
+        {/* Regular User Custom View (default for all non-admins) */}
+        {(isRegularUser || currentView === 'user_portal') && (
+          <RegularUserDashboard
+            user={currentUser}
+            onStartSimulation={handleStartGame}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onLogout={handleLogout}
+            onSwitchToAdmin={currentUser?.role === 'admin' ? () => setCurrentView('admin') : undefined}
+          />
+        )}
+
+        {/* Admin-only views */}
+        {!isRegularUser && currentView === 'landing' && (
           <LandingPage
             onStartGame={handleStartGame}
             hasActiveSession={!!activeSession}
@@ -191,7 +237,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {currentView === 'game' && activeSession && (
+        {!isRegularUser && currentView === 'game' && activeSession && (
           <GameDashboard
             session={activeSession}
             onSubmitAction={handleSubmitAction}
@@ -200,7 +246,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {currentView === 'game' && !activeSession && (
+        {!isRegularUser && currentView === 'game' && !activeSession && (
           <div className="max-w-md mx-auto my-20 p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl">
             <h3 className="font-prestige font-bold text-lg mb-2">No Active Career Found</h3>
             <p className="text-xs text-slate-400 mb-6">Start a new central bank appointment on the home screen.</p>
@@ -213,7 +259,7 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {currentView === 'admin' && (
+        {!isRegularUser && currentView === 'admin' && (
           <AdminDashboard />
         )}
       </main>

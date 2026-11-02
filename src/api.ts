@@ -141,6 +141,31 @@ export const api = {
     return res.json();
   },
 
+  async getSimulationsList(userId?: string): Promise<{ simulations: any[] }> {
+    const url = userId ? `${API_BASE}/game/simulations/list?user_id=${encodeURIComponent(userId)}` : `${API_BASE}/game/simulations/list`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to load simulations list');
+    return res.json();
+  },
+
+  async simulateMonths(sessionId: string, months: number) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/simulate-months`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ months })
+    });
+    if (!res.ok) throw new Error('Failed to simulate months');
+    return res.json();
+  },
+
+  async deleteSimulation(sessionId: string) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Failed to delete simulation');
+    return res.json();
+  },
+
   // Advisor
   async sendAdvisorChat(sessionId: string, message: string): Promise<{ success: boolean; reply: string }> {
     const res = await fetch(`${API_BASE}/advisor/chat`, {

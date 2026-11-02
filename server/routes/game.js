@@ -107,6 +107,57 @@ router.post('/new', async (req, res) => {
   }
 });
 
+// List previous simulations for regular users with summary results
+router.get('/simulations/list', (req, res) => {
+  try {
+    const userId = req.query.user_id;
+    let query = 'SELECT * FROM game_sessions';
+    let params = [];
+    if (userId) {
+      query += ' WHERE user_id = ?';
+      params.push(userId);
+    }
+    query += ' ORDER BY updated_at DESC LIMIT 60';
+
+    const rows = db.prepare(query).all(...params);
+    const simulations = rows.map(r => {
+      let econ = {};
+      let chair = {};
+      try { econ = JSON.parse(r.economic_state); } catch (e) {}
+      try { chair = JSON.parse(r.chair_state); } catch (e) {}
+
+      return {
+        id: r.id,
+        user_id: r.user_id,
+        chair_name: r.chair_name,
+        play_mode: r.play_mode,
+        difficulty: r.difficulty,
+        status: r.status,
+        current_year: r.current_year,
+        current_month: r.current_month,
+        total_months_elapsed: r.total_months_elapsed,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        results: {
+          interest_rate: econ.interest_rate ?? 4.25,
+          inflation_cpi: econ.inflation_cpi ?? 2.0,
+          parliamentary_approval: econ.parliamentary_approval ?? 60.0,
+          public_approval: econ.public_approval ?? 55.0,
+          job_security: econ.job_security ?? 65.0,
+          warning_count: econ.warning_count ?? 0,
+          reappointment_count: econ.reappointment_count ?? 0,
+          market_credibility: econ.market_credibility ?? 75.0,
+          last_action_details: r.last_action_details || 'In progress'
+        }
+      };
+    });
+
+    res.json({ simulations });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get current game session state
 router.get('/:sessionId', (req, res) => {
   try {
@@ -707,6 +758,96 @@ router.post('/:sessionId/switch-chair', (req, res) => {
     `).run(selectedTemplate.name, JSON.stringify(chairState), session.id);
 
     res.json({ success: true, chair_state: chairState });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Run automated simulation batch for regular users (e.g. 12, 24, 48 months)
+router.post('/:sessionId/simulate-months', async (req, res) => {
+  try {
+    const { months } = req.body;
+    const numMonths = Math.min(48, Math.max(1, parseInt(months, 10) || 12));
+    const session = db.prepare('SELECT * FROM game_sessions WHERE id = ?').get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    let econ = JSON.parse(session.economic_state);
+    let chair = JSON.parse(session.chair_state);
+    let currentYear = session.current_year;
+    let currentMonth = session.current_month;
+    let totalElapsed = session.total_months_elapsed;
+    let status = session.status;
+
+    for (let i = 0; i < numMonths; i++) {
+      if (status === 'dismissed') break;
+      const monthInQ = ((currentMonth - 1) % 3) + 1;
+      let actionType = 'silence';
+      let actionValue = '0';
+
+      if (monthInQ === 3) {
+        actionType = 'mpc_rate_decision';
+        const taylor = calculateTaylorRule(econ);
+        const diff = taylor - econ.interest_rate;
+        const deltaBps = Math.round(diff * 4) * 25;
+        actionValue = String(Math.max(-50, Math.min(50, deltaBps)));
+      } else {
+        actionType = 'guidance';
+        actionValue = econ.inflation_cpi > 3.0 ? 'hawkish' : (econ.inflation_cpi < 1.8 ? 'dovish' : 'neutral');
+      }
+
+      econ = evolveEconomy(econ, { action_type: actionType, action_value: actionValue }, session.play_mode, session.difficulty, chair);
+
+      currentMonth += 1;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear += 1;
+      }
+      totalElapsed += 1;
+
+      if (session.play_mode === 'first_person' && econ.job_security < 18.0 && econ.warning_count >= 3) {
+        status = 'dismissed';
+      }
+      if (econ.term_months_completed >= 48 && status !== 'dismissed') {
+        status = 'term_completed';
+      }
+    }
+
+    db.prepare(`
+      UPDATE game_sessions
+      SET current_year = ?, current_month = ?, total_months_elapsed = ?,
+          economic_state = ?, chair_state = ?, status = ?,
+          last_action = 'automated_simulation', last_action_details = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      currentYear, 
+      currentMonth, 
+      totalElapsed, 
+      JSON.stringify(econ), 
+      JSON.stringify(chair), 
+      status, 
+      `Simulated ${numMonths} months (Year ${currentYear}, M${currentMonth})`, 
+      session.id
+    );
+
+    res.json({
+      success: true,
+      current_year: currentYear,
+      current_month: currentMonth,
+      total_months_elapsed: totalElapsed,
+      status,
+      economic_state: econ
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete previous simulation
+router.delete('/:sessionId', (req, res) => {
+  try {
+    db.prepare('DELETE FROM game_sessions WHERE id = ?').run(req.params.sessionId);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

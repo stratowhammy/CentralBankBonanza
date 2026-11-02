@@ -254,6 +254,31 @@ export interface User {
   role: 'player' | 'admin';
 }
 
+export interface SimulationListItem {
+  id: string;
+  user_id: string;
+  chair_name: string;
+  play_mode: PlayMode;
+  difficulty: Difficulty;
+  status: 'active' | 'retired' | 'dismissed' | 'term_completed';
+  current_year: number;
+  current_month: number;
+  total_months_elapsed: number;
+  created_at: string;
+  updated_at: string;
+  results: {
+    interest_rate: number;
+    inflation_cpi: number;
+    parliamentary_approval: number;
+    public_approval: number;
+    job_security: number;
+    warning_count: number;
+    reappointment_count: number;
+    market_credibility: number;
+    last_action_details: string;
+  };
+}
+
 export interface EventCatalogItem {
   id: string;
   name: string;
