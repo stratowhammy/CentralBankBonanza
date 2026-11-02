@@ -123,18 +123,8 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            {user?.role === 'admin' && onSwitchToAdmin && (
-              <button
-                onClick={onSwitchToAdmin}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors flex items-center gap-1.5"
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Admin View</span>
-              </button>
-            )}
-
             {user ? (
-              <div className="flex items-center gap-3 text-xs text-slate-300 pl-3 border-l border-slate-800">
+              <div className="flex items-center gap-3 text-xs text-slate-300">
                 <span>{user.display_name}</span>
                 <button
                   onClick={onLogout}
@@ -326,11 +316,11 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {simulations.map((sim) => (
+                  {simulations.map((sim, idx) => (
                     <tr key={sim.id} className="hover:bg-slate-800/40 transition-colors">
                       <td className="px-4 py-3 font-medium text-white">
                         <div>{sim.chair_name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{sim.id}</div>
+                        <div className="text-[10px] text-slate-500">Simulation #{idx + 1}</div>
                       </td>
                       <td className="px-4 py-3 capitalize">
                         {sim.play_mode === 'first_person' ? 'First Person' : 'God Mode'}
@@ -385,7 +375,7 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
                 <h3 className="font-bold text-base text-white">Simulation Results</h3>
-                <p className="text-xs text-slate-400 font-mono">ID: {selectedResult.id}</p>
+                <p className="text-xs text-slate-400">Date: {new Date(selectedResult.created_at).toLocaleDateString()}</p>
               </div>
               <button
                 onClick={() => setSelectedResult(null)}

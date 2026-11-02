@@ -12,10 +12,17 @@ router.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'session_id and message are required' });
     }
 
-    const session = db.prepare('SELECT economic_state FROM game_sessions WHERE id = ?').get(session_id);
+    const session = db.prepare('SELECT current_year, current_month, economic_state FROM game_sessions WHERE id = ?').get(session_id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
     const state = JSON.parse(session.economic_state);
+
+    // Fetch this month's news articles to provide context to the Chief of Staff
+    const newsArticles = db.prepare(`
+      SELECT publisher, headline, body, tone, urgency, featured_variable, byline, dateline, whisper_quote
+      FROM news_articles
+      WHERE session_id = ? AND year = ? AND month = ?
+    `).all(session_id, session.current_year, session.current_month);
 
     // Save user message
     db.prepare(`
@@ -32,10 +39,10 @@ router.post('/chat', async (req, res) => {
 
     // Check system setting for API key
     const rowKey = db.prepare('SELECT value FROM system_settings WHERE key = ?').get('deepseek_api_key');
-    const apiKey = rowKey ? rowKey.value : null;
+    const apiKey = rowKey ? rowKey.value : (process.env.DEEPSEEK_API_KEY || null);
 
-    // Generate advisor response
-    const advisorReply = await handleAdvisorChat(message, state, history, apiKey);
+    // Generate advisor response with full news article context
+    const advisorReply = await handleAdvisorChat(message, state, history, apiKey, newsArticles);
 
     // Save advisor response
     db.prepare(`

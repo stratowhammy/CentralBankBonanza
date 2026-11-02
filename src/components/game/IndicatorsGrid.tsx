@@ -74,7 +74,7 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  Active Economic Shock: {s.active_events[0].id}
+                  Macroeconomic Shock: {s.active_events[0].category}
                 </span>
                 <span className="font-bold text-xs text-slate-100">
                   {s.active_events[0].name}

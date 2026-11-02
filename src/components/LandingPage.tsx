@@ -302,17 +302,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
               <Zap className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-sm text-slate-200 mb-2">50 Backwards-Planned Shocks</h3>
+            <h3 className="font-bold text-sm text-slate-200 mb-2">Dynamic Structural Shocks</h3>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              The economy dynamically experiences 25 positive and 25 negative structural events, backwards-planned from over 750 root causal precursors.
+              The economy dynamically experiences positive and negative structural shocks affecting commodity prices, industrial output, and consumer expectations.
             </p>
-            <button
-              onClick={onOpenEventWeb}
-              className="mt-3 text-xs text-purple-400 hover:text-purple-300 font-semibold inline-flex items-center gap-1"
-            >
-              <span>Explore Event Web</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
           </div>
 
         </div>

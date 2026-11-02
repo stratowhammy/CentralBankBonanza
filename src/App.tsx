@@ -196,7 +196,8 @@ export const App: React.FC = () => {
     }
   };
 
-  const isRegularUser = currentUser?.role !== 'admin';
+  const isKlimbus = currentUser?.username === 'kbunghole' || currentUser?.display_name?.toLowerCase().includes('klimbus');
+  const isRegularUser = currentUser?.role !== 'admin' || isKlimbus;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">

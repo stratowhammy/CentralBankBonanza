@@ -23,7 +23,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onNewGamePrompt
 }) => {
-  const isAdmin = user?.role === 'admin';
+  const isKlimbus = user?.username === 'kbunghole' || user?.display_name?.toLowerCase().includes('klimbus');
+  const isAdmin = user?.role === 'admin' && user?.username === 'admin' && !isKlimbus;
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3">
