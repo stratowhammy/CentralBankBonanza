@@ -40,7 +40,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Settings state
   const [deepseekKey, setDeepseekKey] = useState('');
-  const [deepseekModel, setDeepseekModel] = useState('deepseek-chat');
+  const [deepseekModel, setDeepseekModel] = useState('deepseek-v4-pro');
   const [llmProvider, setLlmProvider] = useState('local_macro_engine');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export const AdminDashboard: React.FC = () => {
 
       if (dash.settings) {
         setDeepseekKey(dash.settings.deepseek_api_key || '');
-        setDeepseekModel(dash.settings.deepseek_model || 'deepseek-chat');
+        setDeepseekModel(dash.settings.deepseek_model || 'deepseek-v4-pro');
         setLlmProvider(dash.settings.llm_provider || 'local_macro_engine');
       }
     } catch (err: any) {
@@ -459,11 +459,11 @@ export const AdminDashboard: React.FC = () => {
                 type="text"
                 value={deepseekModel}
                 onChange={(e) => setDeepseekModel(e.target.value)}
-                placeholder="deepseek-chat"
+                placeholder="deepseek-v4-pro"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400"
               />
               <span className="text-[10px] text-slate-500 mt-1 block">
-                Default: deepseek-chat (DeepSeek V3 / Flash)
+                Default: deepseek-v4-pro
               </span>
             </div>
 

@@ -76,7 +76,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
     setMessages(newMsgs);
 
     try {
-      const res = await api.sendAdvisorChat(session.id, userText);
+      const res = await api.sendAdvisorChat(session.id, userText, session.economic_state.interest_rate);
       setMessages([...newMsgs, { sender: 'advisor', content: res.reply }]);
     } catch (err: any) {
       setMessages([...newMsgs, { sender: 'advisor', content: 'Apologies, Governor. My secure line experienced static. Let us reconsider the issue.' }]);
@@ -209,6 +209,31 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
           {activeTab === 'chat' && (
             <div className="flex flex-col h-full justify-between">
               
+              {/* Live Mandate Telemetry Briefing Strip */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-3 text-xs flex items-center justify-between shadow-sm">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                      Live Telemetry (Year {session.current_year}, Month {session.current_month})
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-300 font-medium">
+                    {session.month_in_quarter === 3 ? 'MPC Meeting Month' : `Quarter ${session.current_quarter}, Month ${session.month_in_quarter} of 3`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 uppercase block">Policy Rate</span>
+                    <span className="font-mono text-amber-300 font-bold">{session.economic_state.interest_rate.toFixed(2)}%</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 uppercase block">Headline CPI</span>
+                    <span className="font-mono text-emerald-400 font-bold">{session.economic_state.inflation_cpi.toFixed(2)}%</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Message Feed */}
               <div className="space-y-3.5 overflow-y-auto mb-4 pr-1">
                 {messages.length === 0 ? (

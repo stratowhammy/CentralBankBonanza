@@ -156,11 +156,9 @@ const getSetting = db.prepare('SELECT value FROM system_settings WHERE key = ?')
 if (!getSetting.get('deepseek_api_key')) {
   db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('deepseek_api_key', '');
 }
-if (!getSetting.get('deepseek_model')) {
-  db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('deepseek_model', 'deepseek-chat');
-}
+db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('deepseek_model', 'deepseek-v4-pro')").run();
 if (!getSetting.get('llm_provider')) {
-  db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('llm_provider', 'local_macro_engine');
+  db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('llm_provider', 'deepseek_flash');
 }
 
 module.exports = db;

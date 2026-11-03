@@ -231,8 +231,8 @@ async function generateMonthlyNews(economicState, difficulty, year, month) {
 // DeepSeek API integration with varied styles and dynamic indicator selection
 async function generateWithDeepSeek(publisherKey, state, year, month, apiKey) {
   const profile = PUBLISHER_PROFILES[publisherKey];
-  const modelSetting = getSystemSetting('deepseek_model') || 'deepseek-flash';
-  const model = (modelSetting === 'deepseek-flash' || modelSetting === 'deepseek-chat') ? 'deepseek-chat' : modelSetting;
+  const modelSetting = getSystemSetting('deepseek_model') || 'deepseek-v4-pro';
+  const model = (modelSetting === 'deepseek-flash' || modelSetting === 'deepseek-chat') ? 'deepseek-v4-pro' : modelSetting;
 
   const drivers = selectPrimaryEconomicDrivers(state, publisherKey);
   const primaryDriver = drivers[0];
@@ -274,7 +274,7 @@ BACKGROUND CONTEXT:
 Write an engaging, authentic, non-formulaic story for ${profile.name} focusing on the primary economic driver.`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
@@ -290,7 +290,7 @@ Write an engaging, authentic, non-formulaic story for ${profile.name} focusing o
       ],
       response_format: { type: 'json_object' },
       temperature: 0.75,
-      max_tokens: 800
+      max_tokens: 3000
     }),
     signal: controller.signal
   });

@@ -167,11 +167,11 @@ export const api = {
   },
 
   // Advisor
-  async sendAdvisorChat(sessionId: string, message: string): Promise<{ success: boolean; reply: string }> {
+  async sendAdvisorChat(sessionId: string, message: string, current_rate?: number): Promise<{ success: boolean; reply: string }> {
     const res = await fetch(`${API_BASE}/advisor/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, message })
+      body: JSON.stringify({ session_id: sessionId, message, current_rate })
     });
     if (!res.ok) throw new Error('Advisor chat failed');
     return res.json();
