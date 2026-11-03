@@ -47,7 +47,10 @@ export const api = {
     user_id: string;
     chair_name: string;
     play_mode: 'first_person' | 'god_mode';
-    difficulty: 'easy' | 'normal' | 'hard';
+    difficulty?: 'easy' | 'normal' | 'hard';
+    economy_type?: 'large_hegemon' | 'middle_advanced' | 'small_emerging';
+    starting_condition?: 'easy' | 'normal' | 'hard';
+    volatility?: 'low' | 'normal' | 'high' | 'extreme';
     skip_news?: boolean;
   }): Promise<{ success: boolean; session: GameSession }> {
     const res = await fetch(`${API_BASE}/game/new`, {
@@ -108,6 +111,16 @@ export const api = {
       body: JSON.stringify(params)
     });
     if (!res.ok) throw new Error('Failed to update balance sheet');
+    return res.json();
+  },
+
+  async executeFxIntervention(sessionId: string, params: { action_type: 'defend_currency' | 'accumulate_reserves'; amount_billions?: number }) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/fx-intervention`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) throw new Error('Failed to execute FX intervention');
     return res.json();
   },
 

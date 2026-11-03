@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, GameSession, PlayMode, Difficulty, ActionType } from './types';
+import { User, GameSession, PlayMode, Difficulty, EconomyType, StartingCondition, VolatilityLevel, ActionType } from './types';
 import { api } from './api';
 import { Navbar } from './components/Navbar';
 import { LandingPage } from './components/LandingPage';
@@ -72,7 +72,10 @@ export const App: React.FC = () => {
   const handleStartGame = async (params: {
     chair_name: string;
     play_mode: PlayMode;
-    difficulty: Difficulty;
+    difficulty?: Difficulty;
+    economy_type?: EconomyType;
+    starting_condition?: StartingCondition;
+    volatility?: VolatilityLevel;
   }) => {
     let user = currentUser;
     if (!user) {
@@ -92,7 +95,10 @@ export const App: React.FC = () => {
         user_id: user.id,
         chair_name: params.chair_name,
         play_mode: params.play_mode,
-        difficulty: params.difficulty
+        difficulty: params.difficulty,
+        economy_type: params.economy_type,
+        starting_condition: params.starting_condition,
+        volatility: params.volatility
       });
       setActiveSession(res.session);
       localStorage.setItem('cbb_session_id', res.session.id);

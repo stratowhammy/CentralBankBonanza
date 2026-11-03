@@ -138,6 +138,15 @@ try {
 try {
   db.exec('ALTER TABLE game_sessions ADD COLUMN hearings_completed INTEGER DEFAULT 0');
 } catch (e) {}
+try {
+  db.exec("ALTER TABLE game_sessions ADD COLUMN economy_type TEXT DEFAULT 'large_hegemon'");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE game_sessions ADD COLUMN starting_condition TEXT DEFAULT 'normal'");
+} catch (e) {}
+try {
+  db.exec("ALTER TABLE game_sessions ADD COLUMN volatility TEXT DEFAULT 'normal'");
+} catch (e) {}
 
 // Seed default admin and guest users if they don't exist
 const checkAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');

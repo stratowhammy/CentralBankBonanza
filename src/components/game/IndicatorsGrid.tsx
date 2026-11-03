@@ -14,13 +14,18 @@ import {
   AlertOctagon,
   Flame,
   LineChart,
-  BarChart2
+  BarChart2,
+  Coins,
+  Globe,
+  ArrowUpDown,
+  ShieldAlert
 } from 'lucide-react';
 
 interface IndicatorsGridProps {
   session: GameSession;
   onOpenDotPlot?: () => void;
   onOpenBalanceSheet?: () => void;
+  onOpenFxIntervention?: () => void;
   onOpenMpcVote?: () => void;
   onTrackVariable?: (variableId: string) => void;
 }
@@ -29,12 +34,14 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
   session,
   onOpenDotPlot,
   onOpenBalanceSheet,
+  onOpenFxIntervention,
   onOpenMpcVote,
   onTrackVariable
 }) => {
   const s = session.economic_state;
   const isNormalOrHard = session.difficulty === 'normal' || session.difficulty === 'hard';
   const isHard = session.difficulty === 'hard';
+  const isOpenEconomy = session.economy_type === 'small_emerging' || session.economy_type === 'middle_advanced';
   const yieldInversion = s.bond_yield_2y > s.bond_yield_10y;
   const inflationGap = s.inflation_cpi - 2.0;
 
@@ -260,24 +267,52 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
 
       {/* Institutional Tools & Operations Ribbon (Pillars B, C, E) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800 text-xs">
-        {/* Balance Sheet / QT */}
-        <div 
-          onClick={onOpenBalanceSheet}
-          className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all flex items-center justify-between"
-        >
-          <div>
-            <span className="text-[10px] uppercase text-slate-400 block font-semibold">Central Bank Portfolio</span>
-            <span className="font-mono text-emerald-400 font-bold text-sm">
-              ${(s.balance_sheet_size ?? 7.20).toFixed(2)}T
-            </span>
-            <span className="text-[10px] text-slate-500 block">
-              {(s.qt_monthly_pace ?? -25) < 0 ? `QT: -$${Math.abs(s.qt_monthly_pace ?? 25)}B/mo` : 'QE Portfolio'}
+        {/* Balance Sheet / QT or FX Reserve Desk */}
+        {isOpenEconomy ? (
+          <div 
+            onClick={onOpenFxIntervention}
+            className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
+              (s.fx_reserves_billions ?? 50) < 20 
+                ? 'bg-rose-950/40 border-rose-500/50 hover:border-rose-400' 
+                : 'bg-slate-900/80 border-slate-800 hover:border-cyan-500/60'
+            }`}
+            title="Open Foreign Exchange Intervention Desk"
+          >
+            <div>
+              <span className="text-[10px] uppercase text-slate-400 block font-semibold flex items-center gap-1">
+                <Coins className="w-3 h-3 text-cyan-400" />
+                FX Reserves Desk
+              </span>
+              <span className={`font-mono font-bold text-sm ${(s.fx_reserves_billions ?? 50) < 20 ? 'text-rose-400' : 'text-cyan-400'}`}>
+                ${(s.fx_reserves_billions ?? 50.0).toFixed(1)}B
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                {(s.fx_reserves_billions ?? 50) < 20 ? 'Low Reserves Buffer!' : 'Direct Market Defense'}
+              </span>
+            </div>
+            <span className="text-xs text-cyan-300 hover:text-white bg-cyan-950/60 border border-cyan-500/40 px-2 py-1 rounded font-medium">
+              Intervene 💱
             </span>
           </div>
-          <span className="text-xs text-slate-400 hover:text-white bg-slate-800 px-2 py-1 rounded">
-            Manage ⚙
-          </span>
-        </div>
+        ) : (
+          <div 
+            onClick={onOpenBalanceSheet}
+            className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all flex items-center justify-between"
+          >
+            <div>
+              <span className="text-[10px] uppercase text-slate-400 block font-semibold">Central Bank Portfolio</span>
+              <span className="font-mono text-emerald-400 font-bold text-sm">
+                ${(s.balance_sheet_size ?? 7.20).toFixed(2)}T
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                {(s.qt_monthly_pace ?? -25) < 0 ? `QT: -$${Math.abs(s.qt_monthly_pace ?? 25)}B/mo` : 'QE Portfolio'}
+              </span>
+            </div>
+            <span className="text-xs text-slate-400 hover:text-white bg-slate-800 px-2 py-1 rounded">
+              Manage ⚙
+            </span>
+          </div>
+        )}
 
         {/* MPC Committee Status */}
         <div 
@@ -314,25 +349,150 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
           </span>
         </div>
 
-        {/* Dot-Plot Projections */}
-        <div 
-          onClick={onOpenDotPlot}
-          className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all flex items-center justify-between"
-        >
-          <div>
-            <span className="text-[10px] uppercase text-slate-400 block font-semibold">FOMC Dot-Plot</span>
-            <span className="font-mono text-purple-300 font-bold text-sm">
-              Median 1Y: {session.dot_plot?.median_projections.year_1 ?? 4.25}%
-            </span>
-            <span className="text-[10px] text-slate-500 block">
-              Neutral r*: {session.dot_plot?.median_projections.long_run ?? 3.50}%
+        {/* Dot-Plot or Sovereign Risk Card */}
+        {isOpenEconomy ? (
+          <div 
+            onClick={() => onTrackVariable?.('sovereign_risk_spread')}
+            className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-rose-400/60 cursor-pointer transition-all flex items-center justify-between"
+            title="Click to track Sovereign Risk Spread in Graph Overlay"
+          >
+            <div>
+              <span className="text-[10px] uppercase text-slate-400 block font-semibold flex items-center gap-1">
+                <Globe className="w-3 h-3 text-rose-400" />
+                Sovereign Risk Spread
+              </span>
+              <span className="font-mono text-rose-400 font-bold text-sm">
+                +{s.sovereign_risk_spread ?? 150} bps
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                over Fed/ECB ({(s.foreign_benchmark_rate ?? 4.5).toFixed(2)}%)
+              </span>
+            </div>
+            <span className="text-xs text-rose-300 hover:text-white bg-rose-950/60 border border-rose-500/30 px-2 py-1 rounded">
+              Track 📈
             </span>
           </div>
-          <span className="text-xs text-purple-400 hover:text-white bg-purple-950/60 border border-purple-500/30 px-2 py-1 rounded">
-            View Dots ☵
-          </span>
-        </div>
+        ) : (
+          <div 
+            onClick={onOpenDotPlot}
+            className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all flex items-center justify-between"
+          >
+            <div>
+              <span className="text-[10px] uppercase text-slate-400 block font-semibold">FOMC Dot-Plot</span>
+              <span className="font-mono text-purple-300 font-bold text-sm">
+                Median 1Y: {session.dot_plot?.median_projections.year_1 ?? 4.25}%
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                Neutral r*: {session.dot_plot?.median_projections.long_run ?? 3.50}%
+              </span>
+            </div>
+            <span className="text-xs text-purple-400 hover:text-white bg-purple-950/60 border border-purple-500/30 px-2 py-1 rounded">
+              View Dots ☵
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Open Economy & FX Vulnerability Strip (Middle & Small Economies) */}
+      {isOpenEconomy && (
+        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-cyan-500/30 rounded-xl p-3.5 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-800/80">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                <Globe className="w-4 h-4" />
+              </span>
+              <div>
+                <span className="text-xs font-bold text-slate-200">
+                  {session.economy_type === 'small_emerging' ? 'Small Open Economy Exposure' : 'Middle Advanced Open Economy Exposure'}
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  High import share ({((s.import_share_of_cpi ?? 0.35) * 100).toFixed(0)}% of CPI) & cross-border capital sensitivity
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onOpenFxIntervention}
+                className="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <Coins className="w-3.5 h-3.5" />
+                FX Intervention Desk
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2.5 text-xs">
+            <div 
+              onClick={() => onTrackVariable?.('currency_index')}
+              className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-cyan-400/60 cursor-pointer transition group"
+              title="Click to track Trade-Weighted Currency in Graph Overlay"
+            >
+              <div className="flex justify-between items-center text-slate-400 text-[10px] uppercase">
+                <span>Currency Index</span>
+                <span className="opacity-0 group-hover:opacity-100 font-mono text-cyan-400">📈</span>
+              </div>
+              <span className={`font-data font-bold text-base ${(s.currency_index ?? 100) < 95 ? 'text-rose-400' : ((s.currency_index ?? 100) > 105 ? 'text-cyan-400' : 'text-slate-100')}`}>
+                {(s.currency_index ?? 100).toFixed(1)}
+              </span>
+              <span className="text-[9px] text-slate-500 block">
+                {(s.currency_index ?? 100) < 95 ? 'Depreciating: Import Inflation' : 'Baseline 100.0'}
+              </span>
+            </div>
+
+            <div 
+              onClick={() => onTrackVariable?.('capital_flow_momentum')}
+              className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-emerald-400/60 cursor-pointer transition group"
+              title="Click to track Capital Flows in Graph Overlay"
+            >
+              <div className="flex justify-between items-center text-slate-400 text-[10px] uppercase">
+                <span>Capital Flow</span>
+                <span className="opacity-0 group-hover:opacity-100 font-mono text-emerald-400">📈</span>
+              </div>
+              <span className={`font-data font-bold text-base ${(s.capital_flow_momentum ?? 0) < -2 ? 'text-rose-400' : ((s.capital_flow_momentum ?? 0) > 2 ? 'text-emerald-400' : 'text-slate-300')}`}>
+                {(s.capital_flow_momentum ?? 0) >= 0 ? `+$${(s.capital_flow_momentum ?? 0).toFixed(1)}B` : `-$${Math.abs(s.capital_flow_momentum ?? 0).toFixed(1)}B`}
+              </span>
+              <span className="text-[9px] text-slate-500 block">
+                {(s.capital_flow_momentum ?? 0) < -2 ? 'Hot Money Outflow' : 'Stable Capital Balance'}
+              </span>
+            </div>
+
+            <div 
+              onClick={() => onTrackVariable?.('fx_reserves_billions')}
+              className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-cyan-400/60 cursor-pointer transition group"
+              title="Click to track Foreign Exchange Reserves in Graph Overlay"
+            >
+              <div className="flex justify-between items-center text-slate-400 text-[10px] uppercase">
+                <span>FX Reserves</span>
+                <span className="opacity-0 group-hover:opacity-100 font-mono text-cyan-400">📈</span>
+              </div>
+              <span className={`font-data font-bold text-base ${(s.fx_reserves_billions ?? 50) < 20 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                ${(s.fx_reserves_billions ?? 50.0).toFixed(1)}B
+              </span>
+              <span className="text-[9px] text-slate-500 block">
+                {(s.fx_reserves_billions ?? 50) < 20 ? 'Buffer under pressure' : 'Liquid FX holdings'}
+              </span>
+            </div>
+
+            <div 
+              onClick={() => onTrackVariable?.('sovereign_risk_spread')}
+              className="p-2 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-rose-400/60 cursor-pointer transition group"
+              title="Click to track Sovereign Risk Spread in Graph Overlay"
+            >
+              <div className="flex justify-between items-center text-slate-400 text-[10px] uppercase">
+                <span>EMBI Spread</span>
+                <span className="opacity-0 group-hover:opacity-100 font-mono text-rose-400">📈</span>
+              </div>
+              <span className={`font-data font-bold text-base ${(s.sovereign_risk_spread ?? 150) > 300 ? 'text-rose-400' : 'text-amber-300'}`}>
+                +{s.sovereign_risk_spread ?? 150} bps
+              </span>
+              <span className="text-[9px] text-slate-500 block">
+                Spread over Fed {(s.foreign_benchmark_rate ?? 4.5).toFixed(2)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Secondary Indicators: Social (Normal+) & Political (Hard+) & Mode Metric */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

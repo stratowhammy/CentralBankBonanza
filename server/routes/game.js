@@ -17,41 +17,58 @@ const { generateParliamentaryQuestions } = require('../parliamentEngine');
 // Create a new game session
 router.post('/new', async (req, res) => {
   try {
-    const { user_id, chair_name, play_mode, difficulty, skip_news } = req.body;
+    const { 
+      user_id, 
+      chair_name, 
+      play_mode, 
+      difficulty, 
+      economy_type, 
+      starting_condition, 
+      volatility, 
+      skip_news 
+    } = req.body;
     
-    if (!user_id || !play_mode || !difficulty) {
-      return res.status(400).json({ error: 'user_id, play_mode, and difficulty are required' });
+    const effectiveDifficulty = difficulty || starting_condition || 'normal';
+    const effectiveCondition = starting_condition || difficulty || 'normal';
+    const effectiveEconomyType = economy_type || 'large_hegemon';
+    const effectiveVolatility = volatility || 'normal';
+
+    if (!user_id || !play_mode) {
+      return res.status(400).json({ error: 'user_id and play_mode are required' });
     }
 
     const sessionId = 'ses_' + uuidv4().substring(0, 8);
-    const economicState = getInitialEconomicState(difficulty);
+    const economicState = getInitialEconomicState(effectiveDifficulty, effectiveEconomyType, effectiveCondition, effectiveVolatility);
     const chairState = getInitialChairState(play_mode, chair_name);
 
     // Generate Month 1 news stories (use instant local macro engine if skip_news or automated batch)
     let newsArticles;
     if (skip_news) {
       const publishers = ['gloomberg', 'doll_street'];
-      if (difficulty === 'normal' || difficulty === 'hard') publishers.push('gotham');
-      if (difficulty === 'hard') publishers.push('cashington');
+      if (effectiveDifficulty === 'normal' || effectiveDifficulty === 'hard') publishers.push('gotham');
+      if (effectiveDifficulty === 'hard') publishers.push('cashington');
       newsArticles = publishers.map(pub => generateWithLocalMacroEngine(pub, economicState, 1, 1));
     } else {
-      newsArticles = await generateMonthlyNews(economicState, difficulty, 1, 1);
+      newsArticles = await generateMonthlyNews(economicState, effectiveDifficulty, 1, 1);
     }
 
     // Persist session, news, and inaugural turn in a single atomic transaction
     const createSessionTx = db.transaction(() => {
       db.prepare(`
         INSERT INTO game_sessions (
-          id, user_id, chair_name, play_mode, difficulty, status,
+          id, user_id, chair_name, play_mode, difficulty, economy_type, starting_condition, volatility, status,
           current_year, current_month, total_months_elapsed,
           economic_state, chair_state, last_action, last_action_details
-        ) VALUES (?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, 'initial_appointment', 'Appointed to office')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, 'initial_appointment', 'Appointed to office')
       `).run(
         sessionId,
         user_id,
         chairState.active_chair.name,
         play_mode,
-        difficulty,
+        effectiveDifficulty,
+        effectiveEconomyType,
+        effectiveCondition,
+        effectiveVolatility,
         JSON.stringify(economicState),
         JSON.stringify(chairState)
       );
@@ -99,7 +116,10 @@ router.post('/new', async (req, res) => {
         user_id,
         chair_name: chairState.active_chair.name,
         play_mode,
-        difficulty,
+        difficulty: effectiveDifficulty,
+        economy_type: effectiveEconomyType,
+        starting_condition: effectiveCondition,
+        volatility: effectiveVolatility,
         status: 'active',
         current_year: 1,
         current_month: 1,
@@ -144,6 +164,9 @@ router.get('/simulations/list', (req, res) => {
         chair_name: r.chair_name,
         play_mode: r.play_mode,
         difficulty: r.difficulty,
+        economy_type: r.economy_type || econ.economy_type || 'large_hegemon',
+        starting_condition: r.starting_condition || econ.starting_condition || r.difficulty || 'normal',
+        volatility: r.volatility || econ.volatility || 'normal',
         status: r.status,
         current_year: r.current_year,
         current_month: r.current_month,
@@ -173,12 +196,22 @@ router.get('/simulations/list', (req, res) => {
 // Helper to determine if a Parliamentary Hearing is currently due
 function checkHearingEligible(session, economicState) {
   if (session.status !== 'active') return false;
-  // Don't trigger on month 1 (first turn of game)
-  if (session.total_months_elapsed === 0) return false;
+  // Don't trigger during the inaugural quarter (first 3 months of game)
+  if ((session.total_months_elapsed || 0) < 3) return false;
 
   // If already attended or declined in this specific round, not eligible again this month
   if (economicState.last_hearing_completed_month === session.total_months_elapsed) return false;
   if (economicState.last_hearing_skipped_month === session.total_months_elapsed) return false;
+
+  // Enforce spacing: at least 3 months between hearings unless explicitly flagged as emergency summons
+  const lastHearingRound = Math.max(
+    economicState.last_hearing_completed_month ?? -99,
+    economicState.last_hearing_skipped_month ?? -99
+  );
+  const monthsSinceHearing = session.total_months_elapsed - lastHearingRound;
+  if (monthsSinceHearing < 3 && !economicState.hearing_pending) {
+    return false;
+  }
 
   // Statutory hearings:
   // - Hard mode: Quadmester oversight (every 4 months: Month 4, 8, 12...)
@@ -188,13 +221,11 @@ function checkHearingEligible(session, economicState) {
     : (session.current_month === 6 || session.current_month === 12 || session.total_months_elapsed % 6 === 0);
 
   // Emergency summons:
-  // - Parliamentary approval < 40%
-  // - Formal warning issued
-  // - Manually flagged hearing_pending
+  // - Explicitly flagged emergency summons
+  // - Or formal warning issued and spacing met
   const isEmergency = (
-    economicState.parliamentary_approval < 40.0 ||
-    (economicState.warning_count || 0) > 0 ||
-    economicState.hearing_pending === true
+    economicState.hearing_pending === true ||
+    ((economicState.warning_count || 0) > 0 && monthsSinceHearing >= 3)
   );
 
   return Boolean(isStatutoryMonth || isEmergency);
@@ -258,6 +289,9 @@ router.get('/:sessionId', (req, res) => {
         chair_name: session.chair_name,
         play_mode: session.play_mode,
         difficulty: session.difficulty,
+        economy_type: session.economy_type || economicState.economy_type || 'large_hegemon',
+        starting_condition: session.starting_condition || economicState.starting_condition || session.difficulty || 'normal',
+        volatility: session.volatility || economicState.volatility || 'normal',
         status: session.status,
         current_year: session.current_year,
         current_month: session.current_month,
@@ -486,6 +520,47 @@ router.post('/:sessionId/balance-sheet', (req, res) => {
     res.json({
       success: true,
       economic_state: economicState
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// FX Reserve Market Intervention Desk (for Middle and Small Open Economies)
+router.post('/:sessionId/fx-intervention', (req, res) => {
+  try {
+    const session = db.prepare('SELECT * FROM game_sessions WHERE id = ?').get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const { action_type, amount_billions } = req.body; // 'defend_currency' or 'accumulate_reserves'
+    let state = JSON.parse(session.economic_state);
+
+    const amount = parseFloat(amount_billions) || (state.economy_type === 'small_emerging' ? 5.0 : 10.0);
+
+    if (action_type === 'defend_currency' || action_type === 'sell_reserves') {
+      const actualSpend = Math.min(state.fx_reserves_billions || 0, amount);
+      state.fx_reserves_billions = Number(Math.max(0, (state.fx_reserves_billions || 0) - actualSpend).toFixed(1));
+      state.currency_index = Number((state.currency_index + actualSpend * 0.45).toFixed(1));
+      state.market_credibility = Number(Math.min(95, (state.market_credibility || 75) + 2.0).toFixed(1));
+    } else {
+      // Accumulate reserves
+      state.fx_reserves_billions = Number(((state.fx_reserves_billions || 0) + amount).toFixed(1));
+      state.currency_index = Number((state.currency_index - amount * 0.20).toFixed(1));
+    }
+
+    db.prepare(`
+      UPDATE game_sessions
+      SET economic_state = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(state), session.id);
+
+    res.json({
+      success: true,
+      action_type,
+      amount_billions: amount,
+      fx_reserves_billions: state.fx_reserves_billions,
+      currency_index: state.currency_index,
+      economic_state: state
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

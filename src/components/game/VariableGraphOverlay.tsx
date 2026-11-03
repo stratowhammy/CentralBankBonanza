@@ -42,7 +42,7 @@ export interface VariableDef {
   id: string;
   label: string;
   shortLabel: string;
-  category: 'Monetary' | 'Financial' | 'Social' | 'Political' | 'Balance Sheet';
+  category: 'Monetary' | 'Financial' | 'Social' | 'Political' | 'Balance Sheet' | 'Open Economy';
   unit: string;
   color: string;
   yAxis: 'percentage' | 'index' | 'amount';
@@ -321,6 +321,51 @@ export const VARIABLE_CATALOG: VariableDef[] = [
     yAxis: 'amount',
     formatter: v => `$${(v ?? 7.2).toFixed(2)}T`,
     getter: s => s.balance_sheet_size ?? 7.2
+  },
+  // Open Economy & Foreign Exchange
+  {
+    id: 'fx_reserves_billions',
+    label: 'Foreign Exchange Reserves ($B)',
+    shortLabel: 'FX Reserves',
+    category: 'Open Economy',
+    unit: '$B',
+    color: '#06b6d4', // cyan
+    yAxis: 'amount',
+    formatter: v => `$${(v ?? 0).toFixed(1)}B`,
+    getter: s => s.fx_reserves_billions ?? 0
+  },
+  {
+    id: 'sovereign_risk_spread',
+    label: 'Sovereign Risk Spread vs Benchmark',
+    shortLabel: 'Sovereign Spread',
+    category: 'Open Economy',
+    unit: 'bps',
+    color: '#f43f5e', // rose
+    yAxis: 'amount',
+    formatter: v => `+${Math.round(v ?? 0)} bps`,
+    getter: s => s.sovereign_risk_spread ?? 0
+  },
+  {
+    id: 'capital_flow_momentum',
+    label: 'Cross-Border Capital Flow Momentum',
+    shortLabel: 'Capital Flows',
+    category: 'Open Economy',
+    unit: '$B/mo',
+    color: '#10b981', // emerald
+    yAxis: 'amount',
+    formatter: v => `${(v ?? 0) >= 0 ? '+' : ''}${(v ?? 0).toFixed(1)}B/mo`,
+    getter: s => s.capital_flow_momentum ?? 0
+  },
+  {
+    id: 'foreign_benchmark_rate',
+    label: 'Foreign Benchmark Policy Rate (Fed/ECB)',
+    shortLabel: 'Global Benchmark',
+    category: 'Open Economy',
+    unit: '%',
+    color: '#64748b', // slate
+    yAxis: 'percentage',
+    formatter: v => `${(v ?? 4.5).toFixed(2)}%`,
+    getter: s => s.foreign_benchmark_rate ?? 4.5
   }
 ];
 
@@ -337,6 +382,12 @@ export const PRESET_THEMES: PresetTheme[] = [
     name: 'Dual Mandate',
     icon: '🎯',
     variableIds: ['inflation_cpi', 'unemployment_rate', 'interest_rate']
+  },
+  {
+    id: 'open_economy_vulnerability',
+    name: 'Open Economy & FX',
+    icon: '🌐',
+    variableIds: ['currency_index', 'fx_reserves_billions', 'sovereign_risk_spread', 'capital_flow_momentum']
   },
   {
     id: 'monetary_stance',

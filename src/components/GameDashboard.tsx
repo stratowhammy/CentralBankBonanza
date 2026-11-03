@@ -16,8 +16,9 @@ import { ParliamentHearingReminderModal } from './game/ParliamentHearingReminder
 import { TermReappointmentModal } from './game/TermReappointmentModal';
 import { VariableGraphOverlay } from './game/VariableGraphOverlay';
 import { MobileScrollTutorialOverlay } from './game/MobileScrollTutorialOverlay';
+import { FxInterventionModal } from './game/FxInterventionModal';
 import { api } from '../api';
-import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft, LineChart, Vote, BellRing } from 'lucide-react';
+import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft, LineChart, Vote, BellRing, Coins } from 'lucide-react';
 
 interface GameDashboardProps {
   session: GameSession;
@@ -46,6 +47,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   const [isHearingOpen, setIsHearingOpen] = useState(false);
   const [isHearingReminderOpen, setIsHearingReminderOpen] = useState(false);
   const [isTermReviewOpen, setIsTermReviewOpen] = useState(false);
+  const [isFxInterventionOpen, setIsFxInterventionOpen] = useState(false);
   const [isGraphOverlayOpen, setIsGraphOverlayOpen] = useState(false);
   const [activeTrackedVar, setActiveTrackedVar] = useState<string | undefined>(undefined);
   const [showMobileScrollGuide, setShowMobileScrollGuide] = useState(false);
@@ -130,12 +132,21 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
                 <span>Exit to My Simulations</span>
               </button>
             )}
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-slate-300 flex flex-wrap items-center gap-1.5">
               <span className="font-semibold text-white">{session.chair_name}</span>
-              <span className="text-slate-500 mx-1.5">•</span>
+              <span className="text-slate-500">•</span>
               <span className="capitalize text-slate-300">{session.play_mode === 'first_person' ? 'First Person' : 'God Mode'}</span>
-              <span className="text-slate-500 mx-1.5">•</span>
-              <span className="capitalize text-amber-400 font-medium">{session.difficulty} Scenario</span>
+              <span className="text-slate-500">•</span>
+              <span className="capitalize text-amber-400 font-medium">
+                {session.starting_condition || session.difficulty}
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-cyan-950/70 border border-cyan-500/40 text-cyan-300">
+                {session.economy_type === 'small_emerging' ? 'Small Open' : (session.economy_type === 'middle_advanced' ? 'Middle Advanced' : 'Large Reserve')}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-950/70 border border-purple-500/40 text-purple-300 capitalize">
+                Vol: {session.volatility || 'normal'}
+              </span>
             </div>
           </div>
 
@@ -274,6 +285,15 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
             >
               <span>☵</span> FOMC Dot-Plot
             </button>
+            {(session.economy_type === 'small_emerging' || session.economy_type === 'middle_advanced') && (
+              <button
+                onClick={() => setIsFxInterventionOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-500 text-cyan-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Coins className="w-3.5 h-3.5 text-cyan-400" />
+                <span>FX Reserve Desk (${(session.economic_state.fx_reserves_billions ?? 50).toFixed(1)}B)</span>
+              </button>
+            )}
             <button
               onClick={() => setIsBalanceSheetOpen(true)}
               className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-emerald-500 text-emerald-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -310,6 +330,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
           session={session}
           onOpenDotPlot={() => setIsDotPlotOpen(true)}
           onOpenBalanceSheet={() => setIsBalanceSheetOpen(true)}
+          onOpenFxIntervention={() => setIsFxInterventionOpen(true)}
           onOpenMpcVote={() => setIsMpcVoteOpen(true)}
           onTrackVariable={(varId) => {
             setActiveTrackedVar(varId);
@@ -404,6 +425,16 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
         onClose={() => setIsBalanceSheetOpen(false)}
         economicState={session.economic_state}
         onUpdate={handleUpdateBalanceSheet}
+      />
+
+      {/* Foreign Exchange Intervention Desk Modal (Small & Middle Economies) */}
+      <FxInterventionModal
+        session={session}
+        isOpen={isFxInterventionOpen}
+        onClose={() => setIsFxInterventionOpen(false)}
+        onInterventionComplete={async () => {
+          await onRefreshSession();
+        }}
       />
 
       {/* MPC Board Voting Division Modal (Pillar B) */}

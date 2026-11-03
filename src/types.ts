@@ -1,9 +1,17 @@
 export type PlayMode = 'first_person' | 'god_mode';
 export type Difficulty = 'easy' | 'normal' | 'hard';
+export type EconomyType = 'large_hegemon' | 'middle_advanced' | 'small_emerging';
+export type StartingCondition = 'easy' | 'normal' | 'hard';
+export type VolatilityLevel = 'low' | 'normal' | 'high' | 'extreme';
 export type ActionType = 'guidance' | 'silence' | 'mpc_rate_decision' | 'inaugural';
 export type PublisherType = 'gloomberg' | 'doll_street' | 'gotham' | 'cashington';
 
 export interface EconomicState {
+  // Economy Type & Volatility Configuration
+  economy_type?: EconomyType;
+  starting_condition?: StartingCondition;
+  volatility?: VolatilityLevel;
+
   // Core Macro Variables
   interest_rate: number;
   inflation_cpi: number;
@@ -17,6 +25,13 @@ export interface EconomicState {
   bond_yield_2y: number;
   currency_index: number;
   bank_lending_rate: number;
+
+  // Small & Middle Open Economy Telemetry
+  foreign_benchmark_rate?: number;
+  sovereign_risk_spread?: number; // bps over foreign benchmark
+  fx_reserves_billions?: number; // $B
+  import_share_of_cpi?: number;
+  capital_flow_momentum?: number; // $B/mo
 
   // Pillar E: Balance Sheet & Emergency Tools
   balance_sheet_size?: number; // $T
@@ -231,6 +246,9 @@ export interface GameSession {
   chair_name: string;
   play_mode: PlayMode;
   difficulty: Difficulty;
+  economy_type?: EconomyType;
+  starting_condition?: StartingCondition;
+  volatility?: VolatilityLevel;
   status: 'active' | 'retired' | 'dismissed' | 'term_completed';
   current_year: number;
   current_month: number;
@@ -263,6 +281,9 @@ export interface SimulationListItem {
   chair_name: string;
   play_mode: PlayMode;
   difficulty: Difficulty;
+  economy_type?: EconomyType;
+  starting_condition?: StartingCondition;
+  volatility?: VolatilityLevel;
   status: 'active' | 'retired' | 'dismissed' | 'term_completed';
   current_year: number;
   current_month: number;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlayMode, Difficulty } from '../types';
+import { PlayMode, Difficulty, EconomyType, StartingCondition, VolatilityLevel } from '../types';
 import { 
   Landmark, 
   TrendingUp, 
@@ -13,14 +13,20 @@ import {
   CheckCircle2, 
   Award,
   Crown,
-  UserCheck
+  UserCheck,
+  Globe,
+  Activity,
+  Check
 } from 'lucide-react';
 
 interface LandingPageProps {
   onStartGame: (params: {
     chair_name: string;
     play_mode: PlayMode;
-    difficulty: Difficulty;
+    difficulty?: Difficulty;
+    economy_type?: EconomyType;
+    starting_condition?: StartingCondition;
+    volatility?: VolatilityLevel;
   }) => void;
   hasActiveSession: boolean;
   onResumeGame: () => void;
@@ -35,7 +41,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 }) => {
   const [chairName, setChairName] = useState('Helena Vance');
   const [playMode, setPlayMode] = useState<PlayMode>('first_person');
-  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  const [economyType, setEconomyType] = useState<EconomyType>('large_hegemon');
+  const [startingCondition, setStartingCondition] = useState<StartingCondition>('normal');
+  const [volatility, setVolatility] = useState<VolatilityLevel>('normal');
   const [isStarting, setIsStarting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,7 +52,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     onStartGame({
       chair_name: chairName.trim() || 'Helena Vance',
       play_mode: playMode,
-      difficulty
+      difficulty: startingCondition,
+      economy_type: economyType,
+      starting_condition: startingCondition,
+      volatility: volatility
     });
   };
 
@@ -165,16 +176,72 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
 
-            {/* Difficulty Mode (Newspaper Complexity) */}
+            {/* Economy Scale & Central Bank Jurisdiction */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <label className="text-xs uppercase font-bold tracking-wider text-slate-400">
-                  Information & Simulation Complexity
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Nation Scale & Central Bank Jurisdiction</span>
+                </label>
+                <span className="text-[11px] font-mono text-cyan-400">
+                  {economyType === 'large_hegemon' && 'Hegemonic Reserve Currency'}
+                  {economyType === 'middle_advanced' && 'Open Economy • Capital Flow Sensitive'}
+                  {economyType === 'small_emerging' && 'High Pass-Through • FX Reserve Desk'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  {
+                    key: 'large_hegemon',
+                    title: 'Large Hegemon',
+                    subtitle: 'US / Eurozone Parallel',
+                    desc: 'Sets global reference rate. Trillion-dollar QE/QT balance sheet. Low currency pass-through.'
+                  },
+                  {
+                    key: 'middle_advanced',
+                    title: 'Middle Advanced',
+                    subtitle: 'Canada / Australia / Korea',
+                    desc: 'Open economy. Policy rate gap with global benchmark triggers hot money inflows/flight.'
+                  },
+                  {
+                    key: 'small_emerging',
+                    title: 'Small Open Economy',
+                    subtitle: 'Emerging Market Parallel',
+                    desc: 'High import CPI pass-through. Sovereign risk spread and direct FX reserve intervention desk.'
+                  }
+                ].map(opt => (
+                  <div
+                    key={opt.key}
+                    onClick={() => setEconomyType(opt.key as EconomyType)}
+                    className={`cursor-pointer rounded-xl p-3.5 border transition-all ${
+                      economyType === opt.key
+                        ? 'bg-cyan-500/15 border-cyan-400 text-white ring-1 ring-cyan-400/60 shadow-lg'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-bold text-xs uppercase mb-0.5 flex items-center justify-between text-slate-100">
+                      <span>{opt.title}</span>
+                      {economyType === opt.key && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                    </div>
+                    <div className="text-[10px] font-mono text-cyan-400 mb-1">{opt.subtitle}</div>
+                    <div className="text-[11px] text-slate-400 leading-snug">{opt.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Starting Macro Condition */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Starting Macro Condition</span>
                 </label>
                 <span className="text-[11px] text-amber-400 font-mono">
-                  {difficulty === 'easy' && '2 Publishers • Macro Focus'}
-                  {difficulty === 'normal' && '3 Publishers • Macro + Social'}
-                  {difficulty === 'hard' && '4 Publishers • Macro + Social + Hard Politics'}
+                  {startingCondition === 'easy' && 'Anchored Inflation • 2 Publishers'}
+                  {startingCondition === 'normal' && 'Stagflationary Squeeze • 3 Publishers'}
+                  {startingCondition === 'hard' && 'Crisis & Hostile Parliament • 4 Publishers'}
                 </span>
               </div>
 
@@ -182,61 +249,99 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 
                 {/* Easy */}
                 <div
-                  onClick={() => setDifficulty('easy')}
+                  onClick={() => setStartingCondition('easy')}
                   className={`cursor-pointer rounded-xl p-3.5 border transition-all ${
-                    difficulty === 'easy'
-                      ? 'bg-emerald-500/10 border-emerald-500/60 text-emerald-300'
+                    startingCondition === 'easy'
+                      ? 'bg-emerald-500/10 border-emerald-500/60 text-emerald-300 ring-1 ring-emerald-400/40 shadow-lg'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
                   <div className="font-bold text-xs uppercase mb-1 flex items-center justify-between">
-                    <span>Easy</span>
-                    {difficulty === 'easy' && <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded">Active</span>}
+                    <span>Goldilocks (Easy)</span>
+                    {startingCondition === 'easy' && <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded">Active</span>}
                   </div>
                   <div className="text-[11px] text-slate-400 space-y-1">
                     <p className="text-slate-300 font-medium">Gloomberg + Doll Street</p>
-                    <p>Core aggregate inflation, GDP, yields & corporate earnings.</p>
+                    <p>Controlled 2.1% CPI, steady 2.4% GDP growth, and calm political climate.</p>
                   </div>
                 </div>
 
                 {/* Normal */}
                 <div
-                  onClick={() => setDifficulty('normal')}
+                  onClick={() => setStartingCondition('normal')}
                   className={`cursor-pointer rounded-xl p-3.5 border transition-all ${
-                    difficulty === 'normal'
-                      ? 'bg-amber-500/10 border-amber-500/60 text-amber-300'
+                    startingCondition === 'normal'
+                      ? 'bg-amber-500/10 border-amber-500/60 text-amber-300 ring-1 ring-amber-400/40 shadow-lg'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
                   <div className="font-bold text-xs uppercase mb-1 flex items-center justify-between">
-                    <span>Normal</span>
-                    {difficulty === 'normal' && <span className="text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded">Recommended</span>}
+                    <span>Stagflationary (Normal)</span>
+                    {startingCondition === 'normal' && <span className="text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded">Recommended</span>}
                   </div>
                   <div className="text-[11px] text-slate-400 space-y-1">
                     <p className="text-slate-300 font-medium">+ Gotham News Tribune</p>
-                    <p>Adds housing affordability, real wages, strikes & living standards.</p>
+                    <p>Sticky 4.5% CPI, sluggish growth, housing pressures, and union discontent.</p>
                   </div>
                 </div>
 
                 {/* Hard */}
                 <div
-                  onClick={() => setDifficulty('hard')}
+                  onClick={() => setStartingCondition('hard')}
                   className={`cursor-pointer rounded-xl p-3.5 border transition-all ${
-                    difficulty === 'hard'
-                      ? 'bg-rose-500/10 border-rose-500/60 text-rose-300'
+                    startingCondition === 'hard'
+                      ? 'bg-rose-500/10 border-rose-500/60 text-rose-300 ring-1 ring-rose-400/40 shadow-lg'
                       : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
                 >
                   <div className="font-bold text-xs uppercase mb-1 flex items-center justify-between">
-                    <span>Hard</span>
-                    {difficulty === 'hard' && <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.5 rounded">Brutal</span>}
+                    <span>Crisis Inheritance (Hard)</span>
+                    {startingCondition === 'hard' && <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.5 rounded">Brutal</span>}
                   </div>
                   <div className="text-[11px] text-slate-400 space-y-1">
                     <p className="text-slate-300 font-medium">+ The Cashington Post</p>
-                    <p>Adds parliamentary committee heat, fiscal clashes & election clocks.</p>
+                    <p>Runaway 7.8% CPI, inverted yield curve, debt constraints, and parliamentary grilling.</p>
                   </div>
                 </div>
 
+              </div>
+            </div>
+
+            {/* Macro Volatility */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Macro Volatility & Geopolitical Shock Frequency</span>
+                </label>
+                <span className="text-[11px] text-purple-400 font-mono capitalize">
+                  {volatility} Volatility
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {[
+                  { key: 'low', title: 'Low (Calm)', desc: '10% shock chance, stable demand' },
+                  { key: 'normal', title: 'Normal (Cyclical)', desc: '22% shock chance, standard business cycles' },
+                  { key: 'high', title: 'High (Choppy)', desc: '40% shock chance, frequent crises' },
+                  { key: 'extreme', title: 'Extreme (Chaos)', desc: '60% shock chance, multi-front shocks' }
+                ].map(opt => (
+                  <div
+                    key={opt.key}
+                    onClick={() => setVolatility(opt.key as VolatilityLevel)}
+                    className={`cursor-pointer rounded-xl p-3 border transition-all ${
+                      volatility === opt.key
+                        ? 'bg-purple-500/15 border-purple-400 text-white ring-1 ring-purple-400 shadow-md'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="font-semibold text-xs text-slate-100 flex items-center justify-between">
+                      <span>{opt.title}</span>
+                      {volatility === opt.key && <Check className="w-3 h-3 text-purple-400" />}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">{opt.desc}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
