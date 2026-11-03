@@ -54,7 +54,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-amber-500/10 via-emerald-500/5 to-transparent blur-3xl pointer-events-none -z-10"></div>
       
       {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-4 pt-12 pb-20 sm:pt-16 sm:pb-28">
+      <div className="max-w-6xl mx-auto px-4 pt-12 pb-24 sm:pt-16 sm:pb-28 android-scroll-bottom-clearance">
         
         {/* Top Eyebrow */}
         <div className="flex justify-center mb-6">

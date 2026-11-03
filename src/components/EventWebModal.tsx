@@ -102,7 +102,7 @@ export const EventWebModal: React.FC<EventWebModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Main Content: Left List & Right Detail */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 overflow-hidden">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 overflow-hidden pb-[16vh] md:pb-0">
           
           {/* Left Column: Event List (5 cols) */}
           <div className="md:col-span-5 overflow-y-auto space-y-2 pr-1">

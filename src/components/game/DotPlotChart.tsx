@@ -64,7 +64,7 @@ export const DotPlotChart: React.FC<DotPlotChartProps> = ({ dotPlotData, isOpen,
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 pb-[16vh] md:pb-6">
           {/* Summary Banner */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-800 text-center">
             <div>

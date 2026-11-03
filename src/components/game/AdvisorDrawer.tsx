@@ -294,7 +294,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                 </div>
 
                 {/* Input Bar */}
-                <form onSubmit={handleSendChat} className="flex gap-2">
+                <form onSubmit={handleSendChat} className="flex gap-2 pt-2 pb-[calc(var(--android-system-bar-inset)+1.5vh)] md:pb-0">
                   <input
                     type="text"
                     value={inputMessage}
@@ -319,7 +319,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
               TAB 2: SUBMIT POLICY TO PARLIAMENT
              ========================================= */}
           {activeTab === 'policy' && (
-            <div className="space-y-6">
+            <div className="space-y-6 pb-[calc(var(--android-system-bar-inset)+12vh)] md:pb-0">
               <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 text-xs space-y-1.5 text-slate-300">
                 <h4 className="font-bold text-slate-100 flex items-center gap-1.5">
                   <Vote className="w-4 h-4 text-purple-400" />
@@ -419,7 +419,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
               TAB 3: STRATEGIC MEDIA BLITZ
              ========================================= */}
           {activeTab === 'media' && (
-            <div className="space-y-6">
+            <div className="space-y-6 pb-[calc(var(--android-system-bar-inset)+12vh)] md:pb-0">
               <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 text-xs space-y-1.5 text-slate-300">
                 <h4 className="font-bold text-slate-100 flex items-center gap-1.5">
                   <Megaphone className="w-4 h-4 text-amber-400" />

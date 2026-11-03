@@ -68,7 +68,7 @@ export const BalanceSheetControl: React.FC<BalanceSheetControlProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6 pb-[16vh] md:pb-6">
           {/* Telemetry Overview */}
           <div className="grid grid-cols-3 gap-4 bg-slate-950/50 p-4 rounded-xl border border-slate-800 text-center">
             <div>

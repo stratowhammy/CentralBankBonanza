@@ -948,7 +948,7 @@ export const VariableGraphOverlay: React.FC<VariableGraphOverlayProps> = ({
       </div>
 
       {/* 5. SUMMARY METRIC STRIP (Current, Delta, Min/Max) */}
-      <div className="p-3 bg-slate-950/80 border-t border-slate-800 overflow-x-auto">
+      <div className="p-3 pb-[calc(var(--android-system-bar-inset)+2.5vh)] md:pb-3 bg-slate-950/80 border-t border-slate-800 overflow-x-auto">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs min-w-[500px]">
           {stats.map(s => {
             const isPositive = s.delta > 0;

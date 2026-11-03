@@ -126,7 +126,7 @@ export const MonthlyActionModal: React.FC<MonthlyActionModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 pb-[calc(var(--android-system-bar-inset)+12vh)] md:pb-0">
           
           {/* =========================================
               MONTH 1 & 2: GUIDANCE OR SILENCE

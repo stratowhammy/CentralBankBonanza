@@ -142,7 +142,7 @@ export const AdminDashboard: React.FC = () => {
   const selectedSession = dashboardData?.sessions?.find((s: any) => s.id === selectedSessionId);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 pb-28 md:pb-8 android-scroll-bottom-clearance">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header */}

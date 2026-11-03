@@ -36,6 +36,11 @@
     --android-fab-h: 6.4vh;
     --android-touch-target: 5.8vh;
 
+    /* Android 3-Button Home Navigation & Inset Clearance */
+    --android-system-bar-inset: max(env(safe-area-inset-bottom, 24px), 3.5vh);
+    --android-nav-total-h: calc(var(--android-bottom-bar-h) + var(--android-system-bar-inset));
+    --android-content-scroll-padding: calc(var(--android-nav-total-h) + 14vh);
+
     --android-radius-xs: 2vw;     /* ~8px */
     --android-radius-sm: 3.2vw;   /* ~12px */
     --android-radius-md: 4.4vw;   /* ~16px */
@@ -60,7 +65,19 @@
     font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
     -webkit-tap-highlight-color: transparent !important;
     overscroll-behavior-y: contain;
-    padding-bottom: calc(var(--android-bottom-bar-h) + env(safe-area-inset-bottom, 14px)) !important;
+    padding-bottom: var(--android-content-scroll-padding) !important;
+  }
+
+  /* Universal scroll clearance for main views & pages to prevent 3-button occlusion */
+  .android-scroll-bottom-clearance,
+  .android-page-scroll,
+  main {
+    padding-bottom: var(--android-content-scroll-padding) !important;
+  }
+
+  /* Bottom sheet scrolling area clearance */
+  .android-sheet-scroll {
+    padding-bottom: calc(var(--android-system-bar-inset) + 14vh) !important;
   }
 
   /* Android Native Tactile Press Feedback */
@@ -117,8 +134,8 @@
     left: 0 !important;
     right: 0 !important;
     width: 100vw !important;
-    height: calc(var(--android-bottom-bar-h) + env(safe-area-inset-bottom, 8px)) !important;
-    min-height: 64px !important;
+    height: var(--android-nav-total-h) !important;
+    min-height: 68px !important;
     background: rgba(16, 21, 34, 0.96) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
@@ -127,7 +144,7 @@
     align-items: flex-start !important;
     justify-content: space-around !important;
     padding-top: 0.8vh !important;
-    padding-bottom: env(safe-area-inset-bottom, 0.6vh) !important;
+    padding-bottom: var(--android-system-bar-inset) !important;
     z-index: 45 !important;
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5) !important;
   }
@@ -234,7 +251,7 @@
      ------------------------------------------------------------------------- */
   .android-extended-fab {
     position: fixed !important;
-    bottom: calc(var(--android-bottom-bar-h) + env(safe-area-inset-bottom, 8px) + 2vh) !important;
+    bottom: calc(var(--android-nav-total-h) + 2vh) !important;
     right: 4vw !important;
     height: var(--android-fab-h) !important;
     min-height: 48px !important;

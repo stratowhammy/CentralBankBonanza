@@ -88,7 +88,7 @@ export const TermReappointmentModal: React.FC<TermReappointmentModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 pb-[16vh] md:pb-6">
           {loading ? (
             <div className="py-16 text-center text-slate-400 font-mono text-sm">
               Tabulating 48 months of macroeconomic data and Parliamentary records...

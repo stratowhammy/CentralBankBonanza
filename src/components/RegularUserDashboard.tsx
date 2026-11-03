@@ -150,7 +150,7 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-6 space-y-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-8 android-scroll-bottom-clearance">
         
         {/* Active Simulation In Progress Banner */}
         {activeSession && activeSession.status === 'active' ? (
@@ -459,7 +459,7 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
       {/* Result Details Modal (Desktop Dialog / Mobile Android Bottom Sheet) */}
       {selectedResult && (
         <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-black/75 backdrop-blur-sm p-0 md:p-4">
-          <div className="bg-slate-900 border-t md:border border-slate-700 rounded-t-[7vw] md:rounded-xl max-w-lg w-full max-h-[88vh] md:max-h-none overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-5">
+          <div className="bg-slate-900 border-t md:border border-slate-700 rounded-t-[7vw] md:rounded-xl max-w-lg w-full max-h-[88vh] md:max-h-none overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-5 pb-[16vh] md:pb-6">
             {/* Android Drag Handle (Mobile Only) */}
             <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto mb-[1.5vh] flex-shrink-0" />
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">

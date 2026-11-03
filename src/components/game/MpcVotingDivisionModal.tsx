@@ -73,7 +73,7 @@ export const MpcVotingDivisionModal: React.FC<MpcVotingDivisionModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-6 pb-[16vh] md:pb-6">
           {/* Tally Card */}
           <div className="p-5 rounded-xl bg-slate-950/50 border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
