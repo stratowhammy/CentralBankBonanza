@@ -44,8 +44,11 @@ export const MpcVotingDivisionModal: React.FC<MpcVotingDivisionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-black/75 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-slate-900 border-t md:border border-slate-700 rounded-t-[7vw] md:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] md:max-h-[90vh]">
+        {/* Android Drag Handle (Mobile Only) */}
+        <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto my-[1.2vh] flex-shrink-0" />
+        
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-3">

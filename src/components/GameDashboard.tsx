@@ -15,7 +15,7 @@ import { ParliamentaryHearingModal } from './game/ParliamentaryHearingModal';
 import { TermReappointmentModal } from './game/TermReappointmentModal';
 import { VariableGraphOverlay } from './game/VariableGraphOverlay';
 import { api } from '../api';
-import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft, LineChart } from 'lucide-react';
+import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft, LineChart, Vote, BellRing } from 'lucide-react';
 
 interface GameDashboardProps {
   session: GameSession;
@@ -45,6 +45,23 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   const [isTermReviewOpen, setIsTermReviewOpen] = useState(false);
   const [isGraphOverlayOpen, setIsGraphOverlayOpen] = useState(false);
   const [activeTrackedVar, setActiveTrackedVar] = useState<string | undefined>(undefined);
+
+  // Listen for mobile navigation events dispatched from Android Bottom Nav
+  React.useEffect(() => {
+    const handleOpenAdvisor = () => setIsAdvisorDrawerOpen(true);
+    const handleOpenTracker = () => setIsGraphOverlayOpen(true);
+    const handleOpenAction = () => setIsActionModalOpen(true);
+
+    window.addEventListener('cbb:open-advisor', handleOpenAdvisor);
+    window.addEventListener('cbb:open-tracker', handleOpenTracker);
+    window.addEventListener('cbb:open-action', handleOpenAction);
+
+    return () => {
+      window.removeEventListener('cbb:open-advisor', handleOpenAdvisor);
+      window.removeEventListener('cbb:open-tracker', handleOpenTracker);
+      window.removeEventListener('cbb:open-action', handleOpenAction);
+    };
+  }, []);
 
   const handleStateUpdated = () => {
     onRefreshSession();
@@ -371,6 +388,27 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
         onClose={() => setIsTermReviewOpen(false)}
         onReappointed={handleReappointed}
       />
+
+      {/* Mobile Android Floating Action Button (FAB) */}
+      {session.status === 'active' && (
+        <button
+          onClick={() => setIsActionModalOpen(true)}
+          className="android-extended-fab md:hidden"
+          aria-label="Execute Monetary Policy Decision"
+        >
+          {session.month_in_quarter === 3 ? (
+            <>
+              <Vote className="w-5 h-5 text-slate-950" />
+              <span>VOTE MPC RATE</span>
+            </>
+          ) : (
+            <>
+              <BellRing className="w-5 h-5 text-slate-950" />
+              <span>ISSUE GUIDANCE</span>
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 };

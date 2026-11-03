@@ -1,0 +1,404 @@
+/* =========================================================================
+   ANDROID NATIVE MATERIAL YOU (M3) THEME FOR MOBILE VIEWPORTS (< 768px)
+   Maintains strict desktop CSS isolation while transforming mobile into
+   an authentic, high-performance Android native app experience.
+   ========================================================================= */
+
+@media (max-width: 768px) {
+  :root {
+    /* Android Material 3 Surface Palette (Tonal Elevation) */
+    --md3-surface: #0b0f19;
+    --md3-surface-dim: #070a12;
+    --md3-surface-bright: #232b3d;
+    --md3-surface-container-lowest: #05070c;
+    --md3-surface-container-low: #101522;
+    --md3-surface-container: #151b2a;
+    --md3-surface-container-high: #1c2437;
+    --md3-surface-container-highest: #232d43;
+
+    /* Material 3 Amber / Gold Accent Tones */
+    --md3-primary: #f59e0b;
+    --md3-on-primary: #1f1400;
+    --md3-primary-container: #452d00;
+    --md3-on-primary-container: #fef3c7;
+
+    --md3-secondary: #94a3b8;
+    --md3-secondary-container: #1e293b;
+    --md3-on-secondary-container: #f1f5f9;
+
+    --md3-outline: rgba(148, 163, 184, 0.18);
+    --md3-outline-variant: rgba(255, 255, 255, 0.08);
+
+    /* Responsive Units (Strict vw & vh based) */
+    --android-top-bar-h: 7.2vh;
+    --android-bottom-bar-h: 8.8vh;
+    --android-bottom-sheet-h: 88vh;
+    --android-fab-h: 6.4vh;
+    --android-touch-target: 5.8vh;
+
+    --android-radius-xs: 2vw;     /* ~8px */
+    --android-radius-sm: 3.2vw;   /* ~12px */
+    --android-radius-md: 4.4vw;   /* ~16px */
+    --android-radius-lg: 6vw;     /* ~24px */
+    --android-radius-xl: 7.5vw;   /* ~28px */
+    --android-radius-pill: 9999px;
+
+    --android-pad-x: 4.2vw;
+    --android-pad-y: 2vh;
+    --android-card-pad: 3.8vw 4.2vw;
+  }
+
+  /* -------------------------------------------------------------------------
+     1. Global Mobile Reset & Android Native Physics
+     ------------------------------------------------------------------------- */
+  html, body {
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden !important;
+    background-color: var(--md3-surface) !important;
+    color: #f1f5f9;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+    -webkit-tap-highlight-color: transparent !important;
+    overscroll-behavior-y: contain;
+    padding-bottom: calc(var(--android-bottom-bar-h) + env(safe-area-inset-bottom, 14px)) !important;
+  }
+
+  /* Android Native Tactile Press Feedback */
+  button, a, [role="button"], input[type="button"], input[type="submit"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 120ms cubic-bezier(0.2, 0, 0, 1), opacity 120ms ease, background-color 140ms ease !important;
+  }
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.968) !important;
+    opacity: 0.88 !important;
+  }
+
+  /* Android Subtle Native Scrollbar */
+  ::-webkit-scrollbar {
+    width: 1vw !important;
+    height: 0.5vh !important;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25) !important;
+    border-radius: var(--android-radius-pill) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     2. Android Top App Bar
+     ------------------------------------------------------------------------- */
+  .android-top-bar {
+    height: var(--android-top-bar-h) !important;
+    min-height: 56px !important;
+    background: rgba(11, 15, 25, 0.94) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-bottom: 1px solid var(--md3-outline-variant) !important;
+    padding-left: var(--android-pad-x) !important;
+    padding-right: var(--android-pad-x) !important;
+    padding-top: env(safe-area-inset-top, 0) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     3. Android Material 3 Bottom Navigation Bar
+     ------------------------------------------------------------------------- */
+  .android-bottom-bar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    height: calc(var(--android-bottom-bar-h) + env(safe-area-inset-bottom, 8px)) !important;
+    min-height: 64px !important;
+    background: rgba(16, 21, 34, 0.96) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid var(--md3-outline-variant) !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-around !important;
+    padding-top: 0.8vh !important;
+    padding-bottom: env(safe-area-inset-bottom, 0.6vh) !important;
+    z-index: 45 !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .android-nav-tab {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.35vh !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    width: 18.5vw !important;
+    padding: 0 !important;
+  }
+
+  .android-nav-indicator {
+    width: 14vw !important;
+    height: 3.8vh !important;
+    max-height: 32px !important;
+    border-radius: var(--android-radius-pill) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 180ms cubic-bezier(0.2, 0, 0, 1), transform 150ms ease !important;
+  }
+
+  .android-nav-tab.active .android-nav-indicator {
+    background-color: rgba(245, 158, 11, 0.22) !important;
+    color: #fbbf24 !important;
+  }
+  .android-nav-tab:not(.active) .android-nav-indicator {
+    background-color: transparent !important;
+    color: #94a3b8 !important;
+  }
+
+  .android-nav-text {
+    font-size: 2.8vw !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.015em !important;
+    line-height: 1.1 !important;
+  }
+  .android-nav-tab.active .android-nav-text {
+    color: #fbbf24 !important;
+    font-weight: 700 !important;
+  }
+  .android-nav-tab:not(.active) .android-nav-text {
+    color: #64748b !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     4. Android Modal Bottom Sheets & Drawer Transformation
+     ------------------------------------------------------------------------- */
+  .android-sheet-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(5, 7, 12, 0.78) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    z-index: 55 !important;
+  }
+
+  .android-sheet-container {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: var(--android-bottom-sheet-h) !important;
+    max-height: 92vh !important;
+    background: var(--md3-surface-container) !important;
+    border-top: 1px solid var(--md3-outline) !important;
+    border-radius: var(--android-radius-xl) var(--android-radius-xl) 0 0 !important;
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.8) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    animation: androidSlideUp 260ms cubic-bezier(0.1, 0.9, 0.2, 1) forwards !important;
+  }
+
+  @keyframes androidSlideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  /* Drag handle at the top of sheets */
+  .android-sheet-handle {
+    width: 10.5vw !important;
+    height: 0.55vh !important;
+    min-height: 4px !important;
+    border-radius: var(--android-radius-pill) !important;
+    background-color: rgba(148, 163, 184, 0.38) !important;
+    margin: 1.2vh auto 1vh auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     5. Android Floating Action Button (FAB)
+     ------------------------------------------------------------------------- */
+  .android-extended-fab {
+    position: fixed !important;
+    bottom: calc(var(--android-bottom-bar-h) + env(safe-area-inset-bottom, 8px) + 2vh) !important;
+    right: 4vw !important;
+    height: var(--android-fab-h) !important;
+    min-height: 48px !important;
+    padding: 0 5.2vw !important;
+    border-radius: var(--android-radius-lg) !important;
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: #0b0f19 !important;
+    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.42), 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 2.2vw !important;
+    font-size: 3.6vw !important;
+    font-weight: 700 !important;
+    z-index: 42 !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     6. Android M3 Cards & Surface Rhythm
+     ------------------------------------------------------------------------- */
+  .android-m3-card {
+    background: var(--md3-surface-container-low) !important;
+    border: 1px solid var(--md3-outline-variant) !important;
+    border-radius: var(--android-radius-md) !important;
+    padding: var(--android-card-pad) !important;
+    margin-bottom: 2vh !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  .android-m3-card-elevated {
+    background: var(--md3-surface-container) !important;
+    border: 1px solid var(--md3-outline) !important;
+    border-radius: var(--android-radius-lg) !important;
+    padding: var(--android-card-pad) !important;
+    margin-bottom: 2.2vh !important;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     7. Android Segmented Chips & Button Controls
+     ------------------------------------------------------------------------- */
+  .android-m3-chip {
+    height: 4.8vh !important;
+    min-height: 38px !important;
+    padding: 0 4vw !important;
+    border-radius: var(--android-radius-pill) !important;
+    font-size: 3.2vw !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 1.8vw !important;
+    font-weight: 500 !important;
+    background: var(--md3-surface-container-high) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid var(--md3-outline-variant) !important;
+    cursor: pointer !important;
+  }
+  .android-m3-chip.active {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #fbbf24 !important;
+    border-color: rgba(245, 158, 11, 0.55) !important;
+    font-weight: 700 !important;
+  }
+
+  .android-m3-btn-filled {
+    min-height: var(--android-touch-target) !important;
+    height: 6vh !important;
+    border-radius: var(--android-radius-pill) !important;
+    background: var(--md3-primary) !important;
+    color: var(--md3-on-primary) !important;
+    font-size: 3.7vw !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2.2vw !important;
+    padding: 0 5.5vw !important;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3) !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+
+  .android-m3-btn-tonal {
+    min-height: var(--android-touch-target) !important;
+    height: 6vh !important;
+    border-radius: var(--android-radius-pill) !important;
+    background: var(--md3-surface-container-highest) !important;
+    color: #f1f5f9 !important;
+    font-size: 3.7vw !important;
+    font-weight: 600 !important;
+    border: 1px solid var(--md3-outline-variant) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2vw !important;
+    cursor: pointer !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     8. Android Graph Overlay Mobile Bottom Sheet
+     ------------------------------------------------------------------------- */
+  .android-graph-overlay {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 88vh !important;
+    max-height: 88vh !important;
+    border-radius: var(--android-radius-xl) var(--android-radius-xl) 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 1px solid var(--md3-outline) !important;
+    transform: none !important;
+    box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.8) !important;
+  }
+
+  .android-graph-minimized {
+    left: 4vw !important;
+    right: 4vw !important;
+    top: auto !important;
+    bottom: calc(var(--android-bottom-bar-h) + 2vh) !important;
+    width: 92vw !important;
+    justify-content: space-between !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     9. Mobile Chart & Metrics Viewport Constraints
+     ------------------------------------------------------------------------- */
+  .chart-container-mobile {
+    height: 32vh !important;
+    min-height: 220px !important;
+    max-height: 38vh !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     10. Mobile Typography Scaling via vw
+     ------------------------------------------------------------------------- */
+  .mobile-display {
+    font-size: 6vw !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+  }
+  .mobile-title {
+    font-size: 4.6vw !important;
+    line-height: 1.25 !important;
+    font-weight: 700 !important;
+  }
+  .mobile-subtitle {
+    font-size: 3.6vw !important;
+    line-height: 1.35 !important;
+    font-weight: 500 !important;
+  }
+  .mobile-body {
+    font-size: 3.3vw !important;
+    line-height: 1.45 !important;
+  }
+  .mobile-caption {
+    font-size: 2.8vw !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.03em !important;
+  }
+}

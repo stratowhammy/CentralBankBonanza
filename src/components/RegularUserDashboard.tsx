@@ -116,9 +116,9 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       
-      {/* Top Header */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      {/* Top Header (Desktop only - Mobile uses Android Top App Bar) */}
+      <header className="hidden md:flex bg-slate-900 border-b border-slate-800 px-6 py-3.5">
+        <div className="max-w-5xl mx-auto flex items-center justify-between w-full">
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold tracking-tight text-white">Central Bank Simulator</h1>
             <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
@@ -456,10 +456,12 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
 
       </main>
 
-      {/* Result Details Modal */}
+      {/* Result Details Modal (Desktop Dialog / Mobile Android Bottom Sheet) */}
       {selectedResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-black/75 backdrop-blur-sm p-0 md:p-4">
+          <div className="bg-slate-900 border-t md:border border-slate-700 rounded-t-[7vw] md:rounded-xl max-w-lg w-full max-h-[88vh] md:max-h-none overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-5">
+            {/* Android Drag Handle (Mobile Only) */}
+            <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto mb-[1.5vh] flex-shrink-0" />
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
                 <h3 className="font-bold text-base text-white">Simulation Results</h3>

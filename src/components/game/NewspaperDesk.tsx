@@ -82,7 +82,7 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
         </div>
 
         {/* Paper Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
           {articles.map((art) => {
             const pTheme = PUBLISHER_THEMES[art.publisher];
             const isSelected = selectedPublisher === art.publisher;
@@ -90,7 +90,7 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
               <button
                 key={art.publisher}
                 onClick={() => setSelectedPublisher(art.publisher)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
                   isSelected
                     ? `${pTheme.accentBg} ${pTheme.accentText} border ${pTheme.border} shadow-sm`
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'

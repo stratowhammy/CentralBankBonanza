@@ -42,8 +42,10 @@ export const EventWebModal: React.FC<EventWebModalProps> = ({ isOpen, onClose })
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-      <div className="relative w-full max-w-5xl h-[85vh] bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-4 bg-slate-950/85 backdrop-blur-md">
+      <div className="relative w-full max-w-5xl h-[88vh] md:h-[85vh] bg-slate-900 border-t md:border border-slate-800 rounded-t-[7vw] md:rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col">
+        {/* Android Drag Handle (Mobile Only) */}
+        <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto mb-[1.2vh] flex-shrink-0" />
         
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">

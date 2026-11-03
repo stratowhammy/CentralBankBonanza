@@ -717,7 +717,7 @@ export const VariableGraphOverlay: React.FC<VariableGraphOverlayProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className={`fixed z-50 select-none bg-slate-900/95 border border-amber-500/50 rounded-2xl p-2.5 px-4 shadow-2xl backdrop-blur-md flex items-center gap-3 cursor-grab active:cursor-grabbing text-xs text-white ${
+        className={`fixed z-50 select-none bg-slate-900/95 border border-amber-500/50 rounded-2xl p-2.5 px-4 shadow-2xl backdrop-blur-md flex items-center gap-3 cursor-grab active:cursor-grabbing text-xs text-white android-graph-minimized ${
           isDragging ? 'opacity-80 scale-102 ring-2 ring-amber-400' : ''
         }`}
       >
@@ -752,10 +752,13 @@ export const VariableGraphOverlay: React.FC<VariableGraphOverlayProps> = ({
   return (
     <div
       style={{ left: `${position.x}px`, top: `${position.y}px` }}
-      className={`fixed z-50 ${overlayWidthClass} max-w-[96vw] max-h-[92vh] flex flex-col bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden text-slate-100 font-sans transition-all duration-150 ${
+      className={`fixed z-50 ${overlayWidthClass} max-w-[96vw] max-h-[92vh] flex flex-col bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden text-slate-100 font-sans transition-all duration-150 android-graph-overlay ${
         isDragging ? 'ring-2 ring-amber-400/80 opacity-95' : ''
       }`}
     >
+      {/* Android Drag Handle (Mobile Only) */}
+      <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto my-[1.2vh] flex-shrink-0" />
+
       {/* 1. DRAGGABLE HEADER */}
       <div
         onMouseDown={handleMouseDown}

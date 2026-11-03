@@ -131,11 +131,14 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/70 backdrop-blur-sm">
-      <div className="w-full max-w-xl h-full bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-stretch md:justify-end bg-slate-950/75 backdrop-blur-sm">
+      <div className="w-full max-w-xl h-[88vh] md:h-full bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 rounded-t-[7vw] md:rounded-none shadow-2xl flex flex-col overflow-hidden">
         
+        {/* Android Native Drag Handle (mobile only) */}
+        <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto my-[1.2vh] flex-shrink-0" />
+
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div className="px-5 py-3 md:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md">
               <Bot className="w-5 h-5" />

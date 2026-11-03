@@ -87,9 +87,12 @@ export const MonthlyActionModal: React.FC<MonthlyActionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl my-8">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+      <div className="relative w-full max-w-2xl max-h-[90vh] md:max-h-none overflow-y-auto bg-slate-900 border-t md:border border-slate-800 rounded-t-[7vw] md:rounded-2xl p-5 sm:p-8 shadow-2xl my-0 md:my-8 flex flex-col">
         
+        {/* Android Drag Handle (Mobile Only) */}
+        <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto mb-[1.5vh] flex-shrink-0" />
+
         {/* Close Button */}
         <button
           onClick={onClose}

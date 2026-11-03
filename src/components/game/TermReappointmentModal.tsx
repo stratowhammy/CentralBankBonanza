@@ -59,8 +59,11 @@ export const TermReappointmentModal: React.FC<TermReappointmentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-indigo-500/50 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center bg-black/80 backdrop-blur-md p-0 md:p-4 animate-in fade-in duration-200">
+      <div className="bg-slate-900 border-t md:border border-indigo-500/50 rounded-t-[7vw] md:rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] md:max-h-[92vh]">
+        {/* Android Drag Handle (Mobile Only) */}
+        <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto my-[1.2vh] flex-shrink-0" />
+        
         {/* Header */}
         <div className="px-6 py-5 border-b border-indigo-500/30 flex items-center justify-between bg-gradient-to-r from-indigo-950/60 to-purple-950/60">
           <div className="flex items-center gap-3">

@@ -27,32 +27,42 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isAdmin = user?.role === 'admin' && user?.username === 'admin' && !isKlimbus;
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3 md:py-3 android-top-bar">
+      <div className="max-w-7xl mx-auto flex items-center justify-between w-full">
         
         {/* Brand / Logo */}
         <div 
           onClick={() => onNavigate(isAdmin ? 'landing' : 'user_portal')}
-          className="flex items-center gap-3 cursor-pointer select-none"
+          className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-md border border-amber-400/40">
-            <Landmark className="w-5 h-5 text-slate-950" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-md border border-amber-400/40 flex-shrink-0">
+            <Landmark className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-wide text-slate-100">
-                CENTRAL BANK SIMULATOR
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-bold text-xs sm:text-base tracking-wide text-slate-100">
+                CENTRAL BANK SIM
               </span>
               {!isAdmin && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  User Portal
+                <span className="text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  Portal
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Center Live Status: Shown if viewing the Game */}
+        {/* Center Live Status: Mobile Pill */}
+        {activeSession && currentView === 'game' && (
+          <div className="flex md:hidden items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-[11px] shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-300 font-medium">Y{activeSession.current_year} M{activeSession.current_month}</span>
+            <span className="text-slate-600">•</span>
+            <span className="font-mono text-amber-300 font-bold">{activeSession.economic_state.interest_rate.toFixed(2)}%</span>
+          </div>
+        )}
+
+        {/* Center Live Status: Desktop */}
         {activeSession && currentView === 'game' && (
           <div className="hidden md:flex items-center gap-3 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>

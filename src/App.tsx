@@ -8,6 +8,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
 import { EventWebModal } from './components/EventWebModal';
 import { RegularUserDashboard } from './components/RegularUserDashboard';
+import { AndroidBottomNav } from './components/AndroidBottomNav';
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -291,6 +292,18 @@ export const App: React.FC = () => {
       <EventWebModal
         isOpen={isEventWebOpen}
         onClose={() => setIsEventWebOpen(false)}
+      />
+
+      {/* Android Native Material 3 Bottom Navigation Bar (Mobile Only) */}
+      <AndroidBottomNav
+        currentView={currentView}
+        user={currentUser}
+        activeSession={activeSession}
+        onNavigate={handleNavigate}
+        onOpenAdvisor={() => window.dispatchEvent(new CustomEvent('cbb:open-advisor'))}
+        onOpenGraphTracker={() => window.dispatchEvent(new CustomEvent('cbb:open-tracker'))}
+        onOpenActionModal={() => window.dispatchEvent(new CustomEvent('cbb:open-action'))}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
     </div>
