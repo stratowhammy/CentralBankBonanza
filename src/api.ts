@@ -48,6 +48,7 @@ export const api = {
     chair_name: string;
     play_mode: 'first_person' | 'god_mode';
     difficulty: 'easy' | 'normal' | 'hard';
+    skip_news?: boolean;
   }): Promise<{ success: boolean; session: GameSession }> {
     const res = await fetch(`${API_BASE}/game/new`, {
       method: 'POST',

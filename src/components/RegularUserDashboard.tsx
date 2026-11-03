@@ -74,12 +74,13 @@ export const RegularUserDashboard: React.FC<RegularUserDashboardProps> = ({
   const handleRunBatch = async (months: number) => {
     setIsStarting(true);
     try {
-      // Create session first
+      // Create session first (skip news generation since batch simulates forward immediately)
       const startRes = await api.startNewGame({
         user_id: user?.id || 'user_guest_default',
         chair_name: chairName.trim() || 'Helena Vance',
         play_mode: playMode,
-        difficulty
+        difficulty,
+        skip_news: true
       });
 
       // Simulate the months

@@ -116,6 +116,13 @@ db.exec(`
     value TEXT NOT NULL,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  -- High-performance query indexes
+  CREATE INDEX IF NOT EXISTS idx_game_sessions_user_id ON game_sessions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_turn_history_session_id ON turn_history(session_id);
+  CREATE INDEX IF NOT EXISTS idx_turn_history_session_ym ON turn_history(session_id, year, month);
+  CREATE INDEX IF NOT EXISTS idx_news_articles_session_ym ON news_articles(session_id, year, month);
+  CREATE INDEX IF NOT EXISTS idx_advisor_messages_session ON advisor_messages(session_id);
 `);
 
 // Safe column migrations for Section 5 features

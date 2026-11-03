@@ -11,12 +11,12 @@ const {
   calculateMpcVote,
   GOD_MODE_CHAIRS 
 } = require('../simulationEngine');
-const { generateMonthlyNews } = require('../newsEngine');
+const { generateMonthlyNews, generateWithLocalMacroEngine } = require('../newsEngine');
 
 // Create a new game session
 router.post('/new', async (req, res) => {
   try {
-    const { user_id, chair_name, play_mode, difficulty } = req.body;
+    const { user_id, chair_name, play_mode, difficulty, skip_news } = req.body;
     
     if (!user_id || !play_mode || !difficulty) {
       return res.status(400).json({ error: 'user_id, play_mode, and difficulty are required' });
@@ -26,59 +26,70 @@ router.post('/new', async (req, res) => {
     const economicState = getInitialEconomicState(difficulty);
     const chairState = getInitialChairState(play_mode, chair_name);
 
-    // Initial save of the session
-    db.prepare(`
-      INSERT INTO game_sessions (
-        id, user_id, chair_name, play_mode, difficulty, status,
-        current_year, current_month, total_months_elapsed,
-        economic_state, chair_state, last_action, last_action_details
-      ) VALUES (?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, 'initial_appointment', 'Appointed to office')
-    `).run(
-      sessionId,
-      user_id,
-      chairState.active_chair.name,
-      play_mode,
-      difficulty,
-      JSON.stringify(economicState),
-      JSON.stringify(chairState)
-    );
-
-    // Generate Month 1 news stories
-    const newsArticles = await generateMonthlyNews(economicState, difficulty, 1, 1);
-    
-    const insertNews = db.prepare(`
-      INSERT INTO news_articles (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_variable, byline, dateline, whisper_quote)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    for (const art of newsArticles) {
-      insertNews.run(
-        'art_' + uuidv4().substring(0, 8),
-        sessionId,
-        1,
-        1,
-        art.publisher,
-        art.headline,
-        art.body,
-        art.tone,
-        art.urgency,
-        art.featured_variable,
-        art.byline || '',
-        art.dateline || '',
-        art.whisper_quote || ''
-      );
+    // Generate Month 1 news stories (use instant local macro engine if skip_news or automated batch)
+    let newsArticles;
+    if (skip_news) {
+      const publishers = ['gloomberg', 'doll_street'];
+      if (difficulty === 'normal' || difficulty === 'hard') publishers.push('gotham');
+      if (difficulty === 'hard') publishers.push('cashington');
+      newsArticles = publishers.map(pub => generateWithLocalMacroEngine(pub, economicState, 1, 1));
+    } else {
+      newsArticles = await generateMonthlyNews(economicState, difficulty, 1, 1);
     }
 
-    // Save initial turn snapshot
-    db.prepare(`
-      INSERT INTO turn_history (id, session_id, year, month, quarter, month_in_quarter, action_type, action_value, statement, economic_snapshot, active_events)
-      VALUES (?, ?, 1, 1, 1, 1, 'inaugural', '0', 'Sworn into office as Central Bank Chair', ?, ?)
-    `).run(
-      'trn_' + uuidv4().substring(0, 8),
-      sessionId,
-      JSON.stringify(economicState),
-      JSON.stringify(economicState.active_events || [])
-    );
+    // Persist session, news, and inaugural turn in a single atomic transaction
+    const createSessionTx = db.transaction(() => {
+      db.prepare(`
+        INSERT INTO game_sessions (
+          id, user_id, chair_name, play_mode, difficulty, status,
+          current_year, current_month, total_months_elapsed,
+          economic_state, chair_state, last_action, last_action_details
+        ) VALUES (?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, 'initial_appointment', 'Appointed to office')
+      `).run(
+        sessionId,
+        user_id,
+        chairState.active_chair.name,
+        play_mode,
+        difficulty,
+        JSON.stringify(economicState),
+        JSON.stringify(chairState)
+      );
+
+      const insertNews = db.prepare(`
+        INSERT INTO news_articles (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_variable, byline, dateline, whisper_quote)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const art of newsArticles) {
+        insertNews.run(
+          'art_' + uuidv4().substring(0, 8),
+          sessionId,
+          1,
+          1,
+          art.publisher,
+          art.headline,
+          art.body,
+          art.tone,
+          art.urgency,
+          art.featured_variable,
+          art.byline || '',
+          art.dateline || '',
+          art.whisper_quote || ''
+        );
+      }
+
+      db.prepare(`
+        INSERT INTO turn_history (id, session_id, year, month, quarter, month_in_quarter, action_type, action_value, statement, economic_snapshot, active_events)
+        VALUES (?, ?, 1, 1, 1, 1, 'inaugural', '0', 'Sworn into office as Central Bank Chair', ?, ?)
+      `).run(
+        'trn_' + uuidv4().substring(0, 8),
+        sessionId,
+        JSON.stringify(economicState),
+        JSON.stringify(economicState.active_events || [])
+      );
+    });
+
+    createSessionTx();
 
     res.json({
       success: true,
@@ -307,69 +318,71 @@ router.post('/:sessionId/action', async (req, res) => {
     }
     const nextTotalMonths = session.total_months_elapsed + 1;
 
-    // Generate news stories for the NEW month
+    // Generate news stories for the NEW month concurrently
     const newArticles = await generateMonthlyNews(newEconomicState, session.difficulty, nextYear, nextMonth);
 
-    // Save action and turn history
+    // Save action, turn history, news articles, and session state in a single atomic transaction
     const currentQuarter = Math.floor((session.current_month - 1) / 3) + 1;
-    db.prepare(`
-      INSERT INTO turn_history (id, session_id, year, month, quarter, month_in_quarter, action_type, action_value, statement, economic_snapshot, active_events)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      'trn_' + uuidv4().substring(0, 8),
-      session.id,
-      session.current_year,
-      session.current_month,
-      currentQuarter,
-      monthInQuarter,
-      action_type,
-      String(action_value || ''),
-      statement || '',
-      JSON.stringify(newEconomicState),
-      JSON.stringify(newEconomicState.active_events || [])
-    );
-
-    // Save new articles with bylines, datelines, and whisper quotes
-    const insertNews = db.prepare(`
-      INSERT INTO news_articles (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_variable, byline, dateline, whisper_quote)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    for (const art of newArticles) {
-      insertNews.run(
-        'art_' + uuidv4().substring(0, 8),
+    const saveTurnTx = db.transaction(() => {
+      db.prepare(`
+        INSERT INTO turn_history (id, session_id, year, month, quarter, month_in_quarter, action_type, action_value, statement, economic_snapshot, active_events)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'trn_' + uuidv4().substring(0, 8),
         session.id,
+        session.current_year,
+        session.current_month,
+        currentQuarter,
+        monthInQuarter,
+        action_type,
+        String(action_value || ''),
+        statement || '',
+        JSON.stringify(newEconomicState),
+        JSON.stringify(newEconomicState.active_events || [])
+      );
+
+      const insertNews = db.prepare(`
+        INSERT INTO news_articles (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_variable, byline, dateline, whisper_quote)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const art of newArticles) {
+        insertNews.run(
+          'art_' + uuidv4().substring(0, 8),
+          session.id,
+          nextYear,
+          nextMonth,
+          art.publisher,
+          art.headline,
+          art.body,
+          art.tone,
+          art.urgency,
+          art.featured_variable,
+          art.byline || '',
+          art.dateline || '',
+          art.whisper_quote || ''
+        );
+      }
+
+      db.prepare(`
+        UPDATE game_sessions
+        SET current_year = ?, current_month = ?, total_months_elapsed = ?,
+            economic_state = ?, chair_state = ?, status = ?,
+            last_action = ?, last_action_details = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
         nextYear,
         nextMonth,
-        art.publisher,
-        art.headline,
-        art.body,
-        art.tone,
-        art.urgency,
-        art.featured_variable,
-        art.byline || '',
-        art.dateline || '',
-        art.whisper_quote || ''
+        nextTotalMonths,
+        JSON.stringify(newEconomicState),
+        JSON.stringify(chairState),
+        session.status,
+        action_type,
+        statement || `${action_type}: ${action_value}`,
+        session.id
       );
-    }
+    });
 
-    // Update game session
-    db.prepare(`
-      UPDATE game_sessions
-      SET current_year = ?, current_month = ?, total_months_elapsed = ?,
-          economic_state = ?, chair_state = ?, status = ?,
-          last_action = ?, last_action_details = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      nextYear,
-      nextMonth,
-      nextTotalMonths,
-      JSON.stringify(newEconomicState),
-      JSON.stringify(chairState),
-      session.status,
-      action_type,
-      statement || `${action_type}: ${action_value}`,
-      session.id
-    );
+    saveTurnTx();
 
     const nextMonthInQuarter = ((nextMonth - 1) % 3) + 1;
     const nextQuarter = Math.floor((nextMonth - 1) / 3) + 1;
@@ -778,57 +791,83 @@ router.post('/:sessionId/simulate-months', async (req, res) => {
     let totalElapsed = session.total_months_elapsed;
     let status = session.status;
 
-    for (let i = 0; i < numMonths; i++) {
-      if (status === 'dismissed') break;
-      const monthInQ = ((currentMonth - 1) % 3) + 1;
-      let actionType = 'silence';
-      let actionValue = '0';
+    const insertHistoryStmt = db.prepare(`
+      INSERT INTO turn_history (id, session_id, year, month, quarter, month_in_quarter, action_type, action_value, statement, economic_snapshot, active_events)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-      if (monthInQ === 3) {
-        actionType = 'mpc_rate_decision';
-        const taylor = calculateTaylorRule(econ);
-        const diff = taylor - econ.interest_rate;
-        const deltaBps = Math.round(diff * 4) * 25;
-        actionValue = String(Math.max(-50, Math.min(50, deltaBps)));
-      } else {
-        actionType = 'guidance';
-        actionValue = econ.inflation_cpi > 3.0 ? 'hawkish' : (econ.inflation_cpi < 1.8 ? 'dovish' : 'neutral');
+    // Execute simulation loop and all history snapshot inserts in a single high-speed transaction
+    const batchSimulationTx = db.transaction(() => {
+      for (let i = 0; i < numMonths; i++) {
+        if (status === 'dismissed') break;
+        const monthInQ = ((currentMonth - 1) % 3) + 1;
+        const currentQ = Math.floor((currentMonth - 1) / 3) + 1;
+        let actionType = 'silence';
+        let actionValue = '0';
+
+        if (monthInQ === 3) {
+          actionType = 'mpc_rate_decision';
+          const taylor = calculateTaylorRule(econ);
+          const diff = taylor - econ.interest_rate;
+          const deltaBps = Math.round(diff * 4) * 25;
+          actionValue = String(Math.max(-50, Math.min(50, deltaBps)));
+        } else {
+          actionType = 'guidance';
+          actionValue = econ.inflation_cpi > 3.0 ? 'hawkish' : (econ.inflation_cpi < 1.8 ? 'dovish' : 'neutral');
+        }
+
+        econ = evolveEconomy(econ, { action_type: actionType, action_value: actionValue }, session.play_mode, session.difficulty, chair);
+
+        // Record history snapshot so variable graphs have complete data points
+        insertHistoryStmt.run(
+          'trn_' + uuidv4().substring(0, 8),
+          session.id,
+          currentYear,
+          currentMonth,
+          currentQ,
+          monthInQ,
+          actionType,
+          actionValue,
+          `Automated ${actionType}: ${actionValue}`,
+          JSON.stringify(econ),
+          JSON.stringify(econ.active_events || [])
+        );
+
+        currentMonth += 1;
+        if (currentMonth > 12) {
+          currentMonth = 1;
+          currentYear += 1;
+        }
+        totalElapsed += 1;
+
+        if (session.play_mode === 'first_person' && econ.job_security < 18.0 && econ.warning_count >= 3) {
+          status = 'dismissed';
+        }
+        if (econ.term_months_completed >= 48 && status !== 'dismissed') {
+          status = 'term_completed';
+        }
       }
 
-      econ = evolveEconomy(econ, { action_type: actionType, action_value: actionValue }, session.play_mode, session.difficulty, chair);
+      db.prepare(`
+        UPDATE game_sessions
+        SET current_year = ?, current_month = ?, total_months_elapsed = ?,
+            economic_state = ?, chair_state = ?, status = ?,
+            last_action = 'automated_simulation', last_action_details = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        currentYear, 
+        currentMonth, 
+        totalElapsed, 
+        JSON.stringify(econ), 
+        JSON.stringify(chair), 
+        status, 
+        `Simulated ${numMonths} months (Year ${currentYear}, M${currentMonth})`, 
+        session.id
+      );
+    });
 
-      currentMonth += 1;
-      if (currentMonth > 12) {
-        currentMonth = 1;
-        currentYear += 1;
-      }
-      totalElapsed += 1;
-
-      if (session.play_mode === 'first_person' && econ.job_security < 18.0 && econ.warning_count >= 3) {
-        status = 'dismissed';
-      }
-      if (econ.term_months_completed >= 48 && status !== 'dismissed') {
-        status = 'term_completed';
-      }
-    }
-
-    db.prepare(`
-      UPDATE game_sessions
-      SET current_year = ?, current_month = ?, total_months_elapsed = ?,
-          economic_state = ?, chair_state = ?, status = ?,
-          last_action = 'automated_simulation', last_action_details = ?,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      currentYear, 
-      currentMonth, 
-      totalElapsed, 
-      JSON.stringify(econ), 
-      JSON.stringify(chair), 
-      status, 
-      `Simulated ${numMonths} months (Year ${currentYear}, M${currentMonth})`, 
-      session.id
-    );
+    batchSimulationTx();
 
     res.json({
       success: true,

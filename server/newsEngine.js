@@ -196,7 +196,7 @@ function getSystemSetting(key) {
   }
 }
 
-// Generate articles for the active month based on difficulty
+// Generate articles for the active month based on difficulty concurrently in parallel
 async function generateMonthlyNews(economicState, difficulty, year, month) {
   const publishers = ['gloomberg', 'doll_street'];
   if (difficulty === 'normal' || difficulty === 'hard') {
@@ -208,31 +208,37 @@ async function generateMonthlyNews(economicState, difficulty, year, month) {
 
   const provider = getSystemSetting('llm_provider') || 'deepseek_flash';
   const apiKey = getSystemSetting('deepseek_api_key') || process.env.DEEPSEEK_API_KEY;
-  const articles = [];
 
-  for (const pub of publishers) {
-    let article = null;
-    if (apiKey && apiKey.trim().length > 5 && provider !== 'local_only') {
-      try {
-        article = await generateWithDeepSeek(pub, economicState, year, month, apiKey);
-      } catch (err) {
-        console.warn(`DeepSeek generation failed for ${pub}, falling back to local macro engine:`, err.message);
-        article = generateWithLocalMacroEngine(pub, economicState, year, month);
-      }
-    } else {
-      article = generateWithLocalMacroEngine(pub, economicState, year, month);
-    }
-    articles.push(article);
+  if (!apiKey || apiKey.trim().length <= 5 || provider === 'local_only') {
+    return publishers.map(pub => generateWithLocalMacroEngine(pub, economicState, year, month));
   }
 
-  return articles;
+  // Fire all publisher articles concurrently in parallel
+  const articlePromises = publishers.map(async (pub) => {
+    try {
+      return await generateWithDeepSeek(pub, economicState, year, month, apiKey);
+    } catch (err) {
+      console.warn(`DeepSeek generation failed for ${pub}, falling back to local macro engine:`, err.message);
+      return generateWithLocalMacroEngine(pub, economicState, year, month);
+    }
+  });
+
+  const results = await Promise.allSettled(articlePromises);
+  return results.map((res, idx) => {
+    if (res.status === 'fulfilled' && res.value) {
+      return res.value;
+    }
+    return generateWithLocalMacroEngine(publishers[idx], economicState, year, month);
+  });
 }
 
-// DeepSeek API integration with varied styles and dynamic indicator selection
+// DeepSeek API integration with varied styles, rapid completion and dynamic indicator selection
 async function generateWithDeepSeek(publisherKey, state, year, month, apiKey) {
   const profile = PUBLISHER_PROFILES[publisherKey];
-  const modelSetting = getSystemSetting('deepseek_model') || 'deepseek-v4-pro';
-  const model = (modelSetting === 'deepseek-flash' || modelSetting === 'deepseek-chat') ? 'deepseek-v4-pro' : modelSetting;
+  // For news journalism, use deepseek-chat (DeepSeek-V3 / Flash) to generate varied, authentic articles in 2 seconds
+  // without reasoning overhead, while leaving deepseek-v4-pro for deep advisor conversations.
+  const customNewsModel = getSystemSetting('news_model');
+  const model = customNewsModel || 'deepseek-chat';
 
   const drivers = selectPrimaryEconomicDrivers(state, publisherKey);
   const primaryDriver = drivers[0];
@@ -274,7 +280,8 @@ BACKGROUND CONTEXT:
 Write an engaging, authentic, non-formulaic story for ${profile.name} focusing on the primary economic driver.`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  // 8 second timeout per parallel request ensures fast fallback without hanging turns
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
@@ -289,8 +296,8 @@ Write an engaging, authentic, non-formulaic story for ${profile.name} focusing o
         { role: 'user', content: userPrompt }
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.75,
-      max_tokens: 3000
+      temperature: 0.72,
+      max_tokens: 1200
     }),
     signal: controller.signal
   });
@@ -302,12 +309,17 @@ Write an engaging, authentic, non-formulaic story for ${profile.name} focusing o
   }
 
   const data = await response.json();
-  const parsed = JSON.parse(data.choices[0].message.content);
+  const rawContent = data.choices?.[0]?.message?.content;
+  if (!rawContent || rawContent.trim().length === 0) {
+    throw new Error('DeepSeek returned empty content');
+  }
+
+  const parsed = JSON.parse(rawContent);
 
   return {
     publisher: publisherKey,
-    headline: parsed.headline,
-    body: parsed.body,
+    headline: parsed.headline || 'Economic Horizon Shifts',
+    body: parsed.body || 'Financial markets digest incoming economic data.',
     tone: parsed.tone || 'neutral',
     urgency: parsed.urgency || primaryDriver.urgency || 'medium',
     featured_variable: parsed.featured_variable || primaryDriver.metric,
@@ -493,6 +505,7 @@ With benchmark borrowing costs holding at ${state.interest_rate}%, national debt
 
 module.exports = {
   generateMonthlyNews,
+  generateWithLocalMacroEngine,
   PUBLISHER_PROFILES,
   selectPrimaryEconomicDrivers
 };
