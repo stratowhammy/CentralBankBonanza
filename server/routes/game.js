@@ -621,8 +621,21 @@ router.get('/:sessionId/parliament-hearing', (req, res) => {
       });
     }
 
+    // Fetch turn history so parliamentary question generator knows policy rate trajectory (cutting, hiking, neutral)
+    const turns = db.prepare('SELECT year, month, action_type, action_value, statement, economic_snapshot FROM turn_history WHERE session_id = ? ORDER BY year ASC, month ASC').all(session.id);
+    const enrichedSession = {
+      ...session,
+      history: turns.map(t => {
+        try {
+          return { ...t, economic_state: JSON.parse(t.economic_snapshot) };
+        } catch (e) {
+          return t;
+        }
+      })
+    };
+
     // Generate dynamic varied questions tailored to the current economic situation
-    const questions = generateParliamentaryQuestions(state, session);
+    const questions = generateParliamentaryQuestions(state, enrichedSession);
 
     res.json({
       hearing: {
