@@ -12,6 +12,7 @@ const {
   GOD_MODE_CHAIRS 
 } = require('../simulationEngine');
 const { generateMonthlyNews, generateWithLocalMacroEngine } = require('../newsEngine');
+const { generateParliamentaryQuestions } = require('../parliamentEngine');
 
 // Create a new game session
 router.post('/new', async (req, res) => {
@@ -169,6 +170,36 @@ router.get('/simulations/list', (req, res) => {
   }
 });
 
+// Helper to determine if a Parliamentary Hearing is currently due
+function checkHearingEligible(session, economicState) {
+  if (session.status !== 'active') return false;
+  // Don't trigger on month 1 (first turn of game)
+  if (session.total_months_elapsed === 0) return false;
+
+  // If already attended or declined in this specific round, not eligible again this month
+  if (economicState.last_hearing_completed_month === session.total_months_elapsed) return false;
+  if (economicState.last_hearing_skipped_month === session.total_months_elapsed) return false;
+
+  // Statutory hearings:
+  // - Hard mode: Quadmester oversight (every 4 months: Month 4, 8, 12...)
+  // - Normal / Easy: Semi-annual oversight (Month 6, Month 12...)
+  const isStatutoryMonth = session.difficulty === 'hard'
+    ? (session.current_month % 4 === 0 || session.total_months_elapsed % 4 === 0)
+    : (session.current_month === 6 || session.current_month === 12 || session.total_months_elapsed % 6 === 0);
+
+  // Emergency summons:
+  // - Parliamentary approval < 40%
+  // - Formal warning issued
+  // - Manually flagged hearing_pending
+  const isEmergency = (
+    economicState.parliamentary_approval < 40.0 ||
+    (economicState.warning_count || 0) > 0 ||
+    economicState.hearing_pending === true
+  );
+
+  return Boolean(isStatutoryMonth || isEmergency);
+}
+
 // Get current game session state
 router.get('/:sessionId', (req, res) => {
   try {
@@ -215,11 +246,7 @@ router.get('/:sessionId', (req, res) => {
     `).all(session.id);
 
     // Check if Parliamentary Hearing is eligible
-    const hearingEligible = (
-      session.current_month === 12 || 
-      session.total_months_elapsed % 12 === 0 || 
-      economicState.parliamentary_approval < 35.0
-    );
+    const hearingEligible = checkHearingEligible(session, economicState);
 
     // Check if 4-Year Term Review is eligible (Month 48)
     const termReviewEligible = (economicState.term_months_completed >= 48);
@@ -265,8 +292,37 @@ router.post('/:sessionId/action', async (req, res) => {
       return res.status(400).json({ error: 'This game session is no longer active' });
     }
 
-    const { action_type, action_value, statement } = req.body;
+    const { action_type, action_value, statement, decline_hearing } = req.body;
     const monthInQuarter = ((session.current_month - 1) % 3) + 1;
+
+    let economicState = JSON.parse(session.economic_state);
+    let chairState = JSON.parse(session.chair_state);
+
+    // Enforce attendance at statutory Parliamentary Hearings in this round
+    const hearingDue = checkHearingEligible(session, economicState);
+    if (hearingDue) {
+      if (decline_hearing) {
+        // Apply decline penalties before advancing
+        economicState.warning_count = Math.min(3, (economicState.warning_count || 0) + 1);
+        economicState.parliamentary_approval = Number(Math.max(5, economicState.parliamentary_approval - 18.0).toFixed(1));
+        economicState.public_approval = Number(Math.max(5, economicState.public_approval - 12.0).toFixed(1));
+        economicState.market_credibility = Number(Math.max(10, (economicState.market_credibility || 75) - 6.0).toFixed(1));
+        economicState.last_hearing_skipped_month = session.total_months_elapsed;
+        economicState.hearing_pending = false;
+        economicState.job_security = Number(Math.max(0, Math.min(100,
+          economicState.parliamentary_approval * 0.45 + economicState.public_approval * 0.25 + economicState.market_credibility * 0.15 + (100 - Math.abs(economicState.inflation_cpi - 2.0) * 10) * 0.15 - (economicState.warning_count * 15)
+        )).toFixed(1));
+        if (economicState.warning_count >= 3 || economicState.job_security <= 5) {
+          session.status = 'dismissed';
+        }
+      } else {
+        return res.status(400).json({
+          error: 'parliament_hearing_required',
+          message: 'Statutory Parliamentary Summons: The Treasury Select Committee requires your testimony this month. You must attend the hearing or decline before advancing.',
+          hearing_required: true
+        });
+      }
+    }
 
     // Validate turn rules:
     // Months 1 & 2: say_nothing or guidance
@@ -277,9 +333,6 @@ router.post('/:sessionId/action', async (req, res) => {
     if (monthInQuarter !== 3 && action_type === 'mpc_rate_decision') {
       return res.status(400).json({ error: 'Interest rate decisions can only be made in Month 3 of the quarter.' });
     }
-
-    let economicState = JSON.parse(session.economic_state);
-    let chairState = JSON.parse(session.chair_state);
 
     // Evolve the economy
     const newEconomicState = evolveEconomy(
@@ -461,111 +514,40 @@ router.get('/:sessionId/parliament-hearing', (req, res) => {
 
     const state = JSON.parse(session.economic_state);
 
-    // 3 Contextual Parliamentary questions
-    const questions = [
-      {
-        id: 'q_mortgage_cost',
-        interrogator: 'MP Margaret Vance (Suburban Working Families Caucus)',
-        question: `Chair, commercial mortgage rates have climbed to ${state.bank_lending_rate}%, and our Housing Cost Index sits at an alarming ${state.housing_cost_index}. Young couples are facing monthly payment spikes of $600 while corporate banks enjoy record net interest income. How do you justify squeezing working families who had zero role in creating global inflation?`,
-        strategies: [
-          {
-            key: 'defiant_independence',
-            label: 'Defiant Defense of Monetary Mandate',
-            dialogue: 'The Central Bank\'s statutory duty is to price stability. Allowing high inflation to become embedded would inflict far worse long-term devastation on working families than transitory mortgage tightening.',
-            parl_approval_delta: -3,
-            autonomy_delta: 5,
-            market_credibility_delta: 6,
-            public_approval_delta: -4
-          },
-          {
-            key: 'empathetic_disinflation',
-            label: 'Empathetic Acknowledgment with Disinflation Horizon',
-            dialogue: 'We acutely recognize the severe pain facing mortgage holders. Our aggressive action is explicitly designed to crush underlying price pressures swiftly so that rates can normalize on a sustainable trajectory.',
-            parl_approval_delta: 6,
-            autonomy_delta: 0,
-            market_credibility_delta: 2,
-            public_approval_delta: 7
-          },
-          {
-            key: 'deflect_fiscal',
-            label: 'Deflect to Zoning & Fiscal Deficit Subsidies',
-            dialogue: 'Shelter inflation is primarily driven by local housing supply bottlenecks and unchecked fiscal deficit spending ($' + Math.abs(state.fiscal_deficit) + '% of GDP), which monetary policy cannot construct houses to solve.',
-            parl_approval_delta: 4,
-            autonomy_delta: -2,
-            market_credibility_delta: 4,
-            public_approval_delta: 1
-          }
-        ]
-      },
-      {
-        id: 'q_inflation_target',
-        interrogator: 'MP Alistair Sterling (Shadow Treasury Spokesperson)',
-        question: `Your headline inflation rate is ${state.inflation_cpi}%, with sticky services at ${state.sticky_cpi}%. Your theoretical Taylor Rule benchmark suggests policy is out of alignment. Are you losing your grip on wage-price spirals, or are you sleepwalking our economy into a stagflationary quagmire?`,
-        strategies: [
-          {
-            key: 'defiant_independence',
-            label: 'Reiterate Data-Dependent Resolution',
-            dialogue: 'Our monetary transmission pipeline is operating with Friedman\'s known 12-month lags. Restrictive policy will bring inflation back to 2.0%, and the Committee will not hesitate to hike further if second-round wage effects persist.',
-            parl_approval_delta: 2,
-            autonomy_delta: 4,
-            market_credibility_delta: 5,
-            public_approval_delta: 0
-          },
-          {
-            key: 'empathetic_disinflation',
-            label: 'Highlight Flexible vs. Sticky Divergence',
-            dialogue: 'We are closely dissecting volatile flexible goods from sticky core services. Global supply shocks are abating, and consumer price expectations remain well-anchored around our institutional commitment.',
-            parl_approval_delta: 5,
-            autonomy_delta: 1,
-            market_credibility_delta: 3,
-            public_approval_delta: 4
-          },
-          {
-            key: 'deflect_fiscal',
-            label: 'Demand Parliamentary Fiscal Discipline',
-            dialogue: 'Monetary policy cannot act alone when Parliament continues expanding debt-to-GDP to ' + state.debt_to_gdp + '%. If lawmakers want lower inflation, you must assist us with responsible fiscal consolidation.',
-            parl_approval_delta: -4,
-            autonomy_delta: 2,
-            market_credibility_delta: 7,
-            public_approval_delta: 2
-          }
-        ]
-      },
-      {
-        id: 'q_corporate_profits',
-        interrogator: 'MP Chloe Morales (Labor & Industrial Select Committee)',
-        question: `While real wages contracted by ${state.real_wage_growth}%, the Doll Street equity index sits at ${state.stock_market_index} and sovereign debt service costs continue to devour public budgets. Why should Parliament not revoke your statutory operational autonomy if you cannot preserve broad public prosperity?`,
-        strategies: [
-          {
-            key: 'defiant_independence',
-            label: 'Stern Warning Against Compromising Independence',
-            dialogue: 'Tampering with central bank statutory independence is the fastest route to currency collapse, bond market capital flight, and hyperinflation. Our independence is the bedrock of the nation\'s financial credibility.',
-            parl_approval_delta: -2,
-            autonomy_delta: 8,
-            market_credibility_delta: 8,
-            public_approval_delta: -2
-          },
-          {
-            key: 'empathetic_disinflation',
-            label: 'Pledge Balanced Dual Mandate Stewardship',
-            dialogue: 'Our mandate serves every citizen. We do not target stock market wealth, and we monitor unemployment hysteresis constantly to ensure rate hikes do not needlessly destroy jobs.',
-            parl_approval_delta: 7,
-            autonomy_delta: 1,
-            market_credibility_delta: 2,
-            public_approval_delta: 6
-          },
-          {
-            key: 'deflect_fiscal',
-            label: 'Clarify Statutory Separation of Powers',
-            dialogue: 'Taxation of corporate profits and income redistribution are the exclusive domain of elected Parliament. The central bank manages aggregate nominal demand—nothing more, nothing less.',
-            parl_approval_delta: 3,
-            autonomy_delta: 3,
-            market_credibility_delta: 4,
-            public_approval_delta: 1
-          }
-        ]
-      }
-    ];
+    // If hearing already completed in this round, questions are no longer visible
+    if (state.last_hearing_completed_month === session.total_months_elapsed) {
+      return res.json({
+        hearing: {
+          session_id: session.id,
+          current_year: session.current_year,
+          current_month: session.current_month,
+          parliamentary_approval: state.parliamentary_approval,
+          public_approval: state.public_approval,
+          completed: true,
+          completed_summary: state.last_hearing_summary || 'Your testimony has been concluded and entered into the Parliamentary Record for this legislative session.',
+          questions: []
+        }
+      });
+    }
+
+    // If hearing was declined in this round, questions are no longer visible
+    if (state.last_hearing_skipped_month === session.total_months_elapsed) {
+      return res.json({
+        hearing: {
+          session_id: session.id,
+          current_year: session.current_year,
+          current_month: session.current_month,
+          parliamentary_approval: state.parliamentary_approval,
+          public_approval: state.public_approval,
+          declined: true,
+          completed_summary: state.last_hearing_declined_summary || 'The Governor declined this summons. Contempt penalties were applied.',
+          questions: []
+        }
+      });
+    }
+
+    // Generate dynamic varied questions tailored to the current economic situation
+    const questions = generateParliamentaryQuestions(state, session);
 
     res.json({
       hearing: {
@@ -574,6 +556,7 @@ router.get('/:sessionId/parliament-hearing', (req, res) => {
         current_month: session.current_month,
         parliamentary_approval: state.parliamentary_approval,
         public_approval: state.public_approval,
+        completed: false,
         questions
       }
     });
@@ -608,9 +591,9 @@ router.post('/:sessionId/parliament-hearing/testify', (req, res) => {
         netCredibilityDelta += 6;
         netPublicDelta -= 2;
       } else if (stratKey === 'deflect_fiscal') {
-        netParlDelta += 1;
+        netParlDelta += 3;
         netCredibilityDelta += 4;
-        netPublicDelta += 1;
+        netPublicDelta += 2;
       }
     }
 
@@ -622,22 +605,89 @@ router.post('/:sessionId/parliament-hearing/testify', (req, res) => {
 
     // Update job security
     state.job_security = Number(Math.max(0, Math.min(100, 
-      state.parliamentary_approval * 0.45 + state.public_approval * 0.25 + state.market_credibility * 0.15 + (100 - Math.abs(state.inflation_cpi - 2.0) * 10) * 0.15
+      state.parliamentary_approval * 0.45 + state.public_approval * 0.25 + state.market_credibility * 0.15 + (100 - Math.abs(state.inflation_cpi - 2.0) * 10) * 0.15 - ((state.warning_count || 0) * 15)
     )).toFixed(1));
 
-    // Save updated state
+    // Record that hearing has been completed for this round
+    const summary = `Testimony concluded before Parliamentary Select Committee. Parliamentary Approval changed by ${netParlDelta >= 0 ? '+' : ''}${netParlDelta}%, Public Approval changed by ${netPublicDelta >= 0 ? '+' : ''}${netPublicDelta}%, Market Credibility +${netCredibilityDelta}%.`;
+    state.last_hearing_completed_month = session.total_months_elapsed;
+    state.last_hearing_summary = summary;
+    state.hearing_pending = false;
+
+    // Save updated state and increment hearings_completed
     db.prepare(`
       UPDATE game_sessions
-      SET economic_state = ?, updated_at = CURRENT_TIMESTAMP
+      SET economic_state = ?, hearings_completed = COALESCE(hearings_completed, 0) + 1, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(JSON.stringify(state), session.id);
 
     res.json({
       success: true,
-      summary: `Testimony concluded before Parliamentary Select Committee. Parliamentary Approval changed by ${netParlDelta >= 0 ? '+' : ''}${netParlDelta}%, Public Approval changed by ${netPublicDelta >= 0 ? '+' : ''}${netPublicDelta}%, Market Credibility +${netCredibilityDelta}%.`,
+      summary,
       parliamentary_approval: state.parliamentary_approval,
       public_approval: state.public_approval,
       central_bank_autonomy: state.central_bank_autonomy,
+      market_credibility: state.market_credibility,
+      job_security: state.job_security,
+      economic_state: state
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Decline Parliamentary Hearing with Institutional Sanctions & Penalties
+router.post('/:sessionId/parliament-hearing/decline', (req, res) => {
+  try {
+    const session = db.prepare('SELECT * FROM game_sessions WHERE id = ?').get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    let state = JSON.parse(session.economic_state);
+
+    // Severe penalties for refusing statutory parliamentary summons
+    const netParlDelta = -18.0;
+    const netPublicDelta = -12.0;
+    const netCredibilityDelta = -6.0;
+
+    state.warning_count = Math.min(3, (state.warning_count || 0) + 1);
+    state.parliamentary_approval = Number(Math.max(5, state.parliamentary_approval + netParlDelta).toFixed(1));
+    state.public_approval = Number(Math.max(5, state.public_approval + netPublicDelta).toFixed(1));
+    state.market_credibility = Number(Math.max(10, (state.market_credibility || 75) + netCredibilityDelta).toFixed(1));
+    state.last_hearing_skipped_month = session.total_months_elapsed;
+    state.hearing_pending = false;
+
+    state.job_security = Number(Math.max(0, Math.min(100,
+      state.parliamentary_approval * 0.45 + state.public_approval * 0.25 + state.market_credibility * 0.15 + (100 - Math.abs(state.inflation_cpi - 2.0) * 10) * 0.15 - (state.warning_count * 15)
+    )).toFixed(1));
+
+    let status = session.status;
+    if (state.warning_count >= 3 || state.job_security <= 5) {
+      status = 'dismissed';
+    }
+
+    const summary = `Governor declined to appear before the Parliamentary Select Committee. Lawmakers cited the Governor for contempt of Parliament, issuing a formal reprimand (+1 Warning, now ${state.warning_count}/3). Parliamentary Approval fell by ${Math.abs(netParlDelta)}%, Public Approval fell by ${Math.abs(netPublicDelta)}%, and Market Credibility fell by ${Math.abs(netCredibilityDelta)}%.`;
+    state.last_hearing_declined_summary = summary;
+
+    db.prepare(`
+      UPDATE game_sessions
+      SET economic_state = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(state), status, session.id);
+
+    res.json({
+      success: true,
+      declined: true,
+      summary,
+      status,
+      penalties: {
+        parliamentary_approval_delta: netParlDelta,
+        public_approval_delta: netPublicDelta,
+        market_credibility_delta: netCredibilityDelta,
+        warning_issued: true,
+        new_warning_count: state.warning_count
+      },
+      parliamentary_approval: state.parliamentary_approval,
+      public_approval: state.public_approval,
       market_credibility: state.market_credibility,
       job_security: state.job_security,
       economic_state: state

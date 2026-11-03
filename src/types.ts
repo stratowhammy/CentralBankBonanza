@@ -206,6 +206,9 @@ export interface ParliamentaryHearingData {
   parliamentary_approval: number;
   public_approval: number;
   questions: ParliamentaryQuestion[];
+  completed?: boolean;
+  completed_summary?: string;
+  declined?: boolean;
 }
 
 export interface TermReviewScorecard {

@@ -35,12 +35,23 @@ export const ParliamentaryHearingModal: React.FC<ParliamentaryHearingModalProps>
       setLoading(true);
       const res = await api.getParliamentHearing(sessionId);
       setHearingData(res.hearing);
-      // Pre-select first strategy for each question
-      const initial: Record<string, string> = {};
-      res.hearing.questions.forEach((q: any) => {
-        initial[q.id] = q.strategies[0].key;
-      });
-      setSelectedStrategies(initial);
+
+      if (res.hearing.completed || res.hearing.declined) {
+        setTestimonyResult({
+          summary: res.hearing.completed_summary,
+          parliamentary_approval: res.hearing.parliamentary_approval,
+          public_approval: res.hearing.public_approval
+        });
+      } else {
+        // Pre-select first strategy for each question
+        const initial: Record<string, string> = {};
+        (res.hearing.questions || []).forEach((q: any) => {
+          if (q.strategies?.length > 0) {
+            initial[q.id] = q.strategies[0].key;
+          }
+        });
+        setSelectedStrategies(initial);
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to load parliamentary hearing questions');
       onClose();

@@ -127,6 +127,15 @@ export const api = {
     return res.json();
   },
 
+  async declineParliamentHearing(sessionId: string) {
+    const res = await fetch(`${API_BASE}/game/${sessionId}/parliament-hearing/decline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Failed to decline parliamentary hearing');
+    return res.json();
+  },
+
   async getTermReview(sessionId: string) {
     const res = await fetch(`${API_BASE}/game/${sessionId}/term-review`);
     if (!res.ok) throw new Error('Failed to load term review');

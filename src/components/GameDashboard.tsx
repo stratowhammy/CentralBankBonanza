@@ -12,6 +12,7 @@ import { DotPlotChart } from './game/DotPlotChart';
 import { BalanceSheetControl } from './game/BalanceSheetControl';
 import { MpcVotingDivisionModal } from './game/MpcVotingDivisionModal';
 import { ParliamentaryHearingModal } from './game/ParliamentaryHearingModal';
+import { ParliamentHearingReminderModal } from './game/ParliamentHearingReminderModal';
 import { TermReappointmentModal } from './game/TermReappointmentModal';
 import { VariableGraphOverlay } from './game/VariableGraphOverlay';
 import { MobileScrollTutorialOverlay } from './game/MobileScrollTutorialOverlay';
@@ -43,6 +44,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   const [isBalanceSheetOpen, setIsBalanceSheetOpen] = useState(false);
   const [isMpcVoteOpen, setIsMpcVoteOpen] = useState(false);
   const [isHearingOpen, setIsHearingOpen] = useState(false);
+  const [isHearingReminderOpen, setIsHearingReminderOpen] = useState(false);
   const [isTermReviewOpen, setIsTermReviewOpen] = useState(false);
   const [isGraphOverlayOpen, setIsGraphOverlayOpen] = useState(false);
   const [activeTrackedVar, setActiveTrackedVar] = useState<string | undefined>(undefined);
@@ -59,11 +61,23 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
     } catch (e) {}
   }, [session.id]);
 
+  const isHearingDue = session.status === 'active' && 
+    Boolean(session.hearing_eligible) &&
+    session.economic_state.last_hearing_completed_month !== session.total_months_elapsed &&
+    session.economic_state.last_hearing_skipped_month !== session.total_months_elapsed;
+
+  const handleOpenAction = () => {
+    if (isHearingDue) {
+      setIsHearingReminderOpen(true);
+      return;
+    }
+    setIsActionModalOpen(true);
+  };
+
   // Listen for mobile navigation events dispatched from Android Bottom Nav
   React.useEffect(() => {
     const handleOpenAdvisor = () => setIsAdvisorDrawerOpen(true);
     const handleOpenTracker = () => setIsGraphOverlayOpen(true);
-    const handleOpenAction = () => setIsActionModalOpen(true);
 
     window.addEventListener('cbb:open-advisor', handleOpenAdvisor);
     window.addEventListener('cbb:open-tracker', handleOpenTracker);
@@ -74,7 +88,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
       window.removeEventListener('cbb:open-tracker', handleOpenTracker);
       window.removeEventListener('cbb:open-action', handleOpenAction);
     };
-  }, []);
+  }, [isHearingDue]);
 
   const handleStateUpdated = () => {
     onRefreshSession();
@@ -89,11 +103,15 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
     await onRefreshSession();
   };
 
+  const handleDeclineHearing = async () => {
+    await api.declineParliamentHearing(session.id);
+    await onRefreshSession();
+  };
+
   const handleReappointed = async () => {
     await onRefreshSession();
   };
 
-  const isHearingDue = session.hearing_eligible || (session.current_month === 12);
   const isTermReviewDue = session.term_review_eligible || ((session.economic_state.term_months_completed ?? 0) >= 48);
 
   return (
@@ -218,7 +236,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
         {/* 1. Monthly Turn Cadence Bar */}
         <MonthlyCadenceBar
           session={session}
-          onOpenActionModal={() => setIsActionModalOpen(true)}
+          onOpenActionModal={handleOpenAction}
           isHighlighted={showMobileScrollGuide}
         />
 
@@ -403,6 +421,19 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
         onTestimonyComplete={handleTestimonyComplete}
       />
 
+      {/* Parliamentary Hearing Attendance Required Popup Reminder */}
+      <ParliamentHearingReminderModal
+        isOpen={isHearingReminderOpen}
+        onClose={() => setIsHearingReminderOpen(false)}
+        onAttend={() => {
+          setIsHearingReminderOpen(false);
+          setIsHearingOpen(true);
+        }}
+        onDecline={handleDeclineHearing}
+        currentMonth={session.current_month}
+        currentYear={session.current_year}
+      />
+
       {/* 4-Year Term Reappointment Modal (Pillar D) */}
       <TermReappointmentModal
         sessionId={session.id}
@@ -414,7 +445,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
       {/* Mobile Android Floating Action Button (FAB) */}
       {session.status === 'active' && (
         <button
-          onClick={() => setIsActionModalOpen(true)}
+          onClick={handleOpenAction}
           className="android-extended-fab md:hidden"
           aria-label="Execute Monetary Policy Decision"
         >
