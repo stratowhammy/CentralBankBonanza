@@ -144,6 +144,10 @@ router.post('/submit-policy', async (req, res) => {
 
     // Save policy record
     const policyId = 'pol_' + uuidv4().substring(0, 8);
+    const refinedLeg = result.refined_legislation || result.refinedLegislation || 'Structural policy reform passed by Parliament.';
+    const policyTitle = result.title || 'National Monetary & Credit Efficiency Bill';
+    const polSector = result.target_sector || target_sector || 'general';
+
     db.prepare(`
       INSERT INTO policy_proposals (
         id, session_id, title, raw_idea, refined_legislation, target_sector,
@@ -152,14 +156,14 @@ router.post('/submit-policy', async (req, res) => {
     `).run(
       policyId,
       session_id,
-      result.title,
+      policyTitle,
       raw_idea,
-      result.refined_legislation,
-      result.target_sector,
+      refinedLeg,
+      polSector,
       result.status,
       result.parliament_vote_for,
       result.parliament_vote_against,
-      JSON.stringify(result.effects)
+      JSON.stringify(result.effects || {})
     );
 
     // Update session economic state
@@ -181,7 +185,7 @@ router.post('/submit-policy', async (req, res) => {
 });
 
 // Launch Media Blitz
-router.post('/media-blitz', (req, res) => {
+router.post('/media-blitz', async (req, res) => {
   try {
     const { session_id, target_audience, strategic_message } = req.body;
     if (!session_id || !target_audience || !strategic_message) {
@@ -193,7 +197,7 @@ router.post('/media-blitz', (req, res) => {
 
     let state = JSON.parse(session.economic_state);
 
-    const blitzResult = executeMediaBlitz(target_audience, strategic_message, state);
+    const blitzResult = await executeMediaBlitz(target_audience, strategic_message, state);
 
     // Apply blitz effects to state
     if (blitzResult.effects) {

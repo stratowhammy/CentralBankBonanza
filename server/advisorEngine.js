@@ -248,6 +248,8 @@ async function refineAndSubmitPolicy(rawIdea, targetSector, state) {
   return {
     title,
     refinedLegislation,
+    refined_legislation: refinedLegislation,
+    target_sector: targetSector,
     status: passed ? 'passed' : 'rejected',
     parliament_vote_for: parliamentVoteFor,
     parliament_vote_against: parliamentVoteAgainst,
@@ -256,9 +258,10 @@ async function refineAndSubmitPolicy(rawIdea, targetSector, state) {
 }
 
 // Media blitz execution
-async function executeMediaBlitz(targetAudience, strategicMessage, state) {
+function executeMediaBlitz(targetAudience, strategicMessage, state) {
   let publicResponse = '';
   let impactSummary = '';
+  let effects = {};
 
   const isHawkish = strategicMessage.toLowerCase().includes('discipline') || strategicMessage.toLowerCase().includes('tight') || strategicMessage.toLowerCase().includes('inflation');
   const isDovish = strategicMessage.toLowerCase().includes('support') || strategicMessage.toLowerCase().includes('growth') || strategicMessage.toLowerCase().includes('jobs');
@@ -267,30 +270,39 @@ async function executeMediaBlitz(targetAudience, strategicMessage, state) {
     if (isHawkish) {
       publicResponse = 'Skeptical but respectful of resolute inflation-fighting stance.';
       impactSummary = 'Consumer confidence rose slightly (+1.5), expectations normalized, but mortgage angst remains.';
+      effects = { consumer_confidence: 1.5, market_credibility: 1.0 };
     } else {
       publicResponse = 'Warmly received by families and small businesses.';
       impactSummary = 'Public approval jumped (+3.0), labor discontent eased, though bond traders eyed inflation risks.';
+      effects = { public_approval: 3.0, consumer_confidence: 2.0 };
     }
   } else if (targetAudience === 'wall_street') {
     if (isHawkish) {
       publicResponse = 'Equities dipped on higher-for-longer messaging, but the 10-year yield stabilized.';
       impactSummary = 'Market credibility strengthened (+4.0), bond volatility subsided, stock index pulled back -45 pts.';
+      effects = { market_credibility: 4.0, stock_market_index: -45 };
     } else {
       publicResponse = 'Wall Street cheered liquidity reassurance; equities rebounded.';
       impactSummary = 'Stock index rallied (+110 pts), credit spreads narrowed, but currency fell slightly (-0.4).';
+      effects = { stock_market_index: 110, market_credibility: -1.0 };
     }
   } else if (targetAudience === 'parliament') {
     publicResponse = 'Select Committee lawmakers commended the Governors transparency and institutional accountability.';
     impactSummary = 'Parliamentary confidence surged (+5.5), bipartisan grilling scheduled for Question Time was canceled.';
+    effects = { parliamentary_approval: 5.5 };
   } else {
     // foreign_fx
     publicResponse = 'International sovereign wealth funds and currency desks reaffirmed trust in central bank governance.';
     impactSummary = 'Currency index gained (+0.8), capital outflows reversed, foreign bond demand climbed.';
+    effects = { market_credibility: 2.0 };
   }
 
   return {
+    target_audience: targetAudience,
+    strategic_message: strategicMessage,
     public_response: publicResponse,
-    impact_summary: impactSummary
+    impact_summary: impactSummary,
+    effects: effects
   };
 }
 

@@ -14,6 +14,7 @@ import { MpcVotingDivisionModal } from './game/MpcVotingDivisionModal';
 import { ParliamentaryHearingModal } from './game/ParliamentaryHearingModal';
 import { TermReappointmentModal } from './game/TermReappointmentModal';
 import { VariableGraphOverlay } from './game/VariableGraphOverlay';
+import { MobileScrollTutorialOverlay } from './game/MobileScrollTutorialOverlay';
 import { api } from '../api';
 import { MessageSquare, ShieldAlert, Landmark, Award, BarChart2, ArrowLeft, LineChart, Vote, BellRing } from 'lucide-react';
 
@@ -45,6 +46,18 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
   const [isTermReviewOpen, setIsTermReviewOpen] = useState(false);
   const [isGraphOverlayOpen, setIsGraphOverlayOpen] = useState(false);
   const [activeTrackedVar, setActiveTrackedVar] = useState<string | undefined>(undefined);
+  const [showMobileScrollGuide, setShowMobileScrollGuide] = useState(false);
+
+  // Auto-show mobile scroll tutorial overlay when entering the simulation on mobile viewports
+  React.useEffect(() => {
+    const isMobile = window.innerWidth < 768;
+    try {
+      const hasSeen = localStorage.getItem('cbb_mobile_scroll_guide_seen');
+      if (isMobile && !hasSeen) {
+        setShowMobileScrollGuide(true);
+      }
+    } catch (e) {}
+  }, [session.id]);
 
   // Listen for mobile navigation events dispatched from Android Bottom Nav
   React.useEffect(() => {
@@ -206,6 +219,7 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
         <MonthlyCadenceBar
           session={session}
           onOpenActionModal={() => setIsActionModalOpen(true)}
+          isHighlighted={showMobileScrollGuide}
         />
 
         {/* 2. God Mode Chair Succession Bar (if God Mode) */}
@@ -261,6 +275,14 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
               className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-amber-500 text-amber-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <span>🏛</span> Parliament Select Committee
+            </button>
+            {/* Mobile Touch & Scroll Guide Button */}
+            <button
+              onClick={() => setShowMobileScrollGuide(true)}
+              className="md:hidden px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Mobile Scrolling Guide"
+            >
+              <span>📱</span> Scroll Guide
             </button>
           </div>
         </div>
@@ -409,6 +431,12 @@ export const GameDashboard: React.FC<GameDashboardProps> = ({
           )}
         </button>
       )}
+
+      {/* Mobile Scroll Tutorial Overlay */}
+      <MobileScrollTutorialOverlay
+        isOpen={showMobileScrollGuide}
+        onClose={() => setShowMobileScrollGuide(false)}
+      />
     </div>
   );
 };

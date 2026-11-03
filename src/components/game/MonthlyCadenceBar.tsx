@@ -5,9 +5,10 @@ import { Calendar, AlertCircle, ArrowRight, BellRing, Vote } from 'lucide-react'
 interface MonthlyCadenceBarProps {
   session: GameSession;
   onOpenActionModal: () => void;
+  isHighlighted?: boolean;
 }
 
-export const MonthlyCadenceBar: React.FC<MonthlyCadenceBarProps> = ({ session, onOpenActionModal }) => {
+export const MonthlyCadenceBar: React.FC<MonthlyCadenceBarProps> = ({ session, onOpenActionModal, isHighlighted }) => {
   const monthInQuarter = session.month_in_quarter; // 1, 2, or 3
   const isMpcMonth = monthInQuarter === 3;
 
@@ -92,12 +93,30 @@ export const MonthlyCadenceBar: React.FC<MonthlyCadenceBarProps> = ({ session, o
 
         </div>
 
-        {/* Right: Action Button */}
-        <div>
+        {/* Right: Action Button & Mobile Finger Scroll Safe Gutter */}
+        <div 
+          id="mobile-guidance-scroll-zone"
+          className={`relative transition-all duration-300 rounded-2xl p-4 sm:p-0 my-2 sm:my-0 ${
+            isHighlighted
+              ? 'ring-4 ring-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.5)] bg-amber-500/15 border border-amber-400 animate-pulse'
+              : 'bg-slate-950/60 sm:bg-transparent border border-slate-800/80 sm:border-transparent'
+          }`}
+        >
+          {/* Mobile Finger Touch & Scroll Helper Header */}
+          <div className="sm:hidden flex items-center justify-between text-[11px] text-slate-300 mb-2 px-1 font-medium">
+            <span className="flex items-center gap-1.5 text-amber-400 font-semibold tracking-wide">
+              <span>👆</span>
+              <span>Finger Touch & Scroll Zone</span>
+            </span>
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">
+              Swipe here to scroll
+            </span>
+          </div>
+
           {session.status === 'active' ? (
             <button
               onClick={onOpenActionModal}
-              className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-98 cursor-pointer ${
+              className={`w-full sm:w-auto px-6 py-3.5 sm:py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all transform active:scale-98 cursor-pointer ${
                 isMpcMonth
                   ? 'bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 hover:from-rose-500 hover:to-rose-400 text-white shadow-rose-950/50 animate-pulse'
                   : 'bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 shadow-amber-950/40'
@@ -121,6 +140,12 @@ export const MonthlyCadenceBar: React.FC<MonthlyCadenceBarProps> = ({ session, o
               Mandate Concluded ({session.status === 'dismissed' ? 'Dismissed' : 'Completed'})
             </div>
           )}
+
+          {/* Mobile Finger Touch & Scroll Helper Footer */}
+          <div className="sm:hidden flex items-center justify-center gap-1.5 text-[10px] text-slate-400 mt-2 font-medium">
+            <span className="text-slate-500">↕️</span>
+            <span>Use this safe padding area to scroll without triggering cards</span>
+          </div>
         </div>
 
       </div>

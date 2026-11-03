@@ -36,6 +36,44 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Mobile virtual keyboard & visual viewport height tracking
+  const [visualHeight, setVisualHeight] = useState<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleViewport = () => {
+      if (window.visualViewport) {
+        const vv = window.visualViewport;
+        setVisualHeight(vv.height);
+        const kbHeight = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+        setKeyboardHeight(kbHeight);
+      }
+    };
+
+    handleViewport();
+
+    window.visualViewport?.addEventListener('resize', handleViewport);
+    window.visualViewport?.addEventListener('scroll', handleViewport);
+    window.addEventListener('resize', handleViewport);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewport);
+      window.visualViewport?.removeEventListener('scroll', handleViewport);
+      window.removeEventListener('resize', handleViewport);
+    };
+  }, [isOpen]);
+
+  const handleInputFocus = () => {
+    // Delay slightly to allow the virtual keyboard animation to complete
+    setTimeout(() => {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      inputRef.current?.scrollIntoView({ block: 'nearest' });
+    }, 250);
+  };
 
   // Policy submission state
   const [rawIdea, setRawIdea] = useState('');
@@ -132,7 +170,14 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-stretch md:justify-end bg-slate-950/75 backdrop-blur-sm">
-      <div className="w-full max-w-xl h-[88vh] md:h-full bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 rounded-t-[7vw] md:rounded-none shadow-2xl flex flex-col overflow-hidden">
+      <div 
+        style={{
+          maxHeight: visualHeight ? `${visualHeight}px` : undefined,
+          height: visualHeight ? `${visualHeight}px` : undefined,
+          transform: keyboardHeight > 0 ? `translateY(-${keyboardHeight}px)` : undefined
+        }}
+        className="w-full max-w-xl h-[88vh] md:h-full bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 rounded-t-[7vw] md:rounded-none shadow-2xl flex flex-col overflow-hidden transition-all duration-150"
+      >
         
         {/* Android Native Drag Handle (mobile only) */}
         <div className="md:hidden w-[11vw] h-[0.55vh] min-h-[4px] rounded-full bg-slate-600/50 mx-auto my-[1.2vh] flex-shrink-0" />
@@ -203,17 +248,15 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
           </button>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-          
-          {/* =========================================
-              TAB 1: ADVISORY CHAT
-             ========================================= */}
-          {activeTab === 'chat' && (
-            <div className="flex flex-col h-full justify-between">
-              
-              {/* Live Mandate Telemetry Briefing Strip */}
-              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-3 text-xs flex items-center justify-between shadow-sm">
+        {/* =========================================
+            TAB 1: ADVISORY CHAT (Pinned Real-Time Input)
+           ========================================= */}
+        {activeTab === 'chat' && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900">
+            
+            {/* Live Mandate Telemetry Briefing Strip */}
+            <div className="px-4 pt-3 pb-1 flex-shrink-0">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs flex items-center justify-between shadow-sm">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -236,85 +279,95 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                   </div>
                 </div>
               </div>
-
-              {/* Message Feed */}
-              <div className="space-y-3.5 overflow-y-auto mb-4 pr-1">
-                {messages.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 text-xs space-y-2">
-                    <p className="font-editorial text-sm italic text-slate-300">
-                      "I am at your service, Governor. Inquire about interest rate calibration, inflation expectations, market fragility, or parliamentary mood."
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
-                    >
-                      <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed ${
-                        m.sender === 'user'
-                          ? 'bg-amber-500/20 text-amber-100 border border-amber-500/30 rounded-tr-none'
-                          : 'bg-slate-950/80 text-slate-200 border border-slate-800 rounded-tl-none font-editorial text-sm'
-                      }`}>
-                        {m.content}
-                      </div>
-                      <span className="text-[10px] text-slate-500 mt-1 px-1">
-                        {m.sender === 'user' ? 'Governor' : 'Chief of Staff'}
-                      </span>
-                    </div>
-                  ))
-                )}
-                {sendingChat && (
-                  <div className="flex items-center gap-2 text-xs text-slate-400 italic">
-                    <div className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></div>
-                    <span>Chief of Staff analyzing economic telemetry...</span>
-                  </div>
-                )}
-                <div ref={chatBottomRef} />
-              </div>
-
-              {/* Quick Prompt Suggestions */}
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'What does the Taylor Rule indicate?',
-                    'Are we risking a wage-price spiral?',
-                    'How vulnerable is the banking sector?',
-                    'How can we improve Parliamentary confidence?'
-                  ].map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => handleQuickPrompt(chip)}
-                      className="text-[10px] px-2 py-1 rounded-full bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors cursor-pointer"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Input Bar */}
-                <form onSubmit={handleSendChat} className="flex gap-2 pt-2 pb-[calc(var(--android-system-bar-inset)+1.5vh)] md:pb-0">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder="Ask your advisor for counsel or scenario analysis..."
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sendingChat || !inputMessage.trim()}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              </div>
-
             </div>
-          )}
 
+            {/* Message Feed (Scrollable) */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 min-h-0">
+              {messages.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs space-y-2">
+                  <p className="font-editorial text-sm italic text-slate-300">
+                    "I am at your service, Governor. Inquire about interest rate calibration, inflation expectations, market fragility, or parliamentary mood."
+                  </p>
+                </div>
+              ) : (
+                messages.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                      m.sender === 'user'
+                        ? 'bg-amber-500/20 text-amber-100 border border-amber-500/30 rounded-tr-none'
+                        : 'bg-slate-950/80 text-slate-200 border border-slate-800 rounded-tl-none font-editorial text-sm'
+                    }`}>
+                      {m.content}
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1 px-1">
+                      {m.sender === 'user' ? 'Governor' : 'Chief of Staff'}
+                    </span>
+                  </div>
+                ))
+              )}
+              {sendingChat && (
+                <div className="flex items-center gap-2 text-xs text-slate-400 italic">
+                  <div className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></div>
+                  <span>Chief of Staff analyzing economic telemetry...</span>
+                </div>
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Pinned Bottom Bar: Quick Chips & Real-Time Input Form */}
+            <div className={`px-4 pt-2.5 bg-slate-950 border-t border-slate-800/90 flex-shrink-0 transition-all ${
+              keyboardHeight > 0 ? 'pb-2' : 'pb-[calc(var(--android-system-bar-inset,24px)+1vh)] md:pb-3'
+            }`}>
+              {/* Quick Prompt Suggestions */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {[
+                  'What does the Taylor Rule indicate?',
+                  'Are we risking a wage-price spiral?',
+                  'How vulnerable is the banking sector?',
+                  'How can we improve Parliamentary confidence?'
+                ].map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => handleQuickPrompt(chip)}
+                    className="text-[10px] px-2 py-1 rounded-full bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 transition-colors cursor-pointer"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Bar Form */}
+              <form onSubmit={handleSendChat} className="flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputMessage}
+                  onFocus={handleInputFocus}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Ask your advisor for counsel or scenario analysis..."
+                  className="flex-1 bg-slate-900 border border-slate-700 focus:border-indigo-400 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={sendingChat || !inputMessage.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center justify-center transition-all disabled:opacity-50 cursor-pointer shadow-md shadow-indigo-950/50 flex-shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            </div>
+
+          </div>
+        )}
+
+        {/* Content Area for Policy and Media tabs */}
+        {(activeTab === 'policy' || activeTab === 'media') && (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 min-h-0">
+          
           {/* =========================================
               TAB 2: SUBMIT POLICY TO PARLIAMENT
              ========================================= */}
@@ -507,7 +560,8 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
             </div>
           )}
 
-        </div>
+          </div>
+        )}
 
       </div>
     </div>
