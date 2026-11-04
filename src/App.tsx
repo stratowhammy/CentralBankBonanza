@@ -9,8 +9,26 @@ import { AuthModal } from './components/AuthModal';
 import { EventWebModal } from './components/EventWebModal';
 import { RegularUserDashboard } from './components/RegularUserDashboard';
 import { AndroidBottomNav } from './components/AndroidBottomNav';
+import { PortalGateway } from './components/PortalGateway';
+import { PoliticalApp } from './components/political/PoliticalApp';
+
+function getInitialAppMode(): 'portal' | 'cbs' | 'ps' {
+  if (typeof window === 'undefined') return 'portal';
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const search = window.location.search.toLowerCase();
+
+  if (path.includes('/cbs') || path.includes('/~/cbs') || hash.includes('cbs') || search.includes('sim=cbs')) {
+    return 'cbs';
+  }
+  if (path.includes('/ps') || path.includes('/~/ps') || hash.includes('ps') || search.includes('sim=ps')) {
+    return 'ps';
+  }
+  return 'portal';
+}
 
 export const App: React.FC = () => {
+  const [appMode, setAppMode] = useState<'portal' | 'cbs' | 'ps'>(getInitialAppMode);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeSession, setActiveSession] = useState<GameSession | null>(null);
   const [currentView, setCurrentView] = useState<'landing' | 'game' | 'admin' | 'user_portal'>('user_portal');
@@ -18,6 +36,26 @@ export const App: React.FC = () => {
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isEventWebOpen, setIsEventWebOpen] = useState(false);
+
+  // Sync with browser navigation & back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      setAppMode(getInitialAppMode());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleSwitchSimulator = (mode: 'portal' | 'cbs' | 'ps') => {
+    setAppMode(mode);
+    if (mode === 'cbs') {
+      window.history.pushState({}, '', '/cbs');
+    } else if (mode === 'ps') {
+      window.history.pushState({}, '', '/ps');
+    } else {
+      window.history.pushState({}, '', '/');
+    }
+  };
 
   // Auto-login guest or restore saved user session
   useEffect(() => {
@@ -217,6 +255,22 @@ export const App: React.FC = () => {
   const isKlimbus = currentUser?.username === 'kbunghole' || currentUser?.display_name?.toLowerCase().includes('klimbus');
   const isRegularUser = currentUser?.role !== 'admin' || isKlimbus;
 
+  // If in Portal Gateway mode (root /)
+  if (appMode === 'portal') {
+    return <PortalGateway onSelectSimulator={mode => handleSwitchSimulator(mode)} />;
+  }
+
+  // If in Political Simulator mode (~/ps)
+  if (appMode === 'ps') {
+    return (
+      <PoliticalApp 
+        user={currentUser} 
+        onSwitchToCbs={() => handleSwitchSimulator('cbs')} 
+      />
+    );
+  }
+
+  // Central Bank Simulator mode (~/cbs)
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       
@@ -230,6 +284,7 @@ export const App: React.FC = () => {
         onOpenEventWeb={() => setIsEventWebOpen(true)}
         onLogout={handleLogout}
         onNewGamePrompt={() => setCurrentView(isRegularUser ? 'user_portal' : 'landing')}
+        onSwitchToPoliticalSim={() => handleSwitchSimulator('ps')}
       />
 
       {/* Main View Router */}

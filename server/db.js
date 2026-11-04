@@ -123,6 +123,99 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_turn_history_session_ym ON turn_history(session_id, year, month);
   CREATE INDEX IF NOT EXISTS idx_news_articles_session_ym ON news_articles(session_id, year, month);
   CREATE INDEX IF NOT EXISTS idx_advisor_messages_session ON advisor_messages(session_id);
+
+  -- Political Simulator Tables
+  CREATE TABLE IF NOT EXISTS political_sessions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    politician_name TEXT NOT NULL,
+    system_type TEXT NOT NULL, -- 'parliamentary' or 'congressional'
+    political_track TEXT NOT NULL, -- 'backbencher', 'committee_chair', 'cabinet_minister', 'prime_minister' OR 'representative', 'committee_chair', 'senator', 'president'
+    party_name TEXT NOT NULL,
+    party_ideology TEXT NOT NULL,
+    district_name TEXT NOT NULL,
+    status TEXT DEFAULT 'active', -- 'active', 're_elected', 'defeated', 'resigned', 'promoted'
+    current_year INTEGER DEFAULT 1,
+    current_month INTEGER DEFAULT 1,
+    total_months_elapsed INTEGER DEFAULT 0,
+    months_to_election INTEGER DEFAULT 24,
+    linked_cbs_session_id TEXT, -- Optional link to central bank session for tandem play!
+    political_state TEXT NOT NULL, -- JSON
+    economic_state TEXT NOT NULL, -- JSON
+    active_events TEXT, -- JSON
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS political_bills (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    statutory_text TEXT NOT NULL,
+    category TEXT NOT NULL,
+    fiscal_impact_billions REAL DEFAULT 0,
+    status TEXT DEFAULT 'drafting', -- 'drafting', 'in_committee', 'floor_debate', 'passed', 'failed', 'vetoed'
+    committee_name TEXT,
+    committee_vote_aye INTEGER DEFAULT 0,
+    committee_vote_nay INTEGER DEFAULT 0,
+    whip_count TEXT, -- JSON breakdown of party factions
+    floor_vote_aye INTEGER DEFAULT 0,
+    floor_vote_nay INTEGER DEFAULT 0,
+    public_support REAL DEFAULT 50,
+    sponsor_capital_spent INTEGER DEFAULT 0,
+    year_introduced INTEGER,
+    month_introduced INTEGER,
+    year_resolved INTEGER,
+    month_resolved INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS political_advisor_messages (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    sender TEXT NOT NULL, -- 'user' or 'advisor'
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS political_turn_history (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    action_type TEXT NOT NULL,
+    action_details TEXT,
+    political_snapshot TEXT NOT NULL,
+    economic_snapshot TEXT NOT NULL,
+    active_events TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS political_news_dispatches (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    publisher TEXT NOT NULL, -- 'capital_gazette', 'daily_tribune', 'westminster_wire', 'beltway_insider', 'red_blue_politics'
+    headline TEXT NOT NULL,
+    body TEXT NOT NULL,
+    tone TEXT NOT NULL,
+    urgency TEXT NOT NULL,
+    featured_issue TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_political_sessions_user ON political_sessions(user_id);
+  CREATE INDEX IF NOT EXISTS idx_political_bills_session ON political_bills(session_id);
+  CREATE INDEX IF NOT EXISTS idx_political_advisor_session ON political_advisor_messages(session_id);
+  CREATE INDEX IF NOT EXISTS idx_political_history_session ON political_turn_history(session_id);
+  CREATE INDEX IF NOT EXISTS idx_political_news_session ON political_news_dispatches(session_id);
 `);
 
 // Safe column migrations for Section 5 features

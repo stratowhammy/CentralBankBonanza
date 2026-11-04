@@ -328,3 +328,191 @@ export interface EventCatalogItem {
     }[];
   }[];
 }
+
+// ==========================================
+// POLITICAL SIMULATOR (STATECRAFT) TYPES
+// ==========================================
+
+export type PoliticalSystemType = 'parliamentary' | 'congressional';
+
+export type PoliticalTrackId = 
+  | 'backbencher' 
+  | 'committee_chair' 
+  | 'cabinet_minister' 
+  | 'prime_minister'
+  | 'representative' 
+  | 'senator' 
+  | 'president';
+
+export interface PartyWing {
+  name: string;
+  share: number;
+  base_loyalty: number;
+  priority: string;
+}
+
+export interface PoliticalState {
+  politician_name?: string;
+  politician_title: string;
+  current_stage_id: PoliticalTrackId;
+  chamber: string;
+  system_type: PoliticalSystemType;
+  party_name: string;
+  party_ideology: string;
+  party_wings: PartyWing[];
+  district_name: string;
+  
+  // Telemetry
+  district_approval: number; // 0-100
+  national_approval: number; // 0-100
+  party_loyalty: number;     // 0-100
+  political_capital: number; // 0-100
+  war_chest_millions: number;
+  ethics_scrutiny: number;   // 0-100
+  polling_margin: number;    // +/- %
+  coalition_stability: number;
+  media_sentiment: number;   // -100 to +100
+  
+  // Stats
+  legislative_seniority: number;
+  bills_sponsored: number;
+  bills_passed: number;
+  hearings_held: number;
+  townhalls_conducted: number;
+  fundraisers_held: number;
+  
+  committee_name: string;
+  promotion_available: boolean;
+  next_stage_id: PoliticalTrackId | null;
+  months_to_election: number;
+  election_year_span: number;
+}
+
+export interface PoliticalBill {
+  id: string;
+  session_id: string;
+  title: string;
+  summary: string;
+  statutory_text: string;
+  category: string;
+  fiscal_impact_billions: number;
+  status: 'drafting' | 'in_committee' | 'floor_debate' | 'passed' | 'failed' | 'vetoed';
+  committee_name?: string;
+  committee_vote_aye?: number;
+  committee_vote_nay?: number;
+  whip_count?: string; // JSON
+  floor_vote_aye?: number;
+  floor_vote_nay?: number;
+  public_support?: number;
+  sponsor_capital_spent?: number;
+  year_introduced?: number;
+  month_introduced?: number;
+  year_resolved?: number;
+  month_resolved?: number;
+  created_at?: string;
+}
+
+export interface WhipCountResult {
+  total_seats: number;
+  majority_threshold: number;
+  passed: boolean;
+  total_ayes: number;
+  total_nays: number;
+  undecided: number;
+  breakdown: {
+    party_ayes: number;
+    party_nays: number;
+    party_undecided: number;
+    opposition_ayes: number;
+    opposition_nays: number;
+  };
+  whip_assessment: string;
+}
+
+export interface PoliticalNewsArticle {
+  id: string;
+  session_id: string;
+  year: number;
+  month: number;
+  publisher: string;
+  headline: string;
+  body: string;
+  tone: string;
+  urgency: string;
+  featured_issue?: string;
+}
+
+export interface PoliticalTurnHistoryItem {
+  id: string;
+  session_id: string;
+  year: number;
+  month: number;
+  action_type: string;
+  action_details?: string;
+  political_snapshot: string;
+  economic_snapshot: string;
+  active_events?: string;
+  created_at: string;
+}
+
+export interface PoliticalAdvisorMessage {
+  id: string;
+  session_id: string;
+  sender: 'user' | 'advisor';
+  content: string;
+  created_at: string;
+}
+
+export interface PoliticalEventChoice {
+  option_id: 'A' | 'B' | 'C';
+  label: string;
+  description: string;
+  political_effects: {
+    district_approval?: number;
+    national_approval?: number;
+    party_loyalty?: number;
+    war_chest?: number;
+    political_capital?: number;
+  };
+  economic_effects?: Record<string, number>;
+}
+
+export interface PoliticalEvent {
+  id: string;
+  name: string;
+  polarity: 'Positive' | 'Negative';
+  category: string;
+  impact_min: number;
+  impact_max: number;
+  impact_tier: string;
+  summary: string;
+  choices: PoliticalEventChoice[];
+  duration_remaining?: number;
+}
+
+export interface PoliticalSession {
+  id: string;
+  user_id: string;
+  politician_name: string;
+  system_type: PoliticalSystemType;
+  political_track: PoliticalTrackId;
+  party_name: string;
+  party_ideology: string;
+  district_name: string;
+  status: 'active' | 're_elected' | 'defeated' | 'resigned' | 'promoted';
+  current_year: number;
+  current_month: number;
+  total_months_elapsed: number;
+  months_to_election: number;
+  linked_cbs_session_id?: string | null;
+  political_state: PoliticalState;
+  economic_state: EconomicState;
+  active_events: PoliticalEvent[];
+  bills?: PoliticalBill[];
+  news?: PoliticalNewsArticle[];
+  history?: PoliticalTurnHistoryItem[];
+  messages?: PoliticalAdvisorMessage[];
+  created_at: string;
+  updated_at: string;
+}
+

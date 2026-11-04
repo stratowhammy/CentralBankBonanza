@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, GameSession } from '../types';
-import { Landmark, UserCircle, LogOut, Sliders, LayoutDashboard, Compass, Play } from 'lucide-react';
+import { Landmark, UserCircle, LogOut, Sliders, LayoutDashboard, Compass, Play, Vote } from 'lucide-react';
 
 interface NavbarProps {
   user: User | null;
@@ -11,6 +11,7 @@ interface NavbarProps {
   onOpenEventWeb: () => void;
   onLogout: () => void;
   onNewGamePrompt: () => void;
+  onSwitchToPoliticalSim?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,7 +22,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuth,
   onOpenEventWeb,
   onLogout,
-  onNewGamePrompt
+  onNewGamePrompt,
+  onSwitchToPoliticalSim
 }) => {
   const isKlimbus = user?.username === 'kbunghole' || user?.display_name?.toLowerCase().includes('klimbus');
   const isAdmin = user?.role === 'admin' && user?.username === 'admin' && !isKlimbus;
@@ -76,6 +78,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Navigation & User Controls */}
         <div className="flex items-center gap-3">
+          
+          {/* Switch to Political Simulator Button */}
+          {onSwitchToPoliticalSim && (
+            <button
+              onClick={onSwitchToPoliticalSim}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-red-950 to-stone-900 border border-red-700/50 text-red-300 hover:text-red-200 hover:border-red-500 transition-all cursor-pointer shadow-sm"
+              title="Switch to Statecraft: Political Simulator (~/ps)"
+            >
+              <Vote className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden sm:inline">Political Sim (~/ps)</span>
+            </button>
+          )}
           
           {/* Regular user navigation */}
           {!isAdmin && (

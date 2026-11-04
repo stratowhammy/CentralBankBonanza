@@ -280,5 +280,120 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to update settings');
     return res.json();
+  },
+
+  // ==========================================
+  // POLITICAL SIMULATOR (STATECRAFT) API
+  // ==========================================
+
+  async startNewPoliticalCareer(params: {
+    user_id: string;
+    politician_name: string;
+    system_type: 'parliamentary' | 'congressional';
+    selected_track?: string;
+    party_name?: string;
+    district_name?: string;
+    linked_cbs_session_id?: string;
+  }) {
+    const res = await fetch(`${API_BASE}/political/new`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to start political career');
+    }
+    return res.json();
+  },
+
+  async getPoliticalSession(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}`);
+    if (!res.ok) throw new Error('Failed to load political session');
+    return res.json();
+  },
+
+  async getPoliticalSessions(userId: string) {
+    const res = await fetch(`${API_BASE}/political/sessions?user_id=${userId}`);
+    if (!res.ok) throw new Error('Failed to list political sessions');
+    return res.json();
+  },
+
+  async submitPoliticalAction(sessionId: string, params: {
+    action_type: string;
+    action_details?: string;
+    event_choice?: any;
+  }) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to advance political turn');
+    }
+    return res.json();
+  },
+
+  async draftPoliticalBill(sessionId: string, params: {
+    title: string;
+    category: string;
+    fiscal_impact_billions: number;
+    summary?: string;
+  }) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) throw new Error('Failed to draft bill');
+    return res.json();
+  },
+
+  async submitBillToCommittee(sessionId: string, billId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/${billId}/committee`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error('Failed to submit bill to committee');
+    return res.json();
+  },
+
+  async getWhipCount(sessionId: string, billId: string, capitalSpent: number = 0) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/${billId}/whip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capital_spent: capitalSpent })
+    });
+    if (!res.ok) throw new Error('Failed to calculate whip count');
+    return res.json();
+  },
+
+  async floorVoteBill(sessionId: string, billId: string, capitalSpent: number = 0) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/${billId}/floor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capital_spent: capitalSpent })
+    });
+    if (!res.ok) throw new Error('Failed to conduct floor vote');
+    return res.json();
+  },
+
+  async promotePolitician(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/promote`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error('Failed to promote politician');
+    return res.json();
+  },
+
+  async sendPoliticalAdvisorChat(sessionId: string, message: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/advisor/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    if (!res.ok) throw new Error('Failed to send message to Chief of Staff');
+    return res.json();
   }
 };

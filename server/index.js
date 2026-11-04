@@ -17,6 +17,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/game', require('./routes/game'));
 app.use('/api/advisor', require('./routes/advisor'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/political', require('./routes/political'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
