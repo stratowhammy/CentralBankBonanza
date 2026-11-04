@@ -147,6 +147,18 @@ try {
 try {
   db.exec("ALTER TABLE game_sessions ADD COLUMN volatility TEXT DEFAULT 'normal'");
 } catch (e) {}
+try {
+  db.exec('ALTER TABLE policy_proposals ADD COLUMN year INTEGER');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE policy_proposals ADD COLUMN month INTEGER');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE media_blitzes ADD COLUMN year INTEGER');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE media_blitzes ADD COLUMN month INTEGER');
+} catch (e) {}
 
 // Seed default admin and guest users if they don't exist
 const checkAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');

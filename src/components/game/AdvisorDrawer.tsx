@@ -88,12 +88,32 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
   const [launchingBlitz, setLaunchingBlitz] = useState(false);
   const [recentBlitzResult, setRecentBlitzResult] = useState<any | null>(null);
 
-  // Load chat messages when opening
+  // Historical records for Parliament Reform and Media Blitz
+  const [policies, setPolicies] = useState<PolicyProposal[]>([]);
+  const [mediaBlitzes, setMediaBlitzes] = useState<MediaBlitz[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchActionsHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await api.getAdvisorActionsHistory(session.id);
+      setPolicies(res.policies || []);
+      setMediaBlitzes(res.media_blitzes || []);
+    } catch {
+      if (session.policies) setPolicies(session.policies);
+      if (session.media_blitzes) setMediaBlitzes(session.media_blitzes);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Load chat messages and action histories when opening
   useEffect(() => {
     if (isOpen) {
       api.getAdvisorMessages(session.id)
         .then(res => setMessages(res.messages || []))
         .catch(() => {});
+      fetchActionsHistory();
     }
   }, [isOpen, session.id]);
 
@@ -117,6 +137,17 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
     try {
       const res = await api.sendAdvisorChat(session.id, userText, session.economic_state.interest_rate);
       setMessages([...newMsgs, { sender: 'advisor', content: res.reply }]);
+      if (res.updated_state) {
+        onStateUpdated(res.updated_state);
+      }
+      if (res.policy) {
+        setPolicies(prev => [res.policy, ...prev.filter(p => p.id !== res.policy.id)]);
+        setRecentPolicyResult(res.policy);
+      }
+      if (res.media_blitz) {
+        setMediaBlitzes(prev => [res.media_blitz, ...prev.filter(b => b.id !== res.media_blitz.id)]);
+        setRecentBlitzResult(res.media_blitz);
+      }
     } catch (err: any) {
       setMessages([...newMsgs, { sender: 'advisor', content: 'Apologies, Governor. My secure line experienced static. Let us reconsider the issue.' }]);
     } finally {
@@ -138,6 +169,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
     try {
       const res = await api.submitPolicyIdea(session.id, rawIdea.trim(), targetSector);
       setRecentPolicyResult(res.policy);
+      setPolicies(prev => [res.policy, ...prev.filter(p => p.id !== res.policy.id)]);
       if (res.updated_state) {
         onStateUpdated(res.updated_state);
       }
@@ -159,6 +191,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
     try {
       const res = await api.launchMediaBlitz(session.id, targetAudience, strategicMessage);
       setRecentBlitzResult(res.media_blitz);
+      setMediaBlitzes(prev => [res.media_blitz, ...prev.filter(b => b.id !== res.media_blitz.id)]);
       if (res.updated_state) {
         onStateUpdated(res.updated_state);
       }
@@ -377,14 +410,83 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
               <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 text-xs space-y-1.5 text-slate-300">
                 <h4 className="font-bold text-slate-100 flex items-center gap-1.5">
                   <Vote className="w-4 h-4 text-purple-400" />
-                  <span>Legislative Proposal to Parliament</span>
+                  <span>Statutory Legislative Authority & Parliament Reform</span>
                 </h4>
                 <p>
-                  As Central Bank Chair, you cannot legislate directly, but you can send formal statutory policy proposals to Parliament. Your advisor will draft the statutory language and lobby lawmakers for a roll-call vote.
+                  As Central Bank Chair, you can instruct your Advisor directly in Advisory Chat to draft and submit statutory bills to Parliament (e.g. <em>"Propose the bank capital buffer bill"</em>), or submit a concept below. Your advisor drafts the statutory text and lobbies lawmakers for a division vote.
                 </p>
                 <div className="text-[11px] text-slate-400 font-mono mt-1">
-                  Current Parliamentary Confidence: <strong className="text-purple-300">{session.economic_state.parliamentary_approval}%</strong> (Needs 51 votes to pass)
+                  Current Parliamentary Confidence: <strong className="text-purple-300">{session.economic_state.parliamentary_approval}%</strong> (Threshold to pass: 51 votes)
                 </div>
+              </div>
+
+              {/* Voting Record for Each Bill Proposed */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="font-bold text-xs uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                    <Vote className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Parliamentary Voting Record ({policies.length})</span>
+                  </h5>
+                  <span className="text-[10px] text-slate-500 font-mono">51 Ayes Required to Enact</span>
+                </div>
+
+                {policies.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-dashed border-slate-800 text-center text-xs text-slate-500 space-y-1">
+                    <p className="font-editorial italic text-slate-400">
+                      "No statutory bills have been introduced to Parliament yet."
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Direct your Advisor in Advisory Chat to propose legislation, or draft a bill concept below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[38vh] overflow-y-auto pr-1">
+                    {policies.map((p) => {
+                      const isPassed = p.status === 'passed';
+                      return (
+                        <div
+                          key={p.id}
+                          className={`p-3.5 rounded-xl border text-xs space-y-2 transition-all ${
+                            isPassed
+                              ? 'bg-emerald-950/20 border-emerald-500/40 text-slate-200 shadow-sm'
+                              : 'bg-rose-950/20 border-rose-500/40 text-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              isPassed
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                            }`}>
+                              {isPassed ? 'Enacted into Law' : 'Defeated in Division'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-slate-200">
+                                {p.parliament_vote_for} Ayes / {p.parliament_vote_against} Noes
+                              </span>
+                              {(p.year || p.month) && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  (Year {p.year}, Month {p.month})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h6 className="font-bold text-xs text-slate-100">{p.title}</h6>
+                            <span className="text-[10px] text-purple-300 uppercase font-semibold">
+                              Sector: {p.target_sector.replace('_', ' ')}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-slate-300 font-editorial italic bg-slate-950/60 p-2.5 rounded-lg border border-slate-900 leading-relaxed">
+                            "{p.refined_legislation}"
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Recent Result Banner */}
@@ -409,63 +511,70 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                 </div>
               )}
 
-              <form onSubmit={handleSubmitPolicy} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Target Policy Sector
-                  </label>
-                  <select
-                    value={targetSector}
-                    onChange={(e) => setTargetSector(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-400"
-                  >
-                    <option value="banking">Commercial Banking & Credit Liquidity</option>
-                    <option value="housing">Shelter, Mortgages & Housing Affordability</option>
-                    <option value="green_transition">Green Transition & Energy Independence</option>
-                    <option value="general">Consumer Welfare & Digital Inclusion</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Your Policy Idea (Raw Concept)
-                  </label>
-                  <textarea
-                    value={rawIdea}
-                    onChange={(e) => setRawIdea(e.target.value)}
-                    rows={3}
-                    placeholder="e.g. 'Mandate a 2.5% counter-cyclical capital buffer surcharge on tier-1 banks to cool excessive lending' or 'Cap second-home mortgage deductions to lower home prices'..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-400 placeholder:text-slate-600"
-                    required
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'Counter-Cyclical Bank Reserve Surcharge',
-                    'Emergency Subsidized Mortgage Refinancing Window',
-                    'Sovereign Green Bond Purchasing Facility',
-                    'Cap Commercial Bank Interbank Surcharges'
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setRawIdea(preset)}
-                      className="text-[10px] px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 cursor-pointer"
+              {/* Manual Draft Form */}
+              <div className="pt-2 border-t border-slate-800">
+                <h5 className="font-bold text-xs uppercase tracking-wider text-slate-300 mb-3">
+                  Draft New Statutory Bill Concept
+                </h5>
+                <form onSubmit={handleSubmitPolicy} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Target Policy Sector
+                    </label>
+                    <select
+                      value={targetSector}
+                      onChange={(e) => setTargetSector(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-400"
                     >
-                      + {preset}
-                    </button>
-                  ))}
-                </div>
+                      <option value="banking">Commercial Banking & Credit Liquidity</option>
+                      <option value="housing">Shelter, Mortgages & Housing Affordability</option>
+                      <option value="green_transition">Green Transition & Energy Independence</option>
+                      <option value="labor">Labor Market Productivity & Real Purchasing Power</option>
+                      <option value="general">Consumer Welfare & Digital Inclusion</option>
+                    </select>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={submittingPolicy || !rawIdea.trim()}
-                  className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-purple-950/40"
-                >
-                  {submittingPolicy ? 'Lobbying Parliament...' : 'Refine & Submit Bill to Parliament'}
-                </button>
-              </form>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Your Policy Idea (Raw Concept)
+                    </label>
+                    <textarea
+                      value={rawIdea}
+                      onChange={(e) => setRawIdea(e.target.value)}
+                      rows={3}
+                      placeholder="e.g. 'Mandate a 2.5% counter-cyclical capital buffer surcharge on tier-1 banks to cool excessive lending' or 'Cap second-home mortgage deductions to lower home prices'..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-400 placeholder:text-slate-600"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Counter-Cyclical Bank Reserve Surcharge',
+                      'Emergency Subsidized Mortgage Refinancing Window',
+                      'Sovereign Green Bond Purchasing Facility',
+                      'Labor Market Productivity & Vocational Training Accord'
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setRawIdea(preset)}
+                        className="text-[10px] px-2 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 cursor-pointer"
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingPolicy || !rawIdea.trim()}
+                    className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-purple-950/40"
+                  >
+                    {submittingPolicy ? 'Lobbying Parliament...' : 'Refine & Submit Bill to Parliament'}
+                  </button>
+                </form>
+              </div>
             </div>
           )}
 
@@ -480,8 +589,75 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                   <span>Strategic Communications Offensive</span>
                 </h4>
                 <p>
-                  Deploy your press bureau and economic surrogates on a high-intensity media blitz. Tailor your message to an exact audience to anchor expectations or calm market panics.
+                  Deploy your press bureau and economic surrogates on a high-intensity media blitz. You can instruct your Advisor directly in Advisory Chat (e.g. <em>"Launch a media blitz to Wall Street reassuring them on price stability"</em>), or authorize a campaign below.
                 </p>
+              </div>
+
+              {/* Previous Media Campaigns */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h5 className="font-bold text-xs uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+                    <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Previous Media Campaigns ({mediaBlitzes.length})</span>
+                  </h5>
+                  <span className="text-[10px] text-slate-500 font-mono">Press Bureau Deployments</span>
+                </div>
+
+                {mediaBlitzes.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-dashed border-slate-800 text-center text-xs text-slate-500 space-y-1">
+                    <p className="font-editorial italic text-slate-400">
+                      "No media campaigns have been authorized yet."
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Direct your Advisor in chat or configure a communications campaign below.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[38vh] overflow-y-auto pr-1">
+                    {mediaBlitzes.map((b) => {
+                      const audienceLabelMap: Record<string, string> = {
+                        wall_street: 'Wall Street Desks',
+                        main_street: 'Main Street Consumers',
+                        parliament: 'Parliament Select Committee',
+                        foreign_fx: 'Overseas FX Traders'
+                      };
+                      return (
+                        <div
+                          key={b.id}
+                          className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/15 text-xs space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              {audienceLabelMap[b.target_audience] || b.target_audience}
+                            </span>
+                            {(b.year || b.month) && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                Year {b.year}, Month {b.month}
+                              </span>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">Directive:</span>
+                            <p className="text-xs font-semibold text-slate-200">
+                              "{b.strategic_message}"
+                            </p>
+                          </div>
+
+                          <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 space-y-1">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block">Press & Public Reception:</span>
+                            <p className="text-xs text-amber-200/90 font-editorial italic">
+                              "{b.public_response}"
+                            </p>
+                            <p className="text-[11px] text-amber-300 font-mono pt-1">
+                              Impact: {b.impact_summary}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {recentBlitzResult && (
@@ -498,66 +674,72 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                 </div>
               )}
 
-              <form onSubmit={handleLaunchBlitz} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Target Strategic Audience
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {[
-                      { id: 'wall_street', label: 'Wall Street Desks', desc: 'Soothes stock multiples & 2Y yields' },
-                      { id: 'main_street', label: 'Main Street Consumers', desc: 'Boosts consumer confidence' },
-                      { id: 'parliament', label: 'Parliament Select Committee', desc: 'Restores lawmaker approval' },
-                      { id: 'foreign_fx', label: 'Overseas FX Traders', desc: 'Strengthens currency & 10Y yield' }
-                    ].map((aud) => (
-                      <div
-                        key={aud.id}
-                        onClick={() => setTargetAudience(aud.id as any)}
-                        className={`cursor-pointer rounded-xl p-3 border transition-all ${
-                          targetAudience === aud.id
-                            ? 'bg-amber-500/15 border-amber-500/60 text-amber-300'
-                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                        }`}
-                      >
-                        <span className="font-bold block text-slate-200">{aud.label}</span>
-                        <span className="text-[10px] text-slate-400">{aud.desc}</span>
-                      </div>
-                    ))}
+              {/* Manual Blitz Form */}
+              <div className="pt-2 border-t border-slate-800">
+                <h5 className="font-bold text-xs uppercase tracking-wider text-slate-300 mb-3">
+                  Authorize New Strategic Media Blitz
+                </h5>
+                <form onSubmit={handleLaunchBlitz} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Target Strategic Audience
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {[
+                        { id: 'wall_street', label: 'Wall Street Desks', desc: 'Institutional trading desks, bond dealers & equity analysts' },
+                        { id: 'main_street', label: 'Main Street Consumers', desc: 'Working families, mortgage holders & consumer sentiment' },
+                        { id: 'parliament', label: 'Parliament Select Committee', desc: 'Cross-party lawmakers & legislative committees' },
+                        { id: 'foreign_fx', label: 'Overseas FX Traders', desc: 'International sovereign funds & currency markets' }
+                      ].map((aud) => (
+                        <div
+                          key={aud.id}
+                          onClick={() => setTargetAudience(aud.id as any)}
+                          className={`cursor-pointer rounded-xl p-3 border transition-all ${
+                            targetAudience === aud.id
+                              ? 'bg-amber-500/15 border-amber-500/60 text-amber-300'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          <span className="font-bold block text-slate-200">{aud.label}</span>
+                          <span className="text-[10px] text-slate-400">{aud.desc}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Strategic Message Directive
-                  </label>
-                  <select
-                    value={strategicMessage}
-                    onChange={(e) => setStrategicMessage(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Strategic Message Directive
+                    </label>
+                    <select
+                      value={strategicMessage}
+                      onChange={(e) => setStrategicMessage(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="Reassure on Long-Term Price Discipline and Purchasing Power Stability">
+                        Reassure on Price Discipline & Purchasing Power
+                      </option>
+                      <option value="Project Decisive Hawkish Strength Against Emerging Inflation Expectations">
+                        Project Decisive Hawkish Strength
+                      </option>
+                      <option value="Highlight Labor Market Resilience and Sound Banking Liquidity Buffers">
+                        Highlight Real Economy Resilience & Banking Strength
+                      </option>
+                      <option value="Call for Parliamentary Fiscal Budget Restraint and Structural Supply Investment">
+                        Call on Parliament for Fiscal Budget Restraint
+                      </option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={launchingBlitz}
+                    className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-amber-950/40"
                   >
-                    <option value="Reassure on Long-Term Price Discipline and Purchasing Power Stability">
-                      Reassure on Price Discipline & Purchasing Power
-                    </option>
-                    <option value="Project Decisive Hawkish Strength Against Emerging Inflation Expectations">
-                      Project Decisive Hawkish Strength
-                    </option>
-                    <option value="Highlight Labor Market Resilience and Sound Banking Liquidity Buffers">
-                      Highlight Real Economy Resilience & Banking Strength
-                    </option>
-                    <option value="Call for Parliamentary Fiscal Budget Restraint and Structural Supply Investment">
-                      Call on Parliament for Fiscal Budget Restraint
-                    </option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={launchingBlitz}
-                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-amber-950/40"
-                >
-                  {launchingBlitz ? 'Mobilizing Press Bureaus...' : 'Authorize Nationwide Media Blitz'}
-                </button>
-              </form>
+                    {launchingBlitz ? 'Mobilizing Press Bureaus...' : 'Authorize Nationwide Media Blitz'}
+                  </button>
+                </form>
+              </div>
             </div>
           )}
 

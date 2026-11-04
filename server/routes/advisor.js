@@ -86,7 +86,67 @@ router.post('/chat', async (req, res) => {
     };
 
     // Generate advisor response with full session metadata, live rate, and news context
-    const advisorReply = await handleAdvisorChat(message, state, history, apiKey, newsArticles, sessionMeta, model);
+    const chatResult = await handleAdvisorChat(message, state, history, apiKey, newsArticles, sessionMeta, model);
+    const advisorReply = typeof chatResult === 'string' ? chatResult : chatResult.reply;
+    const actionTaken = chatResult.action_taken || null;
+    let policy = chatResult.policy || null;
+    let mediaBlitz = chatResult.media_blitz || null;
+    let updatedState = chatResult.updated_state || null;
+
+    if (actionTaken === 'legislation_proposed' && policy) {
+      const policyId = 'pol_' + uuidv4().substring(0, 8);
+      db.prepare(`
+        INSERT INTO policy_proposals (
+          id, session_id, title, raw_idea, refined_legislation, target_sector,
+          status, parliament_vote_for, parliament_vote_against, enacted_effects, year, month
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        policyId,
+        session_id,
+        policy.title,
+        policy.raw_idea || message,
+        policy.refined_legislation,
+        policy.target_sector || 'general',
+        policy.status,
+        policy.parliament_vote_for,
+        policy.parliament_vote_against,
+        JSON.stringify(policy.effects || {}),
+        session.current_year,
+        session.current_month
+      );
+      policy.id = policyId;
+      policy.year = session.current_year;
+      policy.month = session.current_month;
+
+      if (updatedState) {
+        db.prepare('UPDATE game_sessions SET economic_state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run(JSON.stringify(updatedState), session_id);
+      }
+    } else if (actionTaken === 'media_blitz_executed' && mediaBlitz) {
+      const blitzId = 'blz_' + uuidv4().substring(0, 8);
+      db.prepare(`
+        INSERT INTO media_blitzes (
+          id, session_id, target_audience, strategic_message, public_response, impact_summary, year, month
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        blitzId,
+        session_id,
+        mediaBlitz.target_audience,
+        mediaBlitz.strategic_message,
+        mediaBlitz.public_response,
+        mediaBlitz.impact_summary,
+        session.current_year,
+        session.current_month
+      );
+      mediaBlitz.id = blitzId;
+      mediaBlitz.year = session.current_year;
+      mediaBlitz.month = session.current_month;
+
+      if (updatedState) {
+        db.prepare('UPDATE game_sessions SET economic_state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run(JSON.stringify(updatedState), session_id);
+      }
+    }
 
     // Save advisor response
     db.prepare(`
@@ -94,9 +154,41 @@ router.post('/chat', async (req, res) => {
       VALUES (?, ?, 'advisor', ?)
     `).run('msg_' + uuidv4().substring(0, 8), session_id, advisorReply);
 
-    res.json({ success: true, reply: advisorReply });
+    res.json({
+      success: true,
+      reply: advisorReply,
+      action_taken: actionTaken,
+      policy,
+      media_blitz: mediaBlitz,
+      updated_state: updatedState
+    });
   } catch (err) {
     console.error('Advisor chat error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch historical bills and media campaigns
+router.get('/history/:sessionId', (req, res) => {
+  try {
+    const policies = db.prepare(`
+      SELECT id, title, raw_idea, refined_legislation, target_sector, status,
+             parliament_vote_for, parliament_vote_against, enacted_effects, year, month, created_at
+      FROM policy_proposals
+      WHERE session_id = ?
+      ORDER BY created_at DESC
+    `).all(req.params.sessionId);
+
+    const media_blitzes = db.prepare(`
+      SELECT id, target_audience, strategic_message, public_response, impact_summary,
+             year, month, created_at
+      FROM media_blitzes
+      WHERE session_id = ?
+      ORDER BY created_at DESC
+    `).all(req.params.sessionId);
+
+    res.json({ policies, media_blitzes });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -151,8 +243,8 @@ router.post('/submit-policy', async (req, res) => {
     db.prepare(`
       INSERT INTO policy_proposals (
         id, session_id, title, raw_idea, refined_legislation, target_sector,
-        status, parliament_vote_for, parliament_vote_against, enacted_effects
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        status, parliament_vote_for, parliament_vote_against, enacted_effects, year, month
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       policyId,
       session_id,
@@ -163,7 +255,9 @@ router.post('/submit-policy', async (req, res) => {
       result.status,
       result.parliament_vote_for,
       result.parliament_vote_against,
-      JSON.stringify(result.effects || {})
+      JSON.stringify(result.effects || {}),
+      session.current_year,
+      session.current_month
     );
 
     // Update session economic state
@@ -211,15 +305,17 @@ router.post('/media-blitz', async (req, res) => {
     // Save record
     const blitzId = 'blz_' + uuidv4().substring(0, 8);
     db.prepare(`
-      INSERT INTO media_blitzes (id, session_id, target_audience, strategic_message, public_response, impact_summary)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO media_blitzes (id, session_id, target_audience, strategic_message, public_response, impact_summary, year, month)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       blitzId,
       session_id,
       target_audience,
       strategic_message,
       blitzResult.public_response,
-      blitzResult.impact_summary
+      blitzResult.impact_summary,
+      session.current_year,
+      session.current_month
     );
 
     db.prepare('UPDATE game_sessions SET economic_state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')

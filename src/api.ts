@@ -190,13 +190,26 @@ export const api = {
   },
 
   // Advisor
-  async sendAdvisorChat(sessionId: string, message: string, current_rate?: number): Promise<{ success: boolean; reply: string }> {
+  async sendAdvisorChat(sessionId: string, message: string, current_rate?: number): Promise<{
+    success: boolean;
+    reply: string;
+    action_taken?: 'legislation_proposed' | 'media_blitz_executed' | null;
+    policy?: any;
+    media_blitz?: any;
+    updated_state?: any;
+  }> {
     const res = await fetch(`${API_BASE}/advisor/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sessionId, message, current_rate })
     });
     if (!res.ok) throw new Error('Advisor chat failed');
+    return res.json();
+  },
+
+  async getAdvisorActionsHistory(sessionId: string): Promise<{ policies: any[]; media_blitzes: any[] }> {
+    const res = await fetch(`${API_BASE}/advisor/history/${sessionId}`);
+    if (!res.ok) throw new Error('Failed to fetch advisor actions history');
     return res.json();
   },
 

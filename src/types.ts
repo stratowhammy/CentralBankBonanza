@@ -178,6 +178,9 @@ export interface PolicyProposal {
   status: 'pending' | 'passed' | 'rejected';
   parliament_vote_for: number;
   parliament_vote_against: number;
+  enacted_effects?: string | Record<string, number>;
+  year?: number;
+  month?: number;
   created_at: string;
 }
 
@@ -187,6 +190,8 @@ export interface MediaBlitz {
   strategic_message: string;
   public_response: string;
   impact_summary: string;
+  year?: number;
+  month?: number;
   created_at: string;
 }
 

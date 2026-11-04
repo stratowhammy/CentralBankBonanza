@@ -204,17 +204,6 @@ export const ParliamentaryHearingModal: React.FC<ParliamentaryHearingModalProps>
                               <span className="font-semibold text-xs text-amber-200">
                                 {strat.label}
                               </span>
-                              <div className="text-[10px] font-mono text-slate-400 space-x-2">
-                                <span className={strat.parl_approval_delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                  Parl: {strat.parl_approval_delta >= 0 ? '+' : ''}{strat.parl_approval_delta}%
-                                </span>
-                                <span className={strat.autonomy_delta >= 0 ? 'text-indigo-400' : 'text-rose-400'}>
-                                  Autonomy: {strat.autonomy_delta >= 0 ? '+' : ''}{strat.autonomy_delta}%
-                                </span>
-                                <span className={strat.market_credibility_delta >= 0 ? 'text-cyan-400' : 'text-rose-400'}>
-                                  Cred: {strat.market_credibility_delta >= 0 ? '+' : ''}{strat.market_credibility_delta}%
-                                </span>
-                              </div>
                             </div>
                             <p className="text-xs text-slate-300 italic">
                               "{strat.dialogue}"

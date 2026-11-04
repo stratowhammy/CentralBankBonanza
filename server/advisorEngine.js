@@ -1,5 +1,83 @@
 const { calculateTaylorRule, ECONOMY_TYPE_PROFILES, FOREIGN_SHOCK_ECONOMIES } = require('./simulationEngine');
 
+function detectPolicyDirective(text) {
+  const t = text.toLowerCase();
+  
+  const hasVerb = (
+    t.includes('propose') || t.includes('submit') || t.includes('draft') ||
+    t.includes('introduce') || t.includes('send') || t.includes('sponsor') ||
+    t.includes('file') || t.includes('pass') || t.includes('authorize') ||
+    t.includes('go ahead with') || t.includes('go ahead and') || t.includes('enact')
+  );
+
+  const hasNoun = (
+    t.includes('bill') || t.includes('legislation') || t.includes('statute') ||
+    t.includes('reform') || t.includes('act') || t.includes('proposal') ||
+    t.includes('accord') || t.includes('policy') || t.includes('measure')
+  );
+
+  const isQuestionOnly = (
+    (t.startsWith('should we') || t.startsWith('can we') || t.startsWith('what if') || 
+     t.startsWith('would you recommend') || t.startsWith('could we') || t.startsWith('how would') ||
+     t.startsWith('what would happen') || t.includes('what are the options')) &&
+    !t.includes('please') && !t.includes('go ahead') && !t.includes('i want to') && !t.includes('let us') && !t.includes("let's")
+  );
+
+  if (hasVerb && hasNoun && !isQuestionOnly) {
+    let sector = 'general';
+    if (t.includes('hous') || t.includes('mortgage') || t.includes('shelter') || t.includes('rent') || t.includes('home')) {
+      sector = 'housing';
+    } else if (t.includes('bank') || t.includes('capital') || t.includes('buffer') || t.includes('reserve') || t.includes('credit') || t.includes('lend')) {
+      sector = 'banking';
+    } else if (t.includes('green') || t.includes('energy') || t.includes('grid') || t.includes('oil') || t.includes('transition') || t.includes('climate')) {
+      sector = 'green_transition';
+    } else if (t.includes('wage') || t.includes('labor') || t.includes('worker') || t.includes('employment') || t.includes('union') || t.includes('job')) {
+      sector = 'labor';
+    }
+    return { isDirective: true, sector, rawIdea: text };
+  }
+  return { isDirective: false };
+}
+
+function detectBlitzDirective(text) {
+  const t = text.toLowerCase();
+  const hasBlitz = t.includes('media blitz') || t.includes('blitz') || t.includes('press blitz') || t.includes('media campaign') || t.includes('pr blitz');
+  const hasAction = (
+    t.includes('launch') || t.includes('execute') || t.includes('authorize') ||
+    t.includes('deploy') || t.includes('do a') || t.includes('run a') ||
+    t.includes('start a') || t.includes('send') || t.includes('conduct') ||
+    t.includes('go ahead') || t.includes('begin') || t.includes('mobilize')
+  );
+
+  const isQuestionOnly = (
+    (t.startsWith('should we') || t.startsWith('can we') || t.startsWith('what if') || 
+     t.startsWith('would you recommend') || t.startsWith('could we') || t.startsWith('how would')) &&
+    !t.includes('please') && !t.includes('go ahead') && !t.includes('i want to') && !t.includes('let us') && !t.includes("let's")
+  );
+
+  if (hasBlitz && (hasAction || !isQuestionOnly)) {
+    let audience = 'main_street';
+    if (t.includes('wall street') || t.includes('doll street') || t.includes('market') || t.includes('equit') || t.includes('trader') || t.includes('dealer') || t.includes('bond desk') || t.includes('investor')) {
+      audience = 'wall_street';
+    } else if (t.includes('parliament') || t.includes('select committee') || t.includes('lawmaker') || t.includes('mp') || t.includes('senat') || t.includes('politic')) {
+      audience = 'parliament';
+    } else if (t.includes('foreign') || t.includes('fx') || t.includes('currenc') || t.includes('overseas') || t.includes('offshore') || t.includes('international')) {
+      audience = 'foreign_fx';
+    }
+
+    let message = 'Reassure on Long-Term Price Discipline and Purchasing Power Stability';
+    if (t.includes('hawk') || t.includes('tight') || t.includes('discipline') || t.includes('fight') || t.includes('resolute') || t.includes('price')) {
+      message = 'Project Decisive Hawkish Strength Against Emerging Inflation Expectations';
+    } else if (t.includes('labor') || t.includes('job') || t.includes('growth') || t.includes('resilience') || t.includes('buffer')) {
+      message = 'Highlight Labor Market Resilience and Sound Banking Liquidity Buffers';
+    } else if (t.includes('fiscal') || t.includes('budget') || t.includes('deficit') || t.includes('restraint')) {
+      message = 'Call for Parliamentary Fiscal Budget Restraint and Structural Supply Investment';
+    }
+    return { isDirective: true, audience, message };
+  }
+  return { isDirective: false };
+}
+
 // Advisor chat response generator
 async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = null, newsArticles = [], sessionMeta = {}, model = 'deepseek-v4-pro') {
   const taylorRate = calculateTaylorRule(state);
@@ -8,6 +86,90 @@ async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = 
   const econType = state.economy_type || 'large_hegemon';
   const profile = ECONOMY_TYPE_PROFILES[econType] || ECONOMY_TYPE_PROFILES.large_hegemon;
 
+  // Direct executive action detection: Propose Legislation to Parliament
+  const policyDirective = detectPolicyDirective(userMessage);
+  if (policyDirective.isDirective) {
+    const policyResult = await refineAndSubmitPolicy(policyDirective.rawIdea, policyDirective.sector, state);
+    if (policyResult.status === 'passed' && policyResult.effects) {
+      for (const [key, val] of Object.entries(policyResult.effects)) {
+        if (state[key] !== undefined) {
+          state[key] = Number((state[key] + val).toFixed(2));
+        }
+      }
+    }
+
+    const sectorLabelMap = {
+      banking: 'Commercial Banking & Credit Liquidity',
+      housing: 'Shelter, Mortgages & Housing Affordability',
+      green_transition: 'Green Transition & Energy Independence',
+      labor: 'Labor Market Productivity & Real Purchasing Power',
+      general: 'Consumer Welfare & Credit Efficiency'
+    };
+    const sectorName = sectorLabelMap[policyDirective.sector] || 'General Economic Reform';
+
+    const reply = `Governor, pursuant to your explicit direction, I have drafted the statutory text and formally introduced the bill to Parliament for an immediate division vote:
+
+🏛️ **Parliamentary Division Vote:**
+• **Statute Title:** **${policyResult.title}**
+• **Target Sector:** **${sectorName}**
+• **Division Tally:** **${policyResult.parliament_vote_for} Ayes / ${policyResult.parliament_vote_against} Noes**
+• **Legislative Outcome:** **${policyResult.status === 'passed' ? 'ENACTED INTO LAW' : 'DEFEATED IN DIVISION'}**
+
+**Statutory Provision:**
+*"${policyResult.refined_legislation}"*
+
+${policyResult.status === 'passed' 
+  ? 'Parliament has ratified the statute. The statutory measures take immediate effect on commercial lending, regulatory buffers, and market stability.' 
+  : 'The motion failed to reach the required 51-vote threshold among backbenchers. Lawmakers cited concerns over state intervention. We can build broader consensus before re-introducing the measure.'}
+
+The official voting record has been registered in the **Parliament Reform** bureau for your review.`;
+
+    return {
+      reply,
+      action_taken: 'legislation_proposed',
+      policy: policyResult,
+      updated_state: state
+    };
+  }
+
+  // Direct executive action detection: Deploy Media Blitz
+  const blitzDirective = detectBlitzDirective(userMessage);
+  if (blitzDirective.isDirective) {
+    const blitzResult = executeMediaBlitz(blitzDirective.audience, blitzDirective.message, state);
+    if (blitzResult.effects) {
+      for (const [key, val] of Object.entries(blitzResult.effects)) {
+        if (state[key] !== undefined) {
+          state[key] = Number((state[key] + val).toFixed(2));
+        }
+      }
+    }
+
+    const audienceLabelMap = {
+      wall_street: 'Wall Street Desks',
+      main_street: 'Main Street Consumers',
+      parliament: 'Parliament Select Committee',
+      foreign_fx: 'Overseas FX Traders'
+    };
+    const audName = audienceLabelMap[blitzDirective.audience] || 'General Public';
+
+    const reply = `Governor, per your orders, I have mobilized the press bureau and deployed our economic surrogates on a strategic nationwide Media Blitz:
+
+🎙️ **Strategic Media Blitz Deployed:**
+• **Target Audience:** **${audName}**
+• **Directive Message:** *"${blitzResult.strategic_message}"*
+• **Press & Public Reaction:** *"${blitzResult.public_response}"*
+• **Impact Summary:** ${blitzResult.impact_summary}
+
+The communications offensive has been logged in your **Media Blitz** campaign history.`;
+
+    return {
+      reply,
+      action_taken: 'media_blitz_executed',
+      media_blitz: blitzResult,
+      updated_state: state
+    };
+  }
+
   const rowProvider = require('./db').prepare("SELECT value FROM system_settings WHERE key = 'llm_provider'").get();
   const provider = rowProvider ? rowProvider.value : 'deepseek_flash';
 
@@ -15,7 +177,12 @@ async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = 
 
   if (effectiveKey && effectiveKey.trim().length > 5 && provider !== 'local_only') {
     try {
-      return await generateChatWithDeepSeek(userMessage, state, chatHistory, effectiveKey, taylorRate, newsArticles, sessionMeta, model);
+      const deepSeekText = await generateChatWithDeepSeek(userMessage, state, chatHistory, effectiveKey, taylorRate, newsArticles, sessionMeta, model);
+      return {
+        reply: deepSeekText,
+        action_taken: null,
+        updated_state: null
+      };
     } catch (err) {
       console.warn('DeepSeek advisor chat failed, falling back to local advisor:', err.message);
     }
@@ -407,7 +574,11 @@ ${newsArticles.length > 0 ? `*Lead Media Headline:* ${newsArticles[0].publisher.
 You can direct me to analyze **interest rate scenarios**, assess **labor and inflation dynamics**, review **parliamentary strategy**, or execute a **Media Blitz**. How shall we proceed?`;
   }
 
-  return reply;
+  return {
+    reply,
+    action_taken: null,
+    updated_state: null
+  };
 }
 
 // DeepSeek integration for Chief of Staff & Senior Economic Advisor (powered by deepseek-v4-pro)
@@ -483,7 +654,9 @@ CORE ADVISORY GUIDELINES:
 6. NEVER cite raw internal software IDs (like POS-12 or NEG-05); refer to events by their natural real-world names.
 7. FORMATTING REQUIREMENT: Always structure your response with clean, readable Markdown: separate distinct paragraphs with blank lines (\n\n), use bold headers for sections or topic areas, and use bullet points (• ) or numbered lists (1. , 2. ) for actionable recommendations and multi-metric summaries. Never output an unbroken wall of unspaced text. Keep your counsel crisp, authoritative, strategic, and under 260 words.
 8. BALANCE SHEET & LIQUIDITY ACCURACY: Look strictly at "Balance Sheet Operational Mode". If the monthly pace is positive (e.g. +$30B/mo), the bank is actively conducting QUANTITATIVE EASING (QE), NOT QT. Do NOT state "we are not conducting QE" or claim "we are in QT" when the pace is positive! If the Emergency Discount Window is OPEN, acknowledge that standing emergency liquidity is active.
-9. SOVEREIGN & CURRENCY CANON: Always refer to our country as "${profile.country_name}", our central bank as "${profile.central_bank_name}" (or "${profile.short_bank_name}"), and our currency as "${profile.currency_name}" (${profile.currency_symbol} ${profile.currency_moniker}). When analyzing foreign contagion, exchange rate risks, or cross-border trade shocks, reference the international shock roster nations and their specific currencies (e.g. Maravedi Peso ₱, Qashani Dinar د.إ, Danubian Koruna Kč, Cipangese Yen ¥).`;
+9. SOVEREIGN & CURRENCY CANON: Always refer to our country as "${profile.country_name}", our central bank as "${profile.central_bank_name}" (or "${profile.short_bank_name}"), and our currency as "${profile.currency_name}" (${profile.currency_symbol} ${profile.currency_moniker}). When analyzing foreign contagion, exchange rate risks, or cross-border trade shocks, reference the international shock roster nations and their specific currencies (e.g. Maravedi Peso ₱, Qashani Dinar د.إ, Danubian Koruna Kč, Cipangese Yen ¥).
+10. EXECUTIVE ACTION PROTOCOL: If the Governor gives an explicit directive to draft and submit a bill to Parliament or authorize a media blitz, acknowledge that you have drafted the statutory text and formally introduced the bill to Parliament for an immediate division vote, or deployed the press bureaus.
+11. HIDDEN OUTCOMES (NO SPOILERS): NEVER cite or promise exact numerical delta outcomes (e.g. "+5.5% approval", "+110 pts stock market", "-0.20% rate") in advance. Keep quantitative impacts hidden until the bill is voted on or the blitz concludes.`;
 
   // Build message history with the user's latest query
   const messages = [
