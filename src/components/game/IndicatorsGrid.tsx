@@ -304,9 +304,18 @@ export const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({
               <span className="font-mono text-emerald-400 font-bold text-sm">
                 ${(s.balance_sheet_size ?? 7.20).toFixed(2)}T
               </span>
-              <span className="text-[10px] text-slate-500 block">
-                {(s.qt_monthly_pace ?? -25) < 0 ? `QT: -$${Math.abs(s.qt_monthly_pace ?? 25)}B/mo` : 'QE Portfolio'}
+              <span className="text-[10px] text-slate-400 block font-mono">
+                {(s.qt_monthly_pace ?? -25) > 0 
+                  ? `QE: +$${s.qt_monthly_pace}B/mo` 
+                  : (s.qt_monthly_pace ?? -25) < 0 
+                    ? `QT: -$${Math.abs(s.qt_monthly_pace ?? -25)}B/mo` 
+                    : 'Neutral ($0B/mo)'}
               </span>
+              {s.discount_window_active && (
+                <span className="inline-block mt-0.5 text-[9px] font-semibold text-amber-400 bg-amber-950/80 border border-amber-800/60 px-1.5 py-0.2 rounded">
+                  Window OPEN
+                </span>
+              )}
             </div>
             <span className="text-xs text-slate-400 hover:text-white bg-slate-800 px-2 py-1 rounded">
               Manage ⚙

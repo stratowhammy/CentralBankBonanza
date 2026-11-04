@@ -195,6 +195,8 @@ With mortgage rates anchored to commercial lending spreads, high borrowing costs
     const yield2 = Number(state.bond_yield_2y);
     const curveSpread = (yield10 - yield2).toFixed(2);
     const isInverted = yield2 > yield10;
+    const bsPace = state.qt_monthly_pace ?? -25;
+    const bsPaceDesc = bsPace > 0 ? `QE: +$${bsPace}B/mo injection` : bsPace < 0 ? `QT: -$${Math.abs(bsPace)}B/mo runoff` : 'Neutral: $0B/mo';
 
     reply = `Governor, here is the state of the sovereign debt markets and government curve:
 
@@ -202,13 +204,48 @@ With mortgage rates anchored to commercial lending spreads, high borrowing costs
 • **10-Year Benchmark Yield:** **${yield10}%**
 • **2-Year Treasury Yield:** **${yield2}%**
 • **2s10s Curve Spread:** **${curveSpread > 0 ? '+' : ''}${curveSpread}%** (${isInverted ? 'Inverted Curve Warning' : 'Normal Upward Slope'})
-• **Central Bank Balance Sheet:** **$${state.balance_sheet_size || 7.2}T** (QT Pace: -$${Math.abs(state.qt_monthly_pace || 25)}B/mo)
+• **Central Bank Balance Sheet:** **$${Number(state.balance_sheet_size || 7.2).toFixed(2)}T** (${bsPaceDesc}${state.discount_window_active ? ' | Discount Window: OPEN' : ''})
 
 ${isInverted 
   ? `⚠️ **Yield Curve Inversion:** The 2-year yield exceeds the 10-year yield. Historical models view prolonged inversion as a leading indicator of an impending recession.` 
   : `The yield curve exhibits a constructive positive slope, preserving net interest margins for regional depositories and signaling stable long-term growth expectations.`}
 
 ${gloombergArt ? `*Gloomberg Market Wire:* *"${gloombergArt.headline}"* — traders note: ${gloombergArt.whisper_quote || '"Watching sovereign debt issuance."'} ` : ''}`;
+
+  // 7b. BALANCE SHEET / QE / QT / ASSET PURCHASES / DISCOUNT WINDOW
+  } else if (
+    msgLower.includes('balance sheet') || msgLower.includes('qe') || msgLower.includes('qt') ||
+    msgLower.includes('quantitative easing') || msgLower.includes('quantitative tightening') ||
+    msgLower.includes('asset purchase') || msgLower.includes('discount window') ||
+    msgLower.includes('runoff') || msgLower.includes('injection') || msgLower.includes('liquidity facility')
+  ) {
+    const bsSize = Number(state.balance_sheet_size ?? 7.2).toFixed(2);
+    const bsPace = state.qt_monthly_pace ?? -25;
+    const isQe = bsPace > 0;
+    const isQt = bsPace < 0;
+    const isNeutral = bsPace === 0;
+    const discountRate = (state.discount_window_rate ?? (Number(currentRate) + 1.0)).toFixed(2);
+
+    reply = `Governor, here is the active operational status of the Central Bank Balance Sheet & Liquidity Desk:
+
+**Balance Sheet & Liquidity Telemetry:**
+• **Total Asset Portfolio:** **$${bsSize}T** (Sovereign Bonds & MBS)
+• **Monthly Operational Pace:** **${isQe ? `Quantitative Easing (QE: +$${bsPace}B/mo injection)` : isQt ? `Quantitative Tightening (QT: -$${Math.abs(bsPace)}B/mo runoff)` : 'Neutral ($0B/mo reinvestment)'}**
+• **Emergency Discount Window:** **${state.discount_window_active ? `FACILITY OPEN (Standing liquidity at penalty rate: ${discountRate}%)` : 'FACILITY CLOSED (Normal interbank channels)'}**
+• **Policy Benchmark Rate:** **${currentRate}%** | **10-Year Yield:** **${state.bond_yield_10y}%**
+
+**Operational Assessment:**
+${isQe
+  ? `We are currently conducting active **Quantitative Easing (QE)** at a rate of **+$${bsPace}B per month**. We are purchasing sovereign debt and mortgage-backed securities to inject reserves, expand commercial bank liquidity, and suppress long-term term premia.`
+  : isQt
+  ? `We are currently executing **Quantitative Tightening (QT)** at a rate of **-$${Math.abs(bsPace)}B per month**. Maturing sovereign paper is rolled off without reinvestment, absorbing excess banking reserves and lifting term premia.`
+  : `The balance sheet is operating in **Neutral Reinvestment ($0B/mo)**—we are reinvesting maturing principal to keep total assets steady at $${bsSize}T.`}
+
+${state.discount_window_active
+  ? `⚠️ **Discount Window Alert:** The Emergency Discount Window is **OPEN** under Walter Bagehot’s classic rule. While this arrests interbank liquidity runs and narrows bank lending spreads, Parliamentary Select Committee lawmakers scrutinize standing emergency facilities closely.`
+  : `The Emergency Discount Window is currently closed. Interbank borrowing is functioning smoothly through market-based facilities.`}
+
+You can adjust the QE/QT monthly pace or toggle the Emergency Discount Window at any time via the **Central Bank Portfolio** tile on your dashboard.`;
 
   // 8. BANKING / CREDIT / FINANCIAL STABILITY / LIQUIDITY
   } else if (
@@ -329,6 +366,7 @@ The prevailing press sentiment is **${gloombergArt?.tone || 'analytical'}**. For
 • **Inflation Pressures:** Headline CPI **${cpiRate}%** | Core Services **${state.sticky_cpi || state.core_inflation}%**
 • **Real Economy:** GDP Growth **${state.gdp_growth}%** | Unemployment **${state.unemployment_rate}%**
 • **Financial Desks:** Doll Street **${state.stock_market_index} pts** | 10Y Yield **${state.bond_yield_10y}%**
+• **Balance Sheet & Liquidity:** **$${Number(state.balance_sheet_size || 7.2).toFixed(2)}T** (${(state.qt_monthly_pace ?? -25) > 0 ? `QE: +$${state.qt_monthly_pace}B/mo injection` : (state.qt_monthly_pace ?? -25) < 0 ? `QT: -$${Math.abs(state.qt_monthly_pace ?? -25)}B/mo runoff` : 'Neutral: $0B/mo'}${state.discount_window_active ? ' | Discount Window: OPEN' : ''})
 • **Political Standing:** Parliamentary Approval **${state.parliamentary_approval}%** | Job Security **${state.job_security}%**
 
 **Executive Assessment:**
@@ -377,7 +415,9 @@ AUTHORITATIVE CURRENT MACROECONOMIC TELEMETRY (LIVE GROUND TRUTH):
 - Unemployment Rate: ${state.unemployment_rate}% (NAIRU: 4.2%)
 - Doll Street Equity Index: ${state.stock_market_index} pts | Prime Commercial Lending: ${state.bank_lending_rate}%
 - Sovereign Yields: 10Y Treasury: ${state.bond_yield_10y}%, 2Y Treasury: ${state.bond_yield_2y}% (Spread: ${(state.bond_yield_10y - state.bond_yield_2y).toFixed(2)}%)
-- Central Bank Balance Sheet: $${state.balance_sheet_size || 7.2}T (QT Runoff Pace: -$${Math.abs(state.qt_monthly_pace || 25)}B/mo)
+- Central Bank Balance Sheet Size: $${Number(state.balance_sheet_size || 7.2).toFixed(2)}T
+- Balance Sheet Operational Mode: ${(state.qt_monthly_pace ?? -25) > 0 ? `QUANTITATIVE EASING (QE) — Actively expanding the balance sheet by purchasing sovereign debt and MBS at +$${state.qt_monthly_pace}B per month to inject banking liquidity and compress yields.` : (state.qt_monthly_pace ?? -25) < 0 ? `QUANTITATIVE TIGHTENING (QT) — Actively shrinking the balance sheet by letting maturing debt roll off at -$${Math.abs(state.qt_monthly_pace ?? -25)}B per month to absorb excess reserves.` : `NEUTRAL REINVESTMENT ($0B/mo) — Maturing principal is reinvested to keep total assets stable.`}
+- Emergency Discount Window Standing Liquidity Facility: ${state.discount_window_active ? `OPEN (Standing liquidity facility is actively lending reserves to commercial banks at penalty rate of ${(state.discount_window_rate ?? (Number(currentRate) + 1.0)).toFixed(2)}% under Bagehot's rule to halt liquidity panics)` : 'CLOSED (Commercial banks borrow solely through interbank repo market)'}
 - Market Credibility: ${state.market_credibility || 75}/100 | Credibility Warning: ${state.credibility_warning || 'None'}
 - Parliamentary Approval: ${state.parliamentary_approval}% | Public Sentiment: ${state.public_approval}%
 - Governor Job Security: ${state.job_security}% (Formal Warnings: ${state.warning_count || 0}/3)
@@ -394,7 +434,8 @@ CORE ADVISORY GUIDELINES:
 4. You have FULL ACCESS to this month's news coverage across Gloomberg, Doll Street Journal, Gotham News Tribune, and Cashington Post. Directly cite or analyze relevant headlines, editorial tones, or trader whispers when advising on market expectations or political risk.
 5. Offer concrete tactical advice on interest rate decisions (Month 3), forward guidance signals (Months 1 & 2), parliamentary legislation, or targeted media blitzes.
 6. NEVER cite raw internal software IDs (like POS-12 or NEG-05); refer to events by their natural real-world names.
-7. FORMATTING REQUIREMENT: Always structure your response with clean, readable Markdown: separate distinct paragraphs with blank lines (\n\n), use bold headers for sections or topic areas, and use bullet points (• ) or numbered lists (1. , 2. ) for actionable recommendations and multi-metric summaries. Never output an unbroken wall of unspaced text. Keep your counsel crisp, authoritative, strategic, and under 260 words.`;
+7. FORMATTING REQUIREMENT: Always structure your response with clean, readable Markdown: separate distinct paragraphs with blank lines (\n\n), use bold headers for sections or topic areas, and use bullet points (• ) or numbered lists (1. , 2. ) for actionable recommendations and multi-metric summaries. Never output an unbroken wall of unspaced text. Keep your counsel crisp, authoritative, strategic, and under 260 words.
+8. BALANCE SHEET & LIQUIDITY ACCURACY: Look strictly at "Balance Sheet Operational Mode". If the monthly pace is positive (e.g. +$30B/mo), the bank is actively conducting QUANTITATIVE EASING (QE), NOT QT. Do NOT state "we are not conducting QE" or claim "we are in QT" when the pace is positive! If the Emergency Discount Window is OPEN, acknowledge that standing emergency liquidity is active.`;
 
   // Build message history with the user's latest query
   const messages = [

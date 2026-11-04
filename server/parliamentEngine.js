@@ -782,14 +782,81 @@ const QUESTION_ARCHETYPES = [
     },
     generate: (state) => {
       const isCalm = state.inflation_cpi <= 2.5;
-      const qtAbs = Math.abs(state.qt_monthly_pace || 25);
-      const question = isCalm
-        ? `Governor, the Bank’s balance sheet stands at $${state.balance_sheet_size}T with Quantitative Tightening draining -$${qtAbs}B per month even though CPI has already settled at ${state.inflation_cpi}%. At what reserve threshold will you taper QT before overnight money-market liquidity suddenly seizes up?`
-        : `The Central Bank’s balance sheet sits at $${state.balance_sheet_size}T while Quantitative Tightening runs at -$${qtAbs}B per month, generating mark-to-market accounting remittances with the Treasury. How do you justify the scale and pace of balance-sheet runoff to taxpayers?`;
+      const pace = state.qt_monthly_pace ?? -25;
+      const isQe = pace > 0;
+      const isNeutral = pace === 0;
+      const qtAbs = Math.abs(pace);
 
-      return {
-        question,
-        strategies: [
+      let question = '';
+      let strategies = [];
+
+      if (isQe) {
+        question = `Governor, the Bank’s balance sheet stands at $${Number(state.balance_sheet_size || 7.2).toFixed(2)}T, and you are actively conducting Quantitative Easing at +$${pace}B per month${state.discount_window_active ? ' while maintaining an open Emergency Discount Window' : ''}. With inflation at ${state.inflation_cpi}%, why is the Central Bank continuing to expand the monetary base and absorb sovereign paper from commercial banks?`;
+        strategies = [
+          {
+            key: 'defiant_independence',
+            label: 'Defend Asset Purchases to Suppress Long-Term Yields & Support Investment',
+            dialogue: 'Targeted asset purchases compress sovereign term premia, reducing capital financing costs for domestic infrastructure and productive investment across the yield curve.',
+            parl_approval_delta: -1,
+            autonomy_delta: 6,
+            market_credibility_delta: 6,
+            public_approval_delta: 2
+          },
+          {
+            key: 'empathetic_disinflation',
+            label: 'Pledge to Taper Purchases and Transition to Neutral Reinvestment',
+            dialogue: 'Asset expansion remains strictly state-dependent. As market liquidity deepens, the MPC will taper monthly purchase volumes back to steady balance-sheet reinvestment.',
+            parl_approval_delta: 6,
+            autonomy_delta: 1,
+            market_credibility_delta: 5,
+            public_approval_delta: 3
+          },
+          {
+            key: 'deflect_fiscal',
+            label: 'Cite Secondary Growth Mandate & Orderly Market Functioning',
+            dialogue: 'Our open market desk operations operate strictly under Parliamentary statutes to ensure sovereign bond market depth and continuous financial stability.',
+            parl_approval_delta: 3,
+            autonomy_delta: 3,
+            market_credibility_delta: 5,
+            public_approval_delta: 1
+          }
+        ];
+      } else if (isNeutral) {
+        question = `Governor, the Bank’s balance sheet remains constant at $${Number(state.balance_sheet_size || 7.2).toFixed(2)}T under neutral reinvestment${state.discount_window_active ? ' with the Emergency Discount Window open' : ''}. Given long-term fiscal debt dynamics, when does the Bank plan to resume balance-sheet reduction?`;
+        strategies = [
+          {
+            key: 'defiant_independence',
+            label: 'Maintain Neutral Stance to Avoid Unsettling Sovereign Yields',
+            dialogue: 'Reinvesting maturing bonds preserves balance-sheet stability and avoids abrupt term-premium shocks in sovereign debt markets.',
+            parl_approval_delta: 1,
+            autonomy_delta: 5,
+            market_credibility_delta: 6,
+            public_approval_delta: 1
+          },
+          {
+            key: 'empathetic_disinflation',
+            label: 'Signal Eventual Gradual Quantitative Tightening Runoff',
+            dialogue: 'Neutral reinvestment is an intermediate staging post. We intend to resume orderly passive runoff once economic conditions and banking reserves allow.',
+            parl_approval_delta: 5,
+            autonomy_delta: 2,
+            market_credibility_delta: 5,
+            public_approval_delta: 3
+          },
+          {
+            key: 'deflect_fiscal',
+            label: 'Align Reinvestment Horizon with Treasury Debt Issuance',
+            dialogue: 'Our desk works strictly within statutory guidelines to ensure sovereign debt auctions continue without distortion.',
+            parl_approval_delta: 3,
+            autonomy_delta: 3,
+            market_credibility_delta: 5,
+            public_approval_delta: 1
+          }
+        ];
+      } else {
+        question = isCalm
+          ? `Governor, the Bank’s balance sheet stands at $${Number(state.balance_sheet_size || 7.2).toFixed(2)}T with Quantitative Tightening draining -$${qtAbs}B per month even though CPI has already settled at ${state.inflation_cpi}%. At what reserve threshold will you taper QT before overnight money-market liquidity suddenly seizes up?`
+          : `The Central Bank’s balance sheet sits at $${Number(state.balance_sheet_size || 7.2).toFixed(2)}T while Quantitative Tightening runs at -$${qtAbs}B per month, generating mark-to-market accounting remittances with the Treasury. How do you justify the scale and pace of balance-sheet runoff to taxpayers?`;
+        strategies = [
           {
             key: 'defiant_independence',
             label: 'Defend Ample-Reserves Framework & Gradual Balance Sheet Normalization',
@@ -817,7 +884,12 @@ const QUESTION_ARCHETYPES = [
             market_credibility_delta: 5,
             public_approval_delta: 1
           }
-        ]
+        ];
+      }
+
+      return {
+        question,
+        strategies
       };
     }
   },

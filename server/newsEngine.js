@@ -303,8 +303,8 @@ function selectPrimaryEconomicDrivers(state, publisherKey, year = 1, month = 1, 
           priority: 65
         },
         {
-          metric: 'Balance Sheet Runoff & Neutral Rate Debate',
-          detail: `With CPI steady at ${r.cpi}% and the policy rate at ${r.rate}%, fixed-income strategists debate the long-run neutral rate and -$${Math.abs(state.qt_monthly_pace || 25)}B/mo QT runoff`,
+          metric: (state.qt_monthly_pace || 0) > 0 ? 'Balance Sheet Expansion & Liquidity Injections' : 'Balance Sheet Runoff & Neutral Rate Debate',
+          detail: `With CPI steady at ${r.cpi}% and the policy rate at ${r.rate}%, fixed-income strategists debate ${(state.qt_monthly_pace || 0) > 0 ? `the impact of +$${state.qt_monthly_pace}B/mo QE purchases` : (state.qt_monthly_pace || 0) < 0 ? `the long-run neutral rate and -$${Math.abs(state.qt_monthly_pace)}B/mo QT runoff` : 'neutral balance-sheet reinvestment'}`,
           urgency: 'low',
           suggestedTone: 'neutral',
           priority: 64
@@ -838,9 +838,15 @@ The benchmark yield curve maintained a healthy positive slope of +${r.spread2s10
         tone = 'neutral';
         urgency = 'low';
         whisperQuote = `"The inflation battle is won for now; the intellectual debate on the street is whether r-star sits at one percent or higher."`;
+        const bsPaceVal = state.qt_monthly_pace ?? -25;
+        const bsPhrase = bsPaceVal > 0 
+          ? `+$${bsPaceVal}B monthly asset purchases (QE)` 
+          : bsPaceVal < 0 
+            ? `-$${Math.abs(bsPaceVal)}B monthly balance-sheet runoff (QT)` 
+            : `neutral balance-sheet reinvestment`;
         body = `As consumer price growth tracks quietly at ${r.cpi}% and flexible goods inflation sits at ${r.flexCpi}%, research desks across the financial district have shifted focus from inflation firefighting to estimating the economy's equilibrium interest rate.
 
-The central bank's ${r.rate}% policy rate and -$${Math.abs(state.qt_monthly_pace || 25)}B monthly balance-sheet runoff have coincided with steady ${r.gdp}% real GDP growth and ${r.unemp}% unemployment, suggesting monetary settings are neither choking credit nor overheating demand.
+The central bank's ${r.rate}% policy rate and ${bsPhrase} have coincided with steady ${r.gdp}% real GDP growth and ${r.unemp}% unemployment, suggesting monetary settings are neither choking credit nor overheating demand.
 
 Repo market plumbing remained smooth throughout month-end settlement, giving policymakers ample breathing room ahead of the next quarterly assessment.`;
       } else {
