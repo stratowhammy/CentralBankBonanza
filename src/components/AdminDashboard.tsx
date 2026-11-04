@@ -463,7 +463,7 @@ export const AdminDashboard: React.FC = () => {
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400"
               />
               <span className="text-[10px] text-slate-500 mt-1 block">
-                Default: deepseek-v4-pro
+                Default: deepseek-v4-pro (Thinking / Extended Reasoning Enabled)
               </span>
             </div>
 

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface FormattedAdvisorMessageProps {
   content: string;
@@ -44,6 +45,8 @@ export const FormattedAdvisorMessage: React.FC<FormattedAdvisorMessageProps> = (
   content,
   isUser = false
 }) => {
+  const [showThinking, setShowThinking] = useState(true);
+
   if (isUser) {
     return <div className="whitespace-pre-wrap">{content}</div>;
   }
@@ -51,11 +54,53 @@ export const FormattedAdvisorMessage: React.FC<FormattedAdvisorMessageProps> = (
   // Normalize line endings
   const normalized = content.replace(/\r\n/g, '\n');
 
-  // Split into paragraphs / blocks by double newlines
-  const rawBlocks = normalized.split(/\n{2,}/);
+  // Extract <think>...</think> tag if present
+  let thinkingContent: string | null = null;
+  let cleanContent = normalized;
+
+  const thinkMatch = normalized.match(/<think>([\s\S]*?)<\/think>/i);
+  if (thinkMatch) {
+    thinkingContent = thinkMatch[1].trim();
+    cleanContent = normalized.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  } else if (normalized.includes('<think>') && !normalized.includes('</think>')) {
+    const parts = normalized.split('<think>');
+    cleanContent = parts[0].trim();
+    thinkingContent = parts.slice(1).join('<think>').trim();
+  }
+
+  // Split remaining content into paragraphs / blocks by double newlines
+  const rawBlocks = cleanContent ? cleanContent.split(/\n{2,}/) : [];
 
   return (
     <div className="space-y-3 font-sans text-xs text-slate-200 leading-relaxed">
+      {thinkingContent && (
+        <div className="mb-3 rounded-xl border border-indigo-500/30 bg-slate-950/80 overflow-hidden shadow-sm transition-all">
+          <button
+            type="button"
+            onClick={() => setShowThinking(!showThinking)}
+            className="w-full px-3 py-2 text-left font-mono text-[11px] font-semibold text-indigo-300 hover:text-indigo-200 bg-indigo-950/30 hover:bg-indigo-950/50 border-b border-indigo-500/20 flex items-center justify-between transition-colors cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-2">
+              <Brain className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 animate-pulse" />
+              <span className="tracking-wide">Chief of Staff Thought Process (v4-pro)</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+              <span>{showThinking ? 'Hide Thinking' : 'Show Thinking'}</span>
+              {showThinking ? (
+                <ChevronUp className="w-3.5 h-3.5 text-indigo-400" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              )}
+            </div>
+          </button>
+          {showThinking && (
+            <div className="p-3 text-[11px] font-mono text-slate-400 bg-slate-950/90 whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto border-t border-slate-900/60 selection:bg-indigo-500/30">
+              {thinkingContent}
+            </div>
+          )}
+        </div>
+      )}
+
       {rawBlocks.map((block, blockIdx) => {
         const trimmed = block.trim();
         if (!trimmed) return null;

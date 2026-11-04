@@ -121,7 +121,18 @@ async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = 
     };
     const sectorName = sectorLabelMap[policyResult.target_sector || policyDirective.sector] || 'General Economic Reform';
 
-    const reply = `Governor, pursuant to your explicit direction, I have drafted the statutory text and formally introduced the bill to Parliament for an immediate division vote:
+    const thinkBlock = `<think>
+Processing executive legislative directive from Governor: "${policyDirective.rawIdea}".
+Assessing statutory policy jurisdiction: ${sectorName}.
+Drafting formal legislative statute: "${policyResult.title}".
+Simulating Parliamentary division vote against standing benchmark (${state.parliamentary_approval}% approval).
+Division outcome: ${policyResult.parliament_vote_for} Ayes / ${policyResult.parliament_vote_against} Noes (${policyResult.status === 'passed' ? 'ENACTED INTO LAW' : 'DEFEATED IN DIVISION'}).
+Transmitting structural regulatory adjustments to commercial banking and macroeconomic registers.
+</think>
+
+`;
+
+    const reply = `${thinkBlock}Governor, pursuant to your explicit direction, I have drafted the statutory text and formally introduced the bill to Parliament for an immediate division vote:
 
 🏛️ **Parliamentary Division Vote:**
 • **Statute Title:** **${policyResult.title}**
@@ -166,7 +177,19 @@ The official voting record has been registered in the **Parliament Reform** bure
     };
     const audName = audienceLabelMap[blitzDirective.audience] || 'General Public';
 
-    const reply = `Governor, per your orders, I have mobilized the press bureau and deployed our economic surrogates on a strategic nationwide Media Blitz:
+    const thinkBlock = `<think>
+Processing executive directive to deploy strategic Media Blitz.
+Target audience segment: ${audName}.
+Strategic communication directive: "${blitzResult.strategic_message}".
+Calibrating public perception & market credibility impact (${state.market_credibility || 75}/100).
+Assessing transmission to consumer inflation expectations and sovereign bond spreads.
+Expected transmission outcome: ${blitzResult.impact_summary}.
+Deploying press surrogates across financial wires and newsrooms.
+</think>
+
+`;
+
+    const reply = `${thinkBlock}Governor, per your orders, I have mobilized the press bureau and deployed our economic surrogates on a strategic nationwide Media Blitz:
 
 🎙️ **Strategic Media Blitz Deployed:**
 • **Target Audience:** **${audName}**
@@ -588,6 +611,17 @@ ${newsArticles.length > 0 ? `*Lead Media Headline:* ${newsArticles[0].publisher.
 You can direct me to analyze **interest rate scenarios**, assess **labor and inflation dynamics**, review **parliamentary strategy**, or execute a **Media Blitz**. How shall we proceed?`;
   }
 
+  if (reply && !reply.includes('<think>')) {
+    const defaultThink = `<think>
+Assessing live macroeconomic telemetry: Official Policy Rate at ${currentRate}%, Taylor Rule target at ${taylorRate}%, Headline CPI at ${cpiRate}%, Real GDP Growth at ${state.gdp_growth}%, Unemployment at ${state.unemployment_rate}%.
+Reviewing balance sheet operational mode (${(state.qt_monthly_pace ?? -25) > 0 ? `QE: +$${state.qt_monthly_pace}B/mo injection` : (state.qt_monthly_pace ?? -25) < 0 ? `QT: -$${Math.abs(state.qt_monthly_pace ?? -25)}B/mo runoff` : 'Neutral: $0B/mo'}) and parliamentary confidence (${state.parliamentary_approval}%).
+Synthesizing strategic advisory briefing for the Governor.
+</think>
+
+`;
+    reply = defaultThink + reply;
+  }
+
   return {
     reply,
     action_taken: null,
@@ -694,7 +728,7 @@ CORE ADVISORY GUIDELINES:
       model: effectiveModel,
       messages,
       temperature: 0.6,
-      max_tokens: 2500
+      max_tokens: 4000
     }),
     signal: controller.signal
   });
@@ -707,11 +741,23 @@ CORE ADVISORY GUIDELINES:
   }
 
   const data = await response.json();
-  const content = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+  const choiceMsg = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message : null;
+  const content = choiceMsg ? (choiceMsg.content || '') : '';
+  const reasoning = choiceMsg ? (choiceMsg.reasoning_content || '') : '';
+
   if (!content || !content.trim()) {
     throw new Error('DeepSeek returned an empty response (likely token limit hit)');
   }
-  return content;
+
+  let fullReply = content.trim();
+  if (reasoning && reasoning.trim() && !fullReply.includes('<think>')) {
+    fullReply = `<think>\n${reasoning.trim()}\n</think>\n\n${fullReply}`;
+  } else if (!fullReply.includes('<think>')) {
+    const defaultThinking = `Analyzing macroeconomic telemetry and interest rate stance (${currentRate}%). Evaluating Taylor Rule target (${taylorRate}%) and inflation pressures (${cpiRate}%). Formulating tactical recommendation.`;
+    fullReply = `<think>\n${defaultThinking}\n</think>\n\n${fullReply}`;
+  }
+
+  return fullReply;
 }
 
 // Refine policy proposal with LLM or fallback logic
