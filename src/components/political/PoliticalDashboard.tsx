@@ -13,6 +13,7 @@ import { PoliticalWhipModal } from './PoliticalWhipModal';
 import { PoliticalEventModal } from './PoliticalEventModal';
 import { PoliticalElectionModal } from './PoliticalElectionModal';
 import { PoliticalEventWebModal } from './PoliticalEventWebModal';
+import { AudioPlayButton } from '../AudioPlayButton';
 
 interface Props {
   session: PoliticalSession;
@@ -619,8 +620,15 @@ export const PoliticalDashboard: React.FC<Props> = ({
                   <h4 className="font-bold text-xs sm:text-sm text-stone-200 font-serif leading-snug mb-2">{art.headline}</h4>
                   <p className="text-xs text-stone-400 line-clamp-3 leading-relaxed">{art.body}</p>
                 </div>
-                <div className="mt-3 pt-2 border-t border-stone-900 text-[10px] text-stone-500 font-mono">
-                  Topic: {art.featured_issue || 'Legislative Politics'}
+                <div className="mt-3 pt-2 border-t border-stone-900 flex items-center justify-between text-[10px] text-stone-500 font-mono">
+                  <span>Topic: {art.featured_issue || 'Legislative Politics'}</span>
+                  <AudioPlayButton
+                    text={`${art.headline}. ${art.body}`}
+                    role="political_news"
+                    publisher={art.publisher as any}
+                    label="Listen"
+                    className="text-[10px] py-0.5 px-2 bg-stone-900 hover:bg-stone-800 text-stone-300 border-stone-800"
+                  />
                 </div>
               </div>
             ))}

@@ -282,4 +282,15 @@ if (!getSetting.get('llm_provider')) {
   db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('llm_provider', 'deepseek_flash');
 }
 
+// Seed Google Cloud & Gemini 3.8 Flash TTS settings
+if (!getSetting.get('google_tts_api_key')) {
+  db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('google_tts_api_key', '');
+}
+if (!getSetting.get('google_tts_model')) {
+  db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('google_tts_model', 'gemini-3.8-flash-tts');
+}
+if (!getSetting.get('google_tts_voice')) {
+  db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('google_tts_voice', 'Puck');
+}
+
 module.exports = db;

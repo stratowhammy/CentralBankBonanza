@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NewsArticle, PublisherType } from '../../types';
 import { Newspaper, BookOpen, Quote } from 'lucide-react';
+import { AudioPlayButton } from '../AudioPlayButton';
 
 interface NewspaperDeskProps {
   articles: NewsArticle[];
@@ -157,8 +158,16 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
               </span>
             </div>
 
-            <div className="text-xs text-slate-400 italic">
-              {activeArticle.byline || 'By Staff Macro Correspondent'}
+            <div className="flex items-center gap-3">
+              <AudioPlayButton
+                text={`${activeArticle.headline}. ${activeArticle.dateline ? activeArticle.dateline + '. ' : ''}${activeArticle.body}${activeArticle.whisper_quote ? ' Trader gossip: ' + activeArticle.whisper_quote : ''}`}
+                role="news"
+                publisher={activeArticle.publisher}
+                label="Listen to Dispatch"
+              />
+              <div className="text-xs text-slate-400 italic">
+                {activeArticle.byline || 'By Staff Macro Correspondent'}
+              </div>
             </div>
           </div>
 

@@ -127,10 +127,17 @@ router.post('/tweak-economy', (req, res) => {
   }
 });
 
-// Update system settings (e.g. DeepSeek API Key)
+// Update system settings (e.g. DeepSeek API Key, Google Cloud TTS)
 router.post('/settings', (req, res) => {
   try {
-    const { deepseek_api_key, deepseek_model, llm_provider } = req.body;
+    const { 
+      deepseek_api_key, 
+      deepseek_model, 
+      llm_provider,
+      google_tts_api_key,
+      google_tts_model,
+      google_tts_voice
+    } = req.body;
 
     if (deepseek_api_key !== undefined) {
       db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('deepseek_api_key', deepseek_api_key.trim());
@@ -140,6 +147,15 @@ router.post('/settings', (req, res) => {
     }
     if (llm_provider !== undefined) {
       db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('llm_provider', llm_provider.trim());
+    }
+    if (google_tts_api_key !== undefined) {
+      db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('google_tts_api_key', google_tts_api_key.trim());
+    }
+    if (google_tts_model !== undefined) {
+      db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('google_tts_model', google_tts_model.trim());
+    }
+    if (google_tts_voice !== undefined) {
+      db.prepare('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)').run('google_tts_voice', google_tts_voice.trim());
     }
 
     res.json({ success: true, message: 'Settings updated successfully' });

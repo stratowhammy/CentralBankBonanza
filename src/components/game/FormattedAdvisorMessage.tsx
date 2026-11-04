@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
+import { AudioPlayButton } from '../AudioPlayButton';
 
 interface FormattedAdvisorMessageProps {
   content: string;
@@ -73,6 +74,21 @@ export const FormattedAdvisorMessage: React.FC<FormattedAdvisorMessageProps> = (
 
   return (
     <div className="space-y-3 font-sans text-xs text-slate-200 leading-relaxed">
+      {/* Audio Narration for Advisor Briefing */}
+      {cleanContent && (
+        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-indigo-500/15">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-300/80 font-bold">
+            Chief of Staff Briefing
+          </span>
+          <AudioPlayButton
+            text={cleanContent}
+            role="advisor"
+            label="Listen"
+            className="text-[10px] py-0.5 px-2 bg-indigo-950/40 hover:bg-indigo-900/60 border-indigo-500/30 text-indigo-200"
+          />
+        </div>
+      )}
+
       {thinkingContent && (
         <div className="mb-3 rounded-xl border border-indigo-500/30 bg-slate-950/80 overflow-hidden shadow-sm transition-all">
           <button

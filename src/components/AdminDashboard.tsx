@@ -16,7 +16,9 @@ import {
   TrendingDown, 
   Cpu, 
   Server,
-  Layers
+  Layers,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -42,6 +44,12 @@ export const AdminDashboard: React.FC = () => {
   const [deepseekKey, setDeepseekKey] = useState('');
   const [deepseekModel, setDeepseekModel] = useState('deepseek-v4-pro');
   const [llmProvider, setLlmProvider] = useState('local_macro_engine');
+  
+  // Google Cloud & Gemini 3.8 Flash TTS state
+  const [googleTtsKey, setGoogleTtsKey] = useState('');
+  const [googleTtsModel, setGoogleTtsModel] = useState('gemini-3.8-flash-tts');
+  const [googleTtsVoice, setGoogleTtsVoice] = useState('Puck');
+
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
 
@@ -65,6 +73,9 @@ export const AdminDashboard: React.FC = () => {
         setDeepseekKey(dash.settings.deepseek_api_key || '');
         setDeepseekModel(dash.settings.deepseek_model || 'deepseek-v4-pro');
         setLlmProvider(dash.settings.llm_provider || 'local_macro_engine');
+        setGoogleTtsKey(dash.settings.google_tts_api_key || '');
+        setGoogleTtsModel(dash.settings.google_tts_model || 'gemini-3.8-flash-tts');
+        setGoogleTtsVoice(dash.settings.google_tts_voice || 'Puck');
       }
     } catch (err: any) {
       console.error('Failed to load admin data:', err);
@@ -119,9 +130,12 @@ export const AdminDashboard: React.FC = () => {
       await api.updateSettings({
         deepseek_api_key: deepseekKey,
         deepseek_model: deepseekModel,
-        llm_provider: llmProvider
+        llm_provider: llmProvider,
+        google_tts_api_key: googleTtsKey,
+        google_tts_model: googleTtsModel,
+        google_tts_voice: googleTtsVoice
       });
-      setSettingsMessage('Settings saved successfully');
+      setSettingsMessage('Settings and Google Cloud TTS credentials saved successfully');
     } catch (err: any) {
       alert(err.message || 'Settings update failed');
     } finally {
@@ -420,60 +434,140 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* System Settings & LLM Configuration */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-800">
-            <Cpu className="w-5 h-5 text-amber-400" />
-            <h3 className="font-prestige font-bold text-base text-slate-100">
-              DeepSeek Flash & AI Generation Settings
-            </h3>
-          </div>
-
-          {settingsMessage && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs">
-              {settingsMessage}
-            </div>
-          )}
-
-          <form onSubmit={handleSaveSettings} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+          <form onSubmit={handleSaveSettings} className="space-y-6">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                DeepSeek API Key
-              </label>
-              <input
-                type="password"
-                value={deepseekKey}
-                onChange={(e) => setDeepseekKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400 placeholder:text-slate-700"
-              />
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Leave blank to use the built-in local macroeconomic narrative engine.
-              </span>
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-800">
+                <Cpu className="w-5 h-5 text-amber-400" />
+                <h3 className="font-prestige font-bold text-base text-slate-100">
+                  DeepSeek Flash & AI Generation Settings
+                </h3>
+              </div>
+
+              {settingsMessage && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs">
+                  {settingsMessage}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    DeepSeek API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={deepseekKey}
+                    onChange={(e) => setDeepseekKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400 placeholder:text-slate-700"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Leave blank to use the built-in local macroeconomic narrative engine.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    DeepSeek Model Designation
+                  </label>
+                  <input
+                    type="text"
+                    value={deepseekModel}
+                    onChange={(e) => setDeepseekModel(e.target.value)}
+                    placeholder="deepseek-v4-pro"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Default: deepseek-v4-pro (Thinking / Extended Reasoning Enabled)
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                DeepSeek Model Designation
-              </label>
-              <input
-                type="text"
-                value={deepseekModel}
-                onChange={(e) => setDeepseekModel(e.target.value)}
-                placeholder="deepseek-v4-pro"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-400"
-              />
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Default: deepseek-v4-pro (Thinking / Extended Reasoning Enabled)
-              </span>
+            {/* Google Cloud & Gemini 3.8 Flash TTS Configuration */}
+            <div className="pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Volume2 className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h3 className="font-prestige font-bold text-base text-slate-100">
+                      Google Cloud & Gemini 3.8 Flash Text-to-Speech (TTS)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      High-fidelity spoken audio narration for newspaper dispatches and the Chief of Staff in both CBS and Statecraft
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-mono border ${
+                  googleTtsKey ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}>
+                  {googleTtsKey ? '● Cloud / Gemini TTS Ready' : '○ Local Web Speech Fallback'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Google Cloud / Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={googleTtsKey}
+                    onChange={(e) => setGoogleTtsKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-400 placeholder:text-slate-700"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Google Cloud or Gemini API key. If unset, the browser's native speech synthesis engine is utilized seamlessly.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Gemini TTS Model
+                  </label>
+                  <input
+                    type="text"
+                    value={googleTtsModel}
+                    onChange={(e) => setGoogleTtsModel(e.target.value)}
+                    placeholder="gemini-3.8-flash-tts"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-400"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Default: gemini-3.8-flash-tts (Google Gemini Audio Modality)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Default TTS Voice Persona
+                  </label>
+                  <select
+                    value={googleTtsVoice}
+                    onChange={(e) => setGoogleTtsVoice(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="Puck">Puck (Energetic, engaging, standard news)</option>
+                    <option value="Charon">Charon (Deep, measured, macroeconomic analysis)</option>
+                    <option value="Fenrir">Fenrir (Authoritative, Chief of Staff advisor)</option>
+                    <option value="Aoede">Aoede (Clear, crisp, fast financial wire)</option>
+                    <option value="Kore">Kore (Dignified, parliamentary, legislative)</option>
+                  </select>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Role-adaptive voices will modulate based on newspaper or advisor context.
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-end">
+            <div className="pt-2 flex justify-end">
               <button
                 type="submit"
                 disabled={savingSettings}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-md"
+                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-md flex items-center gap-2"
               >
-                {savingSettings ? 'Saving Settings...' : 'Save Configuration'}
+                {savingSettings ? 'Saving Configuration...' : 'Save All Settings'}
               </button>
             </div>
           </form>

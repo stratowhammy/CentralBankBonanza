@@ -272,13 +272,48 @@ export const api = {
     return res.json();
   },
 
-  async updateSettings(settings: { deepseek_api_key?: string; deepseek_model?: string; llm_provider?: string }) {
+  async updateSettings(settings: { 
+    deepseek_api_key?: string; 
+    deepseek_model?: string; 
+    llm_provider?: string;
+    google_tts_api_key?: string;
+    google_tts_model?: string;
+    google_tts_voice?: string;
+  }) {
     const res = await fetch(`${API_BASE}/admin/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
     });
     if (!res.ok) throw new Error('Failed to update settings');
+    return res.json();
+  },
+
+  // TTS Synthesis
+  async synthesizeTts(params: {
+    text: string;
+    role?: 'news' | 'advisor';
+    publisher?: string;
+    speaker?: string;
+    voice?: string;
+  }): Promise<{
+    audio_base64?: string;
+    mime_type?: string;
+    model?: string;
+    voice?: string;
+    text?: string;
+    fallback?: boolean;
+    reason?: string;
+  }> {
+    const res = await fetch(`${API_BASE}/tts/synthesize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'TTS synthesis failed');
+    }
     return res.json();
   },
 

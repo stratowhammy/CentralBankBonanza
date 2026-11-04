@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PoliticalSession, PoliticalAdvisorMessage } from '../../types';
 import { api } from '../../api';
 import { X, Send, Brain, ChevronDown, ChevronUp, Sparkles, FileText, Vote, Megaphone, Users, Award } from 'lucide-react';
+import { AudioPlayButton } from '../AudioPlayButton';
 
 interface Props {
   isOpen: boolean;
@@ -82,6 +83,20 @@ export const PoliticalAdvisorDrawer: React.FC<Props> = ({
 
     return (
       <div className="space-y-3">
+        {mainBody && (
+          <div className="flex items-center justify-between pb-1.5 border-b border-stone-800/80">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+              Chief of Staff Briefing
+            </span>
+            <AudioPlayButton
+              text={mainBody}
+              role="political_advisor"
+              label="Listen"
+              className="text-[10px] py-0.5 px-2 bg-stone-900 hover:bg-stone-800 border-amber-800/40 text-amber-300"
+            />
+          </div>
+        )}
+
         {reasoning && (
           <div className="rounded-xl border border-amber-800/40 bg-stone-950/80 overflow-hidden shadow-inner text-xs font-mono">
             <button
