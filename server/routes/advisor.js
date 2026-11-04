@@ -222,8 +222,15 @@ router.post('/submit-policy', async (req, res) => {
 
     let state = JSON.parse(session.economic_state);
 
+    // Retrieve API key and model if configured
+    const rowKey = db.prepare('SELECT value FROM system_settings WHERE key = ?').get('deepseek_api_key');
+    const apiKey = rowKey ? rowKey.value : (process.env.DEEPSEEK_API_KEY || null);
+
+    const rowModel = db.prepare('SELECT value FROM system_settings WHERE key = ?').get('deepseek_model');
+    const model = rowModel ? rowModel.value : 'deepseek-v4-pro';
+
     // Refine idea and conduct parliamentary vote
-    const result = await refineAndSubmitPolicy(raw_idea, target_sector || 'general', state);
+    const result = await refineAndSubmitPolicy(raw_idea, target_sector || 'general', state, apiKey, model);
 
     // Apply effects if passed
     if (result.status === 'passed' && result.effects) {

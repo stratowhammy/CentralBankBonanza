@@ -24,6 +24,18 @@ interface AdvisorDrawerProps {
   onStateUpdated: (newState: any) => void;
 }
 
+const sectorLabelMap: Record<string, string> = {
+  banking: 'Commercial Banking & Credit Liquidity',
+  housing: 'Shelter, Mortgages & Housing Affordability',
+  pensions: 'Pensions, Retirement & Demographic Solvency',
+  fiscal: 'Fiscal Discipline & Sovereign Debt Stabilization',
+  green_transition: 'Green Transition & Energy Independence',
+  labor: 'Labor Market Productivity & Real Purchasing Power',
+  trade: 'Strategic Trade & Supply Chain Resilience',
+  infrastructure: 'Critical Infrastructure & Tech Modernization',
+  general: 'Consumer Welfare & Structural Reform'
+};
+
 export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
   isOpen,
   onClose,
@@ -80,13 +92,11 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
   const [rawIdea, setRawIdea] = useState('');
   const [targetSector, setTargetSector] = useState('banking');
   const [submittingPolicy, setSubmittingPolicy] = useState(false);
-  const [recentPolicyResult, setRecentPolicyResult] = useState<any | null>(null);
 
   // Media Blitz state
   const [targetAudience, setTargetAudience] = useState<'wall_street' | 'main_street' | 'parliament' | 'foreign_fx'>('main_street');
   const [strategicMessage, setStrategicMessage] = useState('Reassure on Long-Term Price Discipline and Purchasing Power Stability');
   const [launchingBlitz, setLaunchingBlitz] = useState(false);
-  const [recentBlitzResult, setRecentBlitzResult] = useState<any | null>(null);
 
   // Historical records for Parliament Reform and Media Blitz
   const [policies, setPolicies] = useState<PolicyProposal[]>([]);
@@ -142,11 +152,9 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
       }
       if (res.policy) {
         setPolicies(prev => [res.policy, ...prev.filter(p => p.id !== res.policy.id)]);
-        setRecentPolicyResult(res.policy);
       }
       if (res.media_blitz) {
         setMediaBlitzes(prev => [res.media_blitz, ...prev.filter(b => b.id !== res.media_blitz.id)]);
-        setRecentBlitzResult(res.media_blitz);
       }
     } catch (err: any) {
       setMessages([...newMsgs, { sender: 'advisor', content: 'Apologies, Governor. My secure line experienced static. Let us reconsider the issue.' }]);
@@ -164,11 +172,9 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
     if (!rawIdea.trim() || submittingPolicy) return;
 
     setSubmittingPolicy(true);
-    setRecentPolicyResult(null);
 
     try {
       const res = await api.submitPolicyIdea(session.id, rawIdea.trim(), targetSector);
-      setRecentPolicyResult(res.policy);
       setPolicies(prev => [res.policy, ...prev.filter(p => p.id !== res.policy.id)]);
       if (res.updated_state) {
         onStateUpdated(res.updated_state);
@@ -186,11 +192,9 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
     if (launchingBlitz) return;
 
     setLaunchingBlitz(true);
-    setRecentBlitzResult(null);
 
     try {
       const res = await api.launchMediaBlitz(session.id, targetAudience, strategicMessage);
-      setRecentBlitzResult(res.media_blitz);
       setMediaBlitzes(prev => [res.media_blitz, ...prev.filter(b => b.id !== res.media_blitz.id)]);
       if (res.updated_state) {
         onStateUpdated(res.updated_state);
@@ -475,7 +479,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                           <div>
                             <h6 className="font-bold text-xs text-slate-100">{p.title}</h6>
                             <span className="text-[10px] text-purple-300 uppercase font-semibold">
-                              Sector: {p.target_sector.replace('_', ' ')}
+                              Sector: {sectorLabelMap[p.target_sector] || p.target_sector.replace('_', ' ')}
                             </span>
                           </div>
 
@@ -488,28 +492,6 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* Recent Result Banner */}
-              {recentPolicyResult && (
-                <div className={`p-4 rounded-xl border ${
-                  recentPolicyResult.status === 'passed'
-                    ? 'bg-emerald-950/30 border-emerald-500/50 text-emerald-200'
-                    : 'bg-rose-950/30 border-rose-500/50 text-rose-200'
-                }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs uppercase tracking-wider">
-                      {recentPolicyResult.status === 'passed' ? 'Legislation Enacted by Parliament!' : 'Bill Defeated in Parliamentary Division'}
-                    </span>
-                    <span className="font-mono text-xs font-bold">
-                      {recentPolicyResult.parliament_vote_for} Ayes / {recentPolicyResult.parliament_vote_against} Noes
-                    </span>
-                  </div>
-                  <h5 className="font-bold text-sm text-slate-100 mt-1">{recentPolicyResult.title}</h5>
-                  <p className="text-xs text-slate-300 font-editorial mt-1 italic">
-                    "{recentPolicyResult.refined_legislation}"
-                  </p>
-                </div>
-              )}
 
               {/* Manual Draft Form */}
               <div className="pt-2 border-t border-slate-800">
@@ -528,9 +510,13 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                     >
                       <option value="banking">Commercial Banking & Credit Liquidity</option>
                       <option value="housing">Shelter, Mortgages & Housing Affordability</option>
+                      <option value="pensions">Pensions, Retirement & Demographic Solvency</option>
+                      <option value="fiscal">Fiscal Discipline & Sovereign Debt Stabilization</option>
                       <option value="green_transition">Green Transition & Energy Independence</option>
                       <option value="labor">Labor Market Productivity & Real Purchasing Power</option>
-                      <option value="general">Consumer Welfare & Digital Inclusion</option>
+                      <option value="trade">Strategic Trade & Supply Chain Resilience</option>
+                      <option value="infrastructure">Critical Infrastructure & Tech Modernization</option>
+                      <option value="general">Consumer Welfare & Structural Reform</option>
                     </select>
                   </div>
 
@@ -542,7 +528,7 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                       value={rawIdea}
                       onChange={(e) => setRawIdea(e.target.value)}
                       rows={3}
-                      placeholder="e.g. 'Mandate a 2.5% counter-cyclical capital buffer surcharge on tier-1 banks to cool excessive lending' or 'Cap second-home mortgage deductions to lower home prices'..."
+                      placeholder="e.g. 'Incrementally adjust retirement age over 15 years and expand pension reserve' or 'Mandate a 2.5% counter-cyclical capital buffer surcharge on tier-1 banks'..."
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-400 placeholder:text-slate-600"
                       required
                     />
@@ -550,8 +536,10 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
 
                   <div className="flex flex-wrap gap-1.5">
                     {[
+                      'Extend Retirement Age & Expand Sovereign Pension Reserve',
                       'Counter-Cyclical Bank Reserve Surcharge',
                       'Emergency Subsidized Mortgage Refinancing Window',
+                      'Sovereign Debt Discipline & Deficit Ceiling Accord',
                       'Sovereign Green Bond Purchasing Facility',
                       'Labor Market Productivity & Vocational Training Accord'
                     ].map((preset) => (
@@ -659,20 +647,6 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                   </div>
                 )}
               </div>
-
-              {recentBlitzResult && (
-                <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-500/40 text-xs space-y-2">
-                  <span className="font-bold uppercase tracking-wider text-amber-300 text-[10px]">
-                    Media Blitz Completed
-                  </span>
-                  <p className="text-slate-200 font-editorial italic">
-                    "{recentBlitzResult.public_response}"
-                  </p>
-                  <p className="text-amber-300 font-medium font-mono text-[11px]">
-                    Impact: {recentBlitzResult.impact_summary}
-                  </p>
-                </div>
-              )}
 
               {/* Manual Blitz Form */}
               <div className="pt-2 border-t border-slate-800">

@@ -13,7 +13,9 @@ function detectPolicyDirective(text) {
   const hasNoun = (
     t.includes('bill') || t.includes('legislation') || t.includes('statute') ||
     t.includes('reform') || t.includes('act') || t.includes('proposal') ||
-    t.includes('accord') || t.includes('policy') || t.includes('measure')
+    t.includes('accord') || t.includes('policy') || t.includes('measure') ||
+    t.includes('law') || t.includes('mandate') || t.includes('initiative') ||
+    t.includes('that we') || t.includes('we extend')
   );
 
   const isQuestionOnly = (
@@ -25,11 +27,19 @@ function detectPolicyDirective(text) {
 
   if (hasVerb && hasNoun && !isQuestionOnly) {
     let sector = 'general';
-    if (t.includes('hous') || t.includes('mortgage') || t.includes('shelter') || t.includes('rent') || t.includes('home')) {
+    if (t.includes('retire') || t.includes('pension') || t.includes('longev') || t.includes('aging') || t.includes('elderly') || t.includes('coffer') || t.includes('social security')) {
+      sector = 'pensions';
+    } else if (t.includes('debt') || t.includes('deficit') || t.includes('fiscal') || t.includes('insolven') || t.includes('tax') || t.includes('budget') || t.includes('spending')) {
+      sector = 'fiscal';
+    } else if (t.includes('trade') || t.includes('tariff') || t.includes('custom') || t.includes('export') || t.includes('import') || t.includes('supply chain')) {
+      sector = 'trade';
+    } else if (t.includes('infra') || t.includes('transport') || t.includes('broadband') || t.includes('telecom') || t.includes('tech') || t.includes('ai') || t.includes('rail')) {
+      sector = 'infrastructure';
+    } else if (t.includes('hous') || t.includes('mortgage') || t.includes('shelter') || t.includes('rent') || t.includes('home')) {
       sector = 'housing';
-    } else if (t.includes('bank') || t.includes('capital') || t.includes('buffer') || t.includes('reserve') || t.includes('credit') || t.includes('lend')) {
+    } else if (t.includes('bank') || t.includes('capital') || t.includes('buffer') || t.includes('credit') || t.includes('lend') || t.includes('depository')) {
       sector = 'banking';
-    } else if (t.includes('green') || t.includes('energy') || t.includes('grid') || t.includes('oil') || t.includes('transition') || t.includes('climate')) {
+    } else if (t.includes('green') || t.includes('energy') || t.includes('grid') || t.includes('oil') || t.includes('transition') || t.includes('climate') || t.includes('renewab')) {
       sector = 'green_transition';
     } else if (t.includes('wage') || t.includes('labor') || t.includes('worker') || t.includes('employment') || t.includes('union') || t.includes('job')) {
       sector = 'labor';
@@ -89,7 +99,7 @@ async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = 
   // Direct executive action detection: Propose Legislation to Parliament
   const policyDirective = detectPolicyDirective(userMessage);
   if (policyDirective.isDirective) {
-    const policyResult = await refineAndSubmitPolicy(policyDirective.rawIdea, policyDirective.sector, state);
+    const policyResult = await refineAndSubmitPolicy(policyDirective.rawIdea, policyDirective.sector, state, apiKey, model);
     if (policyResult.status === 'passed' && policyResult.effects) {
       for (const [key, val] of Object.entries(policyResult.effects)) {
         if (state[key] !== undefined) {
@@ -103,9 +113,13 @@ async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = 
       housing: 'Shelter, Mortgages & Housing Affordability',
       green_transition: 'Green Transition & Energy Independence',
       labor: 'Labor Market Productivity & Real Purchasing Power',
-      general: 'Consumer Welfare & Credit Efficiency'
+      pensions: 'Pensions, Retirement & Demographic Solvency',
+      fiscal: 'Fiscal Discipline & Sovereign Debt Stabilization',
+      trade: 'Strategic Trade & Supply Chain Resilience',
+      infrastructure: 'Critical Infrastructure & Digital Modernization',
+      general: 'Consumer Welfare & Structural Reform'
     };
-    const sectorName = sectorLabelMap[policyDirective.sector] || 'General Economic Reform';
+    const sectorName = sectorLabelMap[policyResult.target_sector || policyDirective.sector] || 'General Economic Reform';
 
     const reply = `Governor, pursuant to your explicit direction, I have drafted the statutory text and formally introduced the bill to Parliament for an immediate division vote:
 
@@ -701,58 +715,217 @@ CORE ADVISORY GUIDELINES:
 }
 
 // Refine policy proposal with LLM or fallback logic
-async function refineAndSubmitPolicy(rawIdea, targetSector, state) {
-  let title = 'National Monetary & Credit Efficiency Bill';
-  let refinedLegislation = 'Comprehensive structural policy aimed at improving capital allocation and easing systemic price pressures.';
+async function refineAndSubmitPolicy(rawIdea, targetSector = 'general', state = {}, apiKey = null, model = 'deepseek-v4-pro') {
+  let title = '';
+  let refinedLegislation = '';
+  let finalSector = targetSector || 'general';
   let effects = {
     parliamentary_approval: 4.0,
-    public_approval: 2.5,
+    public_approval: 2.0,
     gdp_growth: 0.15,
     inflation_cpi: -0.10
   };
 
-  const ideaLower = rawIdea.toLowerCase();
+  // 1. If DeepSeek API key is available, generate a bespoke statutory bill
+  if (apiKey) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-  if (ideaLower.includes('housing') || ideaLower.includes('mortgage') || targetSector === 'housing') {
-    title = 'Emergency Residential Mortgage Liquidity & Housing Act';
-    refinedLegislation = `Be it enacted by Parliament: Establishing a specialized liquidity facility for conforming residential mortgages, capping prime spreads for first-time homebuyers, and encouraging high-density zoning subsidies to alleviate shelter price inflation.`;
-    effects = {
-      parliamentary_approval: 6.5,
-      public_approval: 5.0,
-      housing_cost_index: -2.5,
-      inflation_cpi: -0.15
-    };
-  } else if (ideaLower.includes('bank') || ideaLower.includes('capital') || ideaLower.includes('reserve') || targetSector === 'banking') {
-    title = 'Prudential Banking Capital Buffer & Lending Stability Act';
-    refinedLegislation = `Be it enacted by Parliament: Implementing counter-cyclical capital conservation buffers for Tier-1 depository institutions, expanding collateral eligibility at the central bank discount window, and penalizing speculative asset concentration.`;
-    effects = {
-      parliamentary_approval: 5.0,
-      public_approval: 2.0,
-      bank_lending_rate: -0.20,
-      market_credibility: 4.0
-    };
-  } else if (ideaLower.includes('wage') || ideaLower.includes('worker') || ideaLower.includes('labor') || targetSector === 'labor') {
-    title = 'Labor Market Productivity & Real Purchasing Power Accord';
-    refinedLegislation = `Be it enacted by Parliament: Fostering bipartisan sector-level productivity compacts, index-linking vocational training credits to high-demand technical sectors, and stabilizing collective bargaining dispute resolution mechanisms.`;
-    effects = {
-      parliamentary_approval: 3.5,
-      public_approval: 6.0,
-      real_wage_growth: 0.4,
-      poverty_discontent: -4.0
-    };
-  } else if (ideaLower.includes('green') || ideaLower.includes('energy') || targetSector === 'energy') {
-    title = 'Strategic Energy Grid Resilience & Transition Guarantee Act';
-    refinedLegislation = `Be it enacted by Parliament: Underwriting low-cost concessional credit lines for domestic grid electrification, diversifying bulk liquified natural gas procurement, and insulating wholesale baseline tariffs against foreign supply chokepoints.`;
-    effects = {
-      parliamentary_approval: 4.5,
-      public_approval: 4.5,
-      flexible_cpi: -0.30,
-      inflation_cpi: -0.20
-    };
+      const prompt = `You are Parliamentary Legislative Counsel and Senior Legal Drafter to the Central Bank Governor.
+The Governor has issued a directive to draft a formal legislative statute for Parliament:
+Directive: "${rawIdea}"
+Sector Hint: "${targetSector}"
+
+Draft a bespoke, legally formal bill reflecting the Governor's exact proposal.
+You MUST output ONLY a valid JSON object matching this schema without any markdown formatting or commentary:
+{
+  "title": "Formal Short Act Title (e.g. 'National Retirement Age & Sovereign Pension Solvency Act')",
+  "target_sector": "pensions" | "fiscal" | "trade" | "infrastructure" | "banking" | "housing" | "green_transition" | "labor" | "general",
+  "refined_legislation": "Formal statutory text beginning with 'Be it enacted by Parliament: ...' (2-3 concise, legally dignified sentences specifically enacting the mechanisms requested by the Governor).",
+  "effects": {
+    "parliamentary_approval": 4.5,
+    "public_approval": -1.5,
+    "gdp_growth": 0.25,
+    "inflation_cpi": -0.10
+  }
+}`;
+
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model || 'deepseek-v4-pro',
+          messages: [
+            { role: 'system', content: 'You are an elite parliamentary legislative drafter. Respond ONLY with valid raw JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 600
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawContent = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
+        const cleanJson = rawContent.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+
+        if (parsed.title && (parsed.refined_legislation || parsed.refinedLegislation)) {
+          title = parsed.title;
+          refinedLegislation = parsed.refined_legislation || parsed.refinedLegislation;
+          if (parsed.target_sector) finalSector = parsed.target_sector;
+          if (parsed.effects && typeof parsed.effects === 'object') {
+            effects = parsed.effects;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('DeepSeek policy drafting fallback to heuristic engine:', err.message);
+    }
+  }
+
+  // 2. Comprehensive heuristic rule engine fallback
+  if (!title || !refinedLegislation) {
+    const ideaLower = rawIdea.toLowerCase();
+
+    if (
+      ideaLower.includes('retire') || ideaLower.includes('pension') || ideaLower.includes('longev') ||
+      ideaLower.includes('aging') || ideaLower.includes('elderly') || ideaLower.includes('coffer') ||
+      ideaLower.includes('social security') || finalSector === 'pensions'
+    ) {
+      finalSector = 'pensions';
+      title = 'National Retirement Age & Sovereign Pension Solvency Act';
+      refinedLegislation = 'Be it enacted by Parliament: Incrementally adjusting the statutory retirement age over a 15-year demographic window, establishing the expanded Sovereign Pension Reserve Fund, and ring-fencing long-term state pension assets against future longevity liabilities.';
+      effects = {
+        parliamentary_approval: 4.5,
+        public_approval: -1.5,
+        gdp_growth: 0.25,
+        inflation_cpi: -0.10
+      };
+    } else if (
+      ideaLower.includes('debt') || ideaLower.includes('deficit') || ideaLower.includes('fiscal') ||
+      ideaLower.includes('insolven') || ideaLower.includes('tax') || ideaLower.includes('budget') ||
+      ideaLower.includes('spending') || finalSector === 'fiscal'
+    ) {
+      finalSector = 'fiscal';
+      title = 'Sovereign Debt Discipline & Medium-Term Fiscal Responsibility Act';
+      refinedLegislation = 'Be it enacted by Parliament: Enshrining statutory medium-term deficit ceilings, mandating debt-to-GDP reduction benchmarks, and coordinating sovereign debt issuance calendars with central bank liquidity operations.';
+      effects = {
+        parliamentary_approval: 5.0,
+        public_approval: 1.5,
+        market_credibility: 4.5,
+        bond_yield_10y: -0.25,
+        inflation_cpi: -0.15
+      };
+    } else if (
+      ideaLower.includes('trade') || ideaLower.includes('tariff') || ideaLower.includes('custom') ||
+      ideaLower.includes('export') || ideaLower.includes('import') || ideaLower.includes('supply chain') ||
+      finalSector === 'trade'
+    ) {
+      finalSector = 'trade';
+      title = 'Strategic Trade Resilience & Critical Supply Chain Security Act';
+      refinedLegislation = 'Be it enacted by Parliament: Establishing strategic trade buffer facilities, streamlining customs clearance for critical intermediate industrial imports, and insulating sovereign exporters against foreign currency shocks.';
+      effects = {
+        parliamentary_approval: 4.0,
+        public_approval: 3.0,
+        flexible_cpi: -0.25,
+        gdp_growth: 0.20
+      };
+    } else if (
+      ideaLower.includes('infra') || ideaLower.includes('transport') || ideaLower.includes('broadband') ||
+      ideaLower.includes('telecom') || ideaLower.includes('tech') || ideaLower.includes('ai') ||
+      ideaLower.includes('rail') || finalSector === 'infrastructure'
+    ) {
+      finalSector = 'infrastructure';
+      title = 'National Strategic Infrastructure & Digital Modernization Act';
+      refinedLegislation = 'Be it enacted by Parliament: Authorizing targeted capital allowances for high-productivity freight transport, digital broadband infrastructure, and grid interconnectors to expand domestic productive capacity.';
+      effects = {
+        parliamentary_approval: 5.5,
+        public_approval: 4.0,
+        gdp_growth: 0.35,
+        unemployment_rate: -0.20
+      };
+    } else if (
+      ideaLower.includes('housing') || ideaLower.includes('mortgage') || ideaLower.includes('shelter') ||
+      ideaLower.includes('rent') || ideaLower.includes('home') || finalSector === 'housing'
+    ) {
+      finalSector = 'housing';
+      title = 'Emergency Residential Mortgage Liquidity & Housing Act';
+      refinedLegislation = 'Be it enacted by Parliament: Establishing a specialized liquidity facility for conforming residential mortgages, capping prime spreads for first-time homebuyers, and encouraging high-density zoning subsidies to alleviate shelter price inflation.';
+      effects = {
+        parliamentary_approval: 6.5,
+        public_approval: 5.0,
+        housing_cost_index: -2.5,
+        inflation_cpi: -0.15
+      };
+    } else if (
+      ideaLower.includes('bank') || ideaLower.includes('capital') || ideaLower.includes('buffer') ||
+      ideaLower.includes('credit') || ideaLower.includes('lend') || ideaLower.includes('depository') ||
+      finalSector === 'banking'
+    ) {
+      finalSector = 'banking';
+      title = 'Prudential Banking Capital Buffer & Lending Stability Act';
+      refinedLegislation = 'Be it enacted by Parliament: Implementing counter-cyclical capital conservation buffers for Tier-1 depository institutions, expanding collateral eligibility at the central bank discount window, and penalizing speculative asset concentration.';
+      effects = {
+        parliamentary_approval: 5.0,
+        public_approval: 2.0,
+        bank_lending_rate: -0.20,
+        market_credibility: 4.0
+      };
+    } else if (
+      ideaLower.includes('wage') || ideaLower.includes('worker') || ideaLower.includes('labor') ||
+      ideaLower.includes('employment') || ideaLower.includes('union') || ideaLower.includes('job') ||
+      finalSector === 'labor'
+    ) {
+      finalSector = 'labor';
+      title = 'Labor Market Productivity & Real Purchasing Power Accord';
+      refinedLegislation = 'Be it enacted by Parliament: Fostering bipartisan sector-level productivity compacts, index-linking vocational training credits to high-demand technical sectors, and stabilizing collective bargaining dispute resolution mechanisms.';
+      effects = {
+        parliamentary_approval: 3.5,
+        public_approval: 6.0,
+        real_wage_growth: 0.4,
+        poverty_discontent: -4.0
+      };
+    } else if (
+      ideaLower.includes('green') || ideaLower.includes('energy') || ideaLower.includes('grid') ||
+      ideaLower.includes('oil') || ideaLower.includes('climate') || ideaLower.includes('renewab') ||
+      finalSector === 'green_transition'
+    ) {
+      finalSector = 'green_transition';
+      title = 'Strategic Energy Grid Resilience & Transition Guarantee Act';
+      refinedLegislation = 'Be it enacted by Parliament: Underwriting low-cost concessional credit lines for domestic grid electrification, diversifying bulk liquified natural gas procurement, and insulating wholesale baseline tariffs against foreign supply chokepoints.';
+      effects = {
+        parliamentary_approval: 4.5,
+        public_approval: 4.5,
+        flexible_cpi: -0.30,
+        inflation_cpi: -0.20
+      };
+    } else {
+      // Dynamic synthesis for any other bespoke idea
+      finalSector = 'general';
+      const cleanIdea = rawIdea.trim().replace(/^propose\s+(draft\s+)?(legislation|bill|law|reform|that|we)?\s*/i, '');
+      const words = cleanIdea.split(/\s+/).slice(0, 5).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+      const synthesizedName = words.length > 0 ? words.join(' ') : 'National Monetary & Credit Efficiency';
+      title = `${synthesizedName} Act`;
+      refinedLegislation = `Be it enacted by Parliament: ${cleanIdea.charAt(0).toUpperCase() + cleanIdea.slice(1)}. All relevant statutory authorities and executive departments are directed to establish administrative frameworks to execute these provisions forthwith.`;
+      effects = {
+        parliamentary_approval: 4.0,
+        public_approval: 2.5,
+        gdp_growth: 0.15,
+        inflation_cpi: -0.10
+      };
+    }
   }
 
   // Parliament voting simulation based on current parliamentary approval
-  const baseSupport = Math.min(85, Math.max(25, state.parliamentary_approval));
+  const baseSupport = Math.min(85, Math.max(25, state.parliamentary_approval || 50));
   const randomSwing = (Math.random() * 20 - 10);
   const parliamentVoteFor = Math.round(baseSupport + randomSwing);
   const parliamentVoteAgainst = 100 - parliamentVoteFor;
@@ -762,7 +935,7 @@ async function refineAndSubmitPolicy(rawIdea, targetSector, state) {
     title,
     refinedLegislation,
     refined_legislation: refinedLegislation,
-    target_sector: targetSector,
+    target_sector: finalSector,
     status: passed ? 'passed' : 'rejected',
     parliament_vote_for: parliamentVoteFor,
     parliament_vote_against: parliamentVoteAgainst,
