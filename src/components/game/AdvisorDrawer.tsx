@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameSession, AdvisorMessage, PolicyProposal, MediaBlitz } from '../../types';
 import { api } from '../../api';
+import { FormattedAdvisorMessage } from './FormattedAdvisorMessage';
 import { 
   X, 
   MessageSquare, 
@@ -295,12 +296,12 @@ export const AdvisorDrawer: React.FC<AdvisorDrawerProps> = ({
                     key={idx}
                     className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
                   >
-                    <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed ${
+                    <div className={`max-w-[92%] md:max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed ${
                       m.sender === 'user'
                         ? 'bg-amber-500/20 text-amber-100 border border-amber-500/30 rounded-tr-none'
-                        : 'bg-slate-950/80 text-slate-200 border border-slate-800 rounded-tl-none font-editorial text-sm'
+                        : 'bg-slate-950/90 text-slate-200 border border-slate-800/90 rounded-tl-none shadow-md'
                     }`}>
-                      {m.content}
+                      <FormattedAdvisorMessage content={m.content} isUser={m.sender === 'user'} />
                     </div>
                     <span className="text-[10px] text-slate-500 mt-1 px-1">
                       {m.sender === 'user' ? 'Governor' : 'Chief of Staff'}
