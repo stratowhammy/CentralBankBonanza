@@ -1,6 +1,116 @@
 const db = require('./db');
 
-// Publisher editorial personas with distinct narrative voices
+/**
+ * Classifies the objective macroeconomic regime from live indicators so both
+ * LLM prompts and the local editorial engine reflect actual economic reality.
+ */
+function classifyEconomicReality(state) {
+  const cpi = Number(state.inflation_cpi ?? 2.0);
+  const flexCpi = Number(state.flexible_cpi ?? cpi);
+  const stickyCpi = Number(state.sticky_cpi ?? state.core_inflation ?? cpi);
+  const rate = Number(state.interest_rate ?? 3.25);
+  const lending = Number(state.bank_lending_rate ?? Number((rate + 2.5).toFixed(2)));
+  const gdp = Number(state.gdp_growth ?? 2.1);
+  const unemp = Number(state.unemployment_rate ?? 4.2);
+  const realWage = Number(state.real_wage_growth ?? 0.2);
+  const housing = Number(state.housing_cost_index ?? 130);
+  const discontent = Number(state.poverty_discontent ?? 32);
+  const confidence = Number(state.consumer_confidence ?? 62);
+  const yield10y = Number(state.bond_yield_10y ?? 4.2);
+  const yield2y = Number(state.bond_yield_2y ?? 3.6);
+  const spread2s10s = Number((yield10y - yield2y).toFixed(2));
+  const stocks = Number(state.stock_market_index ?? 5100);
+  const parlApproval = Number(state.parliamentary_approval ?? 62);
+  const pubApproval = Number(state.public_approval ?? 58);
+  const debtToGdp = Number(state.debt_to_gdp ?? 95);
+  const deficit = Number(state.fiscal_deficit ?? -3.2);
+  const currency = Number(state.currency_index ?? 100);
+  const econType = state.economy_type || 'large_hegemon';
+
+  let inflationRegime = 'on_target';
+  if (cpi < 1.35) {
+    inflationRegime = 'deflation_risk';
+  } else if (cpi <= 2.45 && stickyCpi <= 2.55) {
+    inflationRegime = 'on_target';
+  } else if (cpi <= 2.55 && stickyCpi > 2.55) {
+    inflationRegime = 'sticky_divergence';
+  } else if (cpi <= 3.35) {
+    inflationRegime = 'moderately_above_target';
+  } else if (cpi <= 5.0) {
+    inflationRegime = 'elevated_inflation';
+  } else {
+    inflationRegime = 'severe_inflation';
+  }
+
+  let rateRegime = 'neutral_moderate';
+  if (rate <= 2.5) rateRegime = 'accommodative';
+  else if (rate <= 3.85) rateRegime = 'neutral_moderate';
+  else if (rate <= 5.1) rateRegime = 'restrictive';
+  else rateRegime = 'tight_punitive';
+
+  let growthRegime = 'healthy_expansion';
+  if (gdp < 0.25 || unemp >= 5.9) growthRegime = 'recession';
+  else if (gdp < 1.45 || unemp >= 4.9) growthRegime = 'slowdown';
+  else if (gdp <= 3.1 && unemp < 4.9) growthRegime = 'healthy_expansion';
+  else growthRegime = 'boom_overheating';
+
+  let wageRegime = 'flat_purchasing_power';
+  if (realWage >= 0.4) wageRegime = 'rising_purchasing_power';
+  else if (realWage <= -0.25) wageRegime = 'eroding_purchasing_power';
+
+  let curveRegime = 'upward_normal';
+  if (spread2s10s < -0.05) curveRegime = 'inverted';
+  else if (spread2s10s <= 0.22) curveRegime = 'flat';
+
+  let politicsRegime = 'pragmatic_scrutiny';
+  if (parlApproval >= 68) politicsRegime = 'strong_bipartisan_support';
+  else if (parlApproval < 45) politicsRegime = 'hostile_oversight';
+
+  const isGoldilocks =
+    inflationRegime === 'on_target' &&
+    (growthRegime === 'healthy_expansion' || growthRegime === 'boom_overheating') &&
+    unemp <= 4.75;
+
+  const freshMpcSplit = Boolean(
+    state.last_mpc_vote &&
+    state.last_mpc_vote.just_voted === true &&
+    state.last_mpc_vote.dissents >= 2
+  );
+
+  return {
+    cpi,
+    flexCpi,
+    stickyCpi,
+    rate,
+    lending,
+    gdp,
+    unemp,
+    realWage,
+    housing,
+    discontent,
+    confidence,
+    yield10y,
+    yield2y,
+    spread2s10s,
+    stocks,
+    parlApproval,
+    pubApproval,
+    debtToGdp,
+    deficit,
+    currency,
+    econType,
+    inflationRegime,
+    rateRegime,
+    growthRegime,
+    wageRegime,
+    curveRegime,
+    politicsRegime,
+    isGoldilocks,
+    freshMpcSplit
+  };
+}
+
+// Publisher editorial personas with distinct voices that adapt honestly to good, mixed, or bad data
 const PUBLISHER_PROFILES = {
   gloomberg: {
     name: 'Gloomberg News',
@@ -11,13 +121,12 @@ const PUBLISHER_PROFILES = {
       'By Elena Rostova, Senior Sovereign Debt Strategist',
       'By Julian Sterling, Fixed Income & Macro Editor'
     ],
-    editorialGuidance: `You are the Senior Fixed Income Correspondent at GLOOMBERG NEWS.
-VOICE: Authoritative, institutional, data-driven, speaking directly to rates desks and sovereign debt managers.
-ANTI-FORMULA RULES:
+    editorialGuidance: `You are the Senior Fixed Income & Macro Correspondent at GLOOMBERG NEWS.
+VOICE: Sharp, institutional, precise, speaking directly to sovereign bond desks, FX strategists, and central bank watchers.
+ANTI-FORMULA & REALISM RULES:
 - NEVER open with calendar cliches like "In Month X of Year Y..." or "The macroeconomic landscape entered Month X...".
-- Open in media res: with a spread move, a bond curve dislocation, an aggressive trade on the swaps desk, or a blunt quote from a clearinghouse.
-- DO NOT list every statistic. Focus primarily on the prioritized drivers (sovereign yields, sticky vs flexible inflation, or policy rate transmission).
-- Quote real bond desks, primary dealers, and rate strategists using authentic terminology (e.g. basis points, term premium, inverted curve, liquidity squeeze).`
+- Open in media res on a trading desk, bond auction, repo screen, or macro research briefing.
+- CALIBRATE YOUR TONE TO THE NUMBERS: When inflation is anchored near 2% and the yield curve is upward-sloping, write about soft-landing pricing, carry trades, term-premium stability, neutral-rate (r*) debates, or QT liquidity calibration—DO NOT invent fake market panics, fake sticky inflation, or fake curve inversions! Reserve alarmist urgency strictly for real dislocations.`
   },
   doll_street: {
     name: 'The Doll Street Journal',
@@ -28,13 +137,12 @@ ANTI-FORMULA RULES:
       'By Harrison Cole, Corporate Finance & Earnings Specialist',
       'By Arthur Pendelton, Doll Street Equities Columnist'
     ],
-    editorialGuidance: `You are a Lead Financial Columnist at THE DOLL STREET JOURNAL.
-VOICE: Capitalist, corporate-savvy, skeptical, attuned to boardroom power and corporate refinancing cliffs.
-ANTI-FORMULA RULES:
-- NEVER open with dry economic summaries like "During Month X, the market saw...".
-- Open with boardroom anxiety: an executive trimming CapEx budgets, a private equity sponsor facing loan covenants, or equity analysts slashing price targets.
-- Focus primarily on corporate borrowing costs, equity valuations, or profit margins. Ignore extraneous consumer metrics.
-- Quote chief financial officers, venture partners, and Wall Street asset managers with cynical, insider candor.`
+    editorialGuidance: `You are a Lead Capital Markets Columnist at THE DOLL STREET JOURNAL.
+VOICE: Pro-enterprise, boardroom-plugged-in, fluent in M&A, CapEx, private credit, and equity multiples.
+ANTI-FORMULA & REALISM RULES:
+- NEVER open with dry summaries like "During Month X, the market saw...".
+- Open inside a corporate boardroom, investment-bank deal pitch, earnings call, or asset-allocation committee.
+- CALIBRATE YOUR TONE TO THE NUMBERS: When rates are moderate (~2.5-3.75%), inflation is near 2%, and GDP is expanding, executives are reviving M&A, greenlighting CapEx, expanding margins, or debating equity valuations—DO NOT falsely claim 3% base rates are freezing corporate finance! Reserve refinancing-cliff angst for genuinely restrictive credit (>6.5% lending) or recessions.`
   },
   gotham: {
     name: 'Gotham News Tribune',
@@ -45,13 +153,12 @@ ANTI-FORMULA RULES:
       'By Terrell Jenkins, Urban Housing & Economy Desk',
       'By Clara Vance, Consumer Watchdog Columnist'
     ],
-    editorialGuidance: `You are an Investigative Metro Living Standards Reporter at the GOTHAM NEWS TRIBUNE.
-VOICE: Gritty, human-centered, investigative, passionate about working-class grocery bills, housing pain, and union strikes.
-ANTI-FORMULA RULES:
+    editorialGuidance: `You are a Metro Labor, Housing & Living Standards Reporter at the GOTHAM NEWS TRIBUNE.
+VOICE: Ground-level, human-centered, vivid street-level reporting with ordinary workers, small shopkeepers, commuters, and renters.
+ANTI-FORMULA & REALISM RULES:
 - NEVER open with econometric declarations like "Economic telemetry indicates...".
-- Open at ground level: a crowded supermarket aisle, an eviction hearing in municipal court, an early-morning union hall, or a diner counter.
-- Translate statistics into kitchen-table realities: monthly rent hikes, overtime paychecks swallowed by groceries, or delayed medical care.
-- Quote ordinary working people: transit mechanics, nurses, grocery clerks, and tenant association organizers.`
+- Open at human scale: a neighborhood bakery, an apprentice hiring hall, a commuter platform, a lease-signing table, or a family kitchen.
+- CALIBRATE YOUR TONE TO THE NUMBERS: If Headline CPI is near 2% and real wages are positive, DO NOT invent soaring supermarket receipts or claim inflation is devouring paychecks! Instead, report honestly that grocery prices have steadied and paychecks are finally stretching further—or, if the Housing Cost Index is elevated, specifically contrast steadier grocery bills against structural urban housing shortages without blaming non-existent food inflation.`
   },
   cashington: {
     name: 'The Cashington Post',
@@ -63,127 +170,402 @@ ANTI-FORMULA RULES:
       'By David Holloway, Congressional Affairs Correspondent'
     ],
     editorialGuidance: `You are the Parliamentary & Treasury Bureau Chief at THE CASHINGTON POST.
-VOICE: Insider political journalism, palace intrigue, adversarial, tracking legislative whips, hearings, and election stakes.
-ANTI-FORMULA RULES:
+VOICE: Savvy political journalism, legislative strategy, coalition dynamics, and fiscal-monetary power plays.
+ANTI-FORMULA & REALISM RULES:
 - NEVER open with passive fiscal recitations like "The parliamentary environment in Month X was...".
-- Open in the corridors of power: a hostile committee hearing confrontation, a leaked Treasury memorandum, a late-night backbench revolt, or campaign polling panic.
-- Frame monetary decisions as political battles: threats to Central Bank statutory autonomy, deficit clashes, and public blame-shifting.
-- Quote rival lawmakers, committee chairs, anonymous ministerial aides, and party strategists.`
+- Open in committee corridors, Treasury ministerial briefings, party whip offices, or campaign war rooms.
+- CALIBRATE YOUR TONE TO THE NUMBERS: When Parliamentary Approval is high (>68%) and inflation is near 2%, the Governor has formidable political capital—cover lawmakers vying to claim credit for the soft landing, partisan clashes over Treasury tax-and-spending priorities, or quiet debates over bank regulation. DO NOT fabricate parliamentary revolts against a popular Governor!`
   }
 };
 
-// Select the top 1-2 most critical, newsworthy economic drivers for each publisher
-function selectPrimaryEconomicDrivers(state, publisherKey) {
-  const drivers = [];
+/**
+ * Selects distinct, reality-grounded economic drivers for a specific publisher,
+ * rotating angles across months so papers neither contradict the indicators nor repeat themselves.
+ */
+function selectPrimaryEconomicDrivers(state, publisherKey, year = 1, month = 1, context = {}) {
+  const r = classifyEconomicReality(state);
+  const turnIdx = (year - 1) * 12 + month;
+  const activeEvent = state.active_events && state.active_events.length > 0 ? state.active_events[0] : null;
+  const lastAction = context.lastAction || null;
+  const candidates = [];
 
-  // General high-priority overrides
-  if (state.credibility_warning) {
-    drivers.push({
+  // 1. Genuine Taper Tantrum / Guidance Flip-Flop (only happens in the exact month of flip-flop)
+  if (state.credibility_warning && (publisherKey === 'gloomberg' || publisherKey === 'cashington')) {
+    candidates.push({
       metric: 'Forward Guidance Credibility Shock',
       detail: state.credibility_warning,
-      urgency: 'critical'
+      urgency: 'critical',
+      suggestedTone: 'alarmist',
+      priority: 100
     });
   }
 
-  if (state.last_mpc_vote && state.last_mpc_vote.dissents > 0) {
-    drivers.push({
+  // 2. Fresh MPC Split — ONLY on the month the MPC actually voted, and primarily for Gloomberg
+  if (r.freshMpcSplit && publisherKey === 'gloomberg') {
+    candidates.push({
       metric: 'Monetary Policy Committee Division',
-      detail: `MPC split ${state.last_mpc_vote.tally_label} with ${state.last_mpc_vote.dissents} dissenting votes`,
-      urgency: 'high'
+      detail: `Fresh MPC vote ended ${state.last_mpc_vote.tally_label} (${state.last_mpc_vote.hawkish_dissents} hawkish, ${state.last_mpc_vote.dovish_dissents} dovish dissents) at a ${r.rate}% policy rate with CPI at ${r.cpi}%`,
+      urgency: state.last_mpc_vote.dissents >= 3 ? 'high' : 'medium',
+      suggestedTone: state.last_mpc_vote.hawkish_dissents > state.last_mpc_vote.dovish_dissents ? 'hawkish' : 'dovish',
+      priority: 88
     });
   }
 
-  // Publisher-specific prioritization
-  if (publisherKey === 'gloomberg') {
-    const yieldInversion = state.bond_yield_2y > state.bond_yield_10y;
-    if (yieldInversion) {
-      drivers.push({
-        metric: 'Sovereign Yield Curve Inversion',
-        detail: `2Y yield (${state.bond_yield_2y}%) trades ${(state.bond_yield_2y - state.bond_yield_10y).toFixed(2)}% above 10Y yield (${state.bond_yield_10y}%)`,
-        urgency: 'high'
+  // 3. Active Macroeconomic Shock / Boom Event (give one relevant angle per paper)
+  if (activeEvent) {
+    const isNeg = activeEvent.polarity === 'Negative';
+    if (publisherKey === 'gloomberg' && turnIdx % 2 === 0) {
+      candidates.push({
+        metric: `Macro Shock Pricing: ${activeEvent.name}`,
+        detail: `${activeEvent.name} (${activeEvent.summary}) reshaping sovereign yield and inflation-swap pricing while headline CPI sits at ${r.cpi}%`,
+        urgency: isNeg ? 'high' : 'medium',
+        suggestedTone: isNeg ? 'hawkish' : 'bullish',
+        priority: 76
       });
-    } else if (state.inflation_cpi > 3.5) {
-      drivers.push({
-        metric: 'Sticky Services Inflation Inertia',
-        detail: `Sticky core inflation at ${state.sticky_cpi || state.core_inflation}% outpacing flexible goods at ${state.flexible_cpi || state.inflation_cpi}%`,
-        urgency: 'high'
-      });
-    } else if (state.gdp_growth < 1.2) {
-      drivers.push({
-        metric: 'Macroeconomic Growth Deceleration',
-        detail: `Real GDP annualized growth flagging at ${state.gdp_growth}%`,
-        urgency: 'high'
-      });
-    } else {
-      drivers.push({
-        metric: 'Benchmark Policy Rate & Balance Sheet',
-        detail: `Policy rate steady at ${state.interest_rate}%, Quantitative Tightening pace -$${Math.abs(state.qt_monthly_pace || 25)}B/mo`,
-        urgency: 'medium'
+    } else if (publisherKey === 'doll_street' && turnIdx % 2 === 1) {
+      candidates.push({
+        metric: `Corporate Impact: ${activeEvent.name}`,
+        detail: `Executives recalibrate earnings guidance around ${activeEvent.name} (${activeEvent.summary}) with Doll Street at ${r.stocks} pts`,
+        urgency: isNeg ? 'high' : 'medium',
+        suggestedTone: isNeg ? 'critical' : 'bullish',
+        priority: 76
       });
     }
-  } else if (publisherKey === 'doll_street') {
-    if (state.bank_lending_rate > 6.8) {
-      drivers.push({
-        metric: 'Commercial Borrowing Costs & Refinancing Cliff',
-        detail: `Prime commercial loan rates at ${state.bank_lending_rate}%, pressuring leveraged corporate issuers`,
-        urgency: 'high'
+  }
+
+  // 4. Publisher-Specific Reality-Checked Beats
+  if (publisherKey === 'gloomberg') {
+    // Open-economy FX / Spread angle when relevant
+    if (r.econType !== 'large_hegemon' && (state.sovereign_risk_spread > 150 || r.currency < 95)) {
+      candidates.push({
+        metric: 'Sovereign Risk Spread & FX Defense',
+        detail: `Domestic currency at ${r.currency} with sovereign risk spread at ${state.sovereign_risk_spread} bps over global benchmarks and FX reserves at $${state.fx_reserves_billions}B`,
+        urgency: 'high',
+        suggestedTone: 'hawkish',
+        priority: 84
       });
-    } else if (state.stock_market_index > 5400) {
-      drivers.push({
-        metric: 'Doll Street Equity Rally & Multiple Compression',
-        detail: `Equities trading at elevated ${state.stock_market_index} pts despite tight credit`,
-        urgency: 'medium'
+    }
+
+    if (r.curveRegime === 'inverted') {
+      candidates.push({
+        metric: 'Sovereign Yield Curve Inversion',
+        detail: `2Y yield (${r.yield2y}%) trades ${Math.abs(r.spread2s10s).toFixed(2)}% ABOVE 10Y yield (${r.yield10y}%), signaling bond market recession bets`,
+        urgency: 'high',
+        suggestedTone: 'hawkish',
+        priority: 82
+      });
+    }
+
+    if (r.inflationRegime === 'elevated_inflation' || r.inflationRegime === 'severe_inflation') {
+      candidates.push({
+        metric: 'Above-Target Inflation Persistence',
+        detail: `Headline CPI running hot at ${r.cpi}% (Sticky services: ${r.stickyCpi}%, Flexible goods: ${r.flexCpi}%) well above the 2.0% target`,
+        urgency: r.cpi > 5.0 ? 'critical' : 'high',
+        suggestedTone: 'hawkish',
+        priority: 85
+      });
+    } else if (r.inflationRegime === 'moderately_above_target' || r.inflationRegime === 'sticky_divergence') {
+      candidates.push({
+        metric: 'Last-Mile Disinflation Calibration',
+        detail: `Headline CPI at ${r.cpi}% with sticky core at ${r.stickyCpi}%—traders debate the final stretch back to 2.0%`,
+        urgency: 'medium',
+        suggestedTone: 'neutral',
+        priority: 68
+      });
+    } else if (r.inflationRegime === 'deflation_risk') {
+      candidates.push({
+        metric: 'Below-Target Disinflation & Undershoot Risk',
+        detail: `Headline CPI has cooled to ${r.cpi}%, below the 2.0% mandate, prompting bond desks to price rate cuts`,
+        urgency: 'medium',
+        suggestedTone: 'dovish',
+        priority: 74
+      });
+    }
+
+    if (r.growthRegime === 'recession' || r.growthRegime === 'slowdown') {
+      candidates.push({
+        metric: 'Macroeconomic Growth Deceleration',
+        detail: `Annualized real GDP growth slowing at ${r.gdp}% with unemployment at ${r.unemp}%, driving demand for duration`,
+        urgency: r.growthRegime === 'recession' ? 'high' : 'medium',
+        suggestedTone: 'dovish',
+        priority: 75
+      });
+    }
+
+    // Healthy / Goldilocks / Anchored angles (varied rotation!)
+    if (r.inflationRegime === 'on_target') {
+      const calmAngles = [
+        {
+          metric: 'Soft-Landing Equilibrium & Term Premium',
+          detail: `Inflation anchored on target at ${r.cpi}% (sticky core ${r.stickyCpi}%) alongside ${r.gdp}% GDP growth and a normal +${r.spread2s10s}% upward-sloping 2s10s curve (${r.yield2y}% vs ${r.yield10y}%)`,
+          urgency: 'low',
+          suggestedTone: 'neutral',
+          priority: 65
+        },
+        {
+          metric: 'Balance Sheet Runoff & Neutral Rate Debate',
+          detail: `With CPI steady at ${r.cpi}% and the policy rate at ${r.rate}%, fixed-income strategists debate the long-run neutral rate and -$${Math.abs(state.qt_monthly_pace || 25)}B/mo QT runoff`,
+          urgency: 'low',
+          suggestedTone: 'neutral',
+          priority: 64
+        },
+        {
+          metric: 'Sovereign Bond Demand & Carry Stability',
+          detail: `Orderly sovereign auctions clear smoothly at ${r.yield10y}% 10Y yields as ${r.cpi}% inflation anchors institutional duration demand`,
+          urgency: 'low',
+          suggestedTone: 'bullish',
+          priority: 63
+        }
+      ];
+      candidates.push(calmAngles[turnIdx % calmAngles.length]);
+    }
+  } else if (publisherKey === 'doll_street') {
+    if (r.lending >= 6.8) {
+      candidates.push({
+        metric: 'High Commercial Borrowing Costs & Refinancing Squeeze',
+        detail: `Prime commercial loan rates at ${r.lending}% (policy rate ${r.rate}%) pressuring leveraged corporate balance sheets`,
+        urgency: 'high',
+        suggestedTone: 'critical',
+        priority: 82
+      });
+    }
+
+    if (r.growthRegime === 'recession') {
+      candidates.push({
+        metric: 'Earnings Downgrades & Demand Contraction',
+        detail: `GDP growth down to ${r.gdp}% with equities at ${r.stocks} pts as industrial order books contract`,
+        urgency: 'high',
+        suggestedTone: 'dovish',
+        priority: 84
+      });
+    }
+
+    if (r.isGoldilocks || (r.rateRegime !== 'tight_punitive' && r.growthRegime === 'healthy_expansion')) {
+      const corpAngles = [
+        {
+          metric: 'Corporate CapEx & Dealmaking Revival',
+          detail: `Moderate ${r.rate}% policy rates (${r.lending}% commercial credit), ${r.cpi}% tame inflation, and ${r.gdp}% GDP growth unlock M&A pipelines with Doll Street at ${r.stocks} pts`,
+          urgency: 'low',
+          suggestedTone: 'bullish',
+          priority: 70
+        },
+        {
+          metric: 'Operating Margins & Productivity Expansion',
+          detail: `With input price inflation cooled to ${r.flexCpi}% and real consumer demand expanding ${r.gdp}%, CFOs report healthier operating margins as Doll Street trades at ${r.stocks} pts`,
+          urgency: 'low',
+          suggestedTone: r.stocks >= 5100 ? 'bullish' : 'neutral',
+          priority: 69
+        },
+        {
+          metric: 'Equity Valuations & Mid-Cap Credit Access',
+          detail: `Asset managers weigh ${r.stocks}-point equity multiples against ${r.yield10y}% 10-year Treasury yields in a stable ${r.rate}% base-rate regime`,
+          urgency: 'low',
+          suggestedTone: 'neutral',
+          priority: 68
+        }
+      ];
+      candidates.push(corpAngles[turnIdx % corpAngles.length]);
+    } else if (r.stocks > 5450) {
+      candidates.push({
+        metric: 'Doll Street Equity Rally',
+        detail: `Doll Street Index climbs to ${r.stocks} pts as large-cap earnings outperform expectations`,
+        urgency: 'low',
+        suggestedTone: 'bullish',
+        priority: 66
       });
     } else {
-      drivers.push({
-        metric: 'Corporate Profit Margins & Cost of Capital',
-        detail: `Equities at ${state.stock_market_index} pts as CFOs navigate ${state.interest_rate}% base rates`,
-        urgency: 'medium'
+      candidates.push({
+        metric: 'Corporate Capital Allocation & Credit Spreads',
+        detail: `Doll Street at ${r.stocks} pts as CFOs balance ${r.lending}% commercial borrowing costs against ${r.gdp}% GDP demand`,
+        urgency: 'medium',
+        suggestedTone: 'neutral',
+        priority: 60
       });
     }
   } else if (publisherKey === 'gotham') {
-    if (state.real_wage_growth < -0.2) {
-      drivers.push({
-        metric: 'Household Purchasing Power Erosion',
-        detail: `Real wage growth slipped to ${state.real_wage_growth}%, squeezing working families`,
-        urgency: 'high'
+    if (r.inflationRegime === 'elevated_inflation' || r.inflationRegime === 'severe_inflation') {
+      candidates.push({
+        metric: 'Neighborhood Cost-of-Living Squeeze',
+        detail: `Headline CPI at ${r.cpi}% (flexible goods ${r.flexCpi}%) straining household grocery and utility budgets, with real wage growth at ${r.realWage}%`,
+        urgency: r.cpi > 5.0 ? 'critical' : 'high',
+        suggestedTone: 'critical',
+        priority: 86
       });
-    } else if (state.housing_cost_index > 145) {
-      drivers.push({
-        metric: 'Metropolitan Housing & Rental Shortage',
-        detail: `Housing Cost Index climbed to ${state.housing_cost_index}, pricing out workforce renters`,
-        urgency: 'high'
+    } else if (r.unemp >= 5.0) {
+      candidates.push({
+        metric: 'Municipal Layoffs & Hiring Slowdown',
+        detail: `Unemployment elevated at ${r.unemp}% as working-class neighborhoods feel slower shift hours and hiring freezes`,
+        urgency: 'high',
+        suggestedTone: 'dovish',
+        priority: 84
+      });
+    } else if (r.wageRegime === 'eroding_purchasing_power') {
+      candidates.push({
+        metric: 'Paycheck Purchasing Power Lag',
+        detail: `Real wages slipping ${r.realWage}% behind living costs even as unemployment sits at ${r.unemp}%`,
+        urgency: 'medium',
+        suggestedTone: 'critical',
+        priority: 76
+      });
+    } else if (r.inflationRegime === 'on_target' && r.wageRegime === 'rising_purchasing_power') {
+      // Inflation is ~2% AND real wages are rising! Reflect reality honestly!
+      if (r.housing > 144 && turnIdx % 3 === 0) {
+        candidates.push({
+          metric: 'Steady Grocery Aisles vs. Urban Housing Supply Bottleneck',
+          detail: `Everyday grocery and utility inflation has cooled to ${r.cpi}% and real wages are UP +${r.realWage}%, yet structural metro housing shortages keep the Housing Cost Index at ${r.housing}`,
+          urgency: 'medium',
+          suggestedTone: 'neutral',
+          priority: 71
+        });
+      } else {
+        const mainStreetGoodAngles = [
+          {
+            metric: 'Real Paycheck Recovery & Main Street Relief',
+            detail: `With CPI anchored at ${r.cpi}% and real wages growing +${r.realWage}%, working families see paychecks outpace prices and consumer confidence climb to ${r.confidence}`,
+            urgency: 'low',
+            suggestedTone: 'bullish',
+            priority: 72
+          },
+          {
+            metric: 'Neighborhood Small Business & Hiring Steadiness',
+            detail: `Unemployment steady at ${r.unemp}%, social discontent low at ${r.discontent}/100, and ${r.cpi}% price stability revive local diner and retail foot traffic`,
+            urgency: 'low',
+            suggestedTone: 'neutral',
+            priority: 70
+          }
+        ];
+        candidates.push(mainStreetGoodAngles[turnIdx % mainStreetGoodAngles.length]);
+      }
+    } else if (r.housing > 150) {
+      candidates.push({
+        metric: 'Metropolitan Housing & Mortgage Affordability',
+        detail: `Housing Cost Index at ${r.housing} with ${r.lending}% mortgage rates testing first-time buyers despite ${r.cpi}% headline CPI`,
+        urgency: 'medium',
+        suggestedTone: 'critical',
+        priority: 68
       });
     } else {
-      drivers.push({
-        metric: 'Grocery Bills & Social Discontent',
-        detail: `Social Discontent index at ${state.poverty_discontent}/100 amid persistent food and utility costs`,
-        urgency: 'medium'
+      candidates.push({
+        metric: 'Household Budgets & Local Labor Conditions',
+        detail: `Headline CPI at ${r.cpi}%, unemployment at ${r.unemp}%, real wage growth ${r.realWage}%, and consumer confidence at ${r.confidence}`,
+        urgency: 'low',
+        suggestedTone: 'neutral',
+        priority: 60
       });
     }
   } else if (publisherKey === 'cashington') {
-    if (state.parliamentary_approval < 45) {
-      drivers.push({
+    if (r.politicsRegime === 'hostile_oversight') {
+      candidates.push({
         metric: 'Parliamentary Select Committee Hostility',
-        detail: `Chair approval in Parliament down to ${state.parliamentary_approval}%, prompting calls for hearings`,
-        urgency: 'critical'
+        detail: `Governor's parliamentary approval down to ${r.parlApproval}% (warnings: ${state.warning_count || 0}/3), fueling hostile oversight threats`,
+        urgency: r.parlApproval < 32 ? 'critical' : 'high',
+        suggestedTone: 'critical',
+        priority: 88
       });
-    } else if (state.months_to_election <= 24) {
-      drivers.push({
-        metric: 'Electoral Campaign Vulnerability',
-        detail: `Only ${state.months_to_election} months to parliamentary elections as lawmakers face constituent backlash`,
-        urgency: 'high'
+    } else if (r.politicsRegime === 'strong_bipartisan_support' && r.inflationRegime === 'on_target') {
+      const capitolCalmAngles = [
+        {
+          metric: 'Governor\'s High Parliamentary Standing & Soft-Landing Credit',
+          detail: `With parliamentary approval strong at ${r.parlApproval}% and inflation on target at ${r.cpi}%, coalition and opposition MPs jostle to claim credit ${state.months_to_election} months before elections`,
+          urgency: 'low',
+          suggestedTone: 'neutral',
+          priority: 73
+        },
+        {
+          metric: 'Parliamentary Fiscal Debate Shifts to Budget Priorities',
+          detail: `Price stability (${r.cpi}% CPI) and moderate ${r.rate}% policy rates ease central bank heat (${r.parlApproval}% approval), shifting Capitol clashes toward the ${r.deficit}% fiscal deficit and ${r.debtToGdp}% debt-to-GDP`,
+          urgency: 'low',
+          suggestedTone: 'neutral',
+          priority: 72
+        },
+        {
+          metric: 'Banking Supervision & Legislative Reform Agenda',
+          detail: `Enjoying ${r.parlApproval}% parliamentary confidence and ${r.pubApproval}% public support, the Central Bank navigates bipartisan talks on credit competition and industrial growth (${r.gdp}% GDP)`,
+          urgency: 'low',
+          suggestedTone: 'bullish',
+          priority: 71
+        }
+      ];
+      candidates.push(capitolCalmAngles[turnIdx % capitolCalmAngles.length]);
+    } else if (state.months_to_election <= 16) {
+      candidates.push({
+        metric: 'Pre-Election Monetary Scrutiny',
+        detail: `With ${state.months_to_election} months until parliamentary elections and approval at ${r.parlApproval}%, lawmakers scrutinize how ${r.rate}% rates affect swing-seat voters`,
+        urgency: 'medium',
+        suggestedTone: 'neutral',
+        priority: 69
       });
     } else {
-      drivers.push({
-        metric: 'Fiscal Deficit & Sovereign Debt Servicing',
-        detail: `National deficit at ${state.fiscal_deficit}% of GDP and debt-to-GDP at ${state.debt_to_gdp}%`,
-        urgency: 'medium'
+      candidates.push({
+        metric: 'Treasury-Central Bank Fiscal Coordination Debate',
+        detail: `Parliamentary approval stands at ${r.parlApproval}% as MPs weigh the ${r.deficit}% fiscal deficit, ${r.debtToGdp}% debt-to-GDP, and ${r.rate}% policy rate`,
+        urgency: 'medium',
+        suggestedTone: 'neutral',
+        priority: 64
       });
     }
   }
 
-  return drivers;
+  // Incorporate forward-guidance / rate action context when significant
+  if (lastAction && lastAction.action_type === 'mpc_rate_decision' && parseInt(lastAction.action_value, 10) !== 0 && publisherKey === 'doll_street') {
+    const bps = parseInt(lastAction.action_value, 10);
+    candidates.unshift({
+      metric: bps > 0 ? `Central Bank +${bps} bps Rate Hike` : `Central Bank ${bps} bps Rate Cut`,
+      detail: `MPC moved the policy rate by ${bps > 0 ? '+' : ''}${bps} bps to ${r.rate}% (CPI at ${r.cpi}%, GDP at ${r.gdp}%)`,
+      urgency: Math.abs(bps) >= 50 ? 'high' : 'medium',
+      suggestedTone: bps > 0 ? 'hawkish' : 'bullish',
+      priority: 83
+    });
+  }
+
+  candidates.sort((a, b) => b.priority - a.priority);
+  return candidates.length > 0
+    ? candidates.slice(0, 2)
+    : [{
+        metric: 'Macroeconomic Equilibrium',
+        detail: `Policy rate ${r.rate}%, Headline CPI ${r.cpi}%, GDP Growth ${r.gdp}%`,
+        urgency: 'low',
+        suggestedTone: 'neutral',
+        priority: 50
+      }];
+}
+
+function buildFactCheckGuardrails(state, r) {
+  const rules = [
+    `- Ground all narrative claims strictly in the live numbers below (do not meta-reference these editorial checks in quotes).`
+  ];
+
+  if (r.inflationRegime === 'on_target') {
+    rules.push(`- Inflation is anchored at target (${r.cpi}% headline, ${r.flexCpi}% flexible goods, ${r.stickyCpi}% sticky core vs 2.0% goal): portray consumer and wholesale prices as steady and well-behaved, never surging.`);
+  } else if (r.inflationRegime === 'deflation_risk') {
+    rules.push(`- Inflation is below the 2.0% mandate (${r.cpi}%): portray prices as cool/disinflationary, never overheating.`);
+  } else if (r.inflationRegime === 'moderately_above_target' || r.inflationRegime === 'sticky_divergence') {
+    rules.push(`- Inflation is mildly warm (${r.cpi}% headline, ${r.stickyCpi}% sticky): frame it as nuanced last-mile calibration rather than runaway inflation.`);
+  }
+
+  if (r.curveRegime === 'upward_normal') {
+    rules.push(`- The 2s10s yield curve slopes upward normally (+${r.spread2s10s}%, with 10Y at ${r.yield10y}% above 2Y at ${r.yield2y}%): never describe the curve as inverted.`);
+  } else if (r.curveRegime === 'inverted') {
+    rules.push(`- The 2s10s yield curve is genuinely inverted (2Y at ${r.yield2y}% exceeds 10Y at ${r.yield10y}%).`);
+  }
+
+  if (r.wageRegime === 'rising_purchasing_power') {
+    rules.push(`- Real wages are expanding (+${r.realWage}%): workers' paychecks are outpacing inflation.`);
+  }
+
+  if (r.rateRegime === 'accommodative' || r.rateRegime === 'neutral_moderate') {
+    rules.push(`- Borrowing conditions are moderate (${r.rate}% policy rate, ${r.lending}% commercial lending): avoid calling rates punitive or crushing.`);
+  }
+
+  if (r.politicsRegime === 'strong_bipartisan_support') {
+    rules.push(`- The Governor enjoys broad political confidence (${r.parlApproval}% parliamentary approval, ${r.pubApproval}% public approval): avoid inventing parliamentary mutinies against the Chair.`);
+  }
+
+  if (!r.freshMpcSplit) {
+    rules.push(`- This is an inter-meeting month with no new MPC rate vote: focus on market, household, or fiscal developments rather than inventing a fresh committee vote.`);
+  }
+
+  return rules.join('\n');
 }
 
 // Helper to get system settings
@@ -197,7 +579,7 @@ function getSystemSetting(key) {
 }
 
 // Generate articles for the active month based on difficulty concurrently in parallel
-async function generateMonthlyNews(economicState, difficulty, year, month) {
+async function generateMonthlyNews(economicState, difficulty, year, month, context = {}) {
   const publishers = ['gloomberg', 'doll_street'];
   if (difficulty === 'normal' || difficulty === 'hard') {
     publishers.push('gotham');
@@ -210,16 +592,15 @@ async function generateMonthlyNews(economicState, difficulty, year, month) {
   const apiKey = getSystemSetting('deepseek_api_key') || process.env.DEEPSEEK_API_KEY;
 
   if (!apiKey || apiKey.trim().length <= 5 || provider === 'local_only') {
-    return publishers.map(pub => generateWithLocalMacroEngine(pub, economicState, year, month));
+    return publishers.map(pub => generateWithLocalMacroEngine(pub, economicState, year, month, context));
   }
 
-  // Fire all publisher articles concurrently in parallel
   const articlePromises = publishers.map(async (pub) => {
     try {
-      return await generateWithDeepSeek(pub, economicState, year, month, apiKey);
+      return await generateWithDeepSeek(pub, economicState, year, month, apiKey, context);
     } catch (err) {
       console.warn(`DeepSeek generation failed for ${pub}, falling back to local macro engine:`, err.message);
-      return generateWithLocalMacroEngine(pub, economicState, year, month);
+      return generateWithLocalMacroEngine(pub, economicState, year, month, context);
     }
   });
 
@@ -228,60 +609,72 @@ async function generateMonthlyNews(economicState, difficulty, year, month) {
     if (res.status === 'fulfilled' && res.value) {
       return res.value;
     }
-    return generateWithLocalMacroEngine(publishers[idx], economicState, year, month);
+    return generateWithLocalMacroEngine(publishers[idx], economicState, year, month, context);
   });
 }
 
-// DeepSeek API integration with varied styles, rapid completion and dynamic indicator selection
-async function generateWithDeepSeek(publisherKey, state, year, month, apiKey) {
+// DeepSeek API integration with strict reality guardrails, varied styles, and anti-repetition
+async function generateWithDeepSeek(publisherKey, state, year, month, apiKey, context = {}) {
   const profile = PUBLISHER_PROFILES[publisherKey];
-  // For news journalism, use deepseek-chat (DeepSeek-V3 / Flash) to generate varied, authentic articles in 2 seconds
-  // without reasoning overhead, while leaving deepseek-v4-pro for deep advisor conversations.
   const customNewsModel = getSystemSetting('news_model');
   const model = customNewsModel || 'deepseek-chat';
 
-  const drivers = selectPrimaryEconomicDrivers(state, publisherKey);
+  const reality = classifyEconomicReality(state);
+  const drivers = selectPrimaryEconomicDrivers(state, publisherKey, year, month, context);
   const primaryDriver = drivers[0];
+  const factChecks = buildFactCheckGuardrails(state, reality);
+
+  const pubRecentHeadlines = (context.recentHeadlines || [])
+    .filter(h => h.publisher === publisherKey)
+    .slice(0, 3)
+    .map(h => `"${h.headline}"`);
+
+  const antiRepeatNote = pubRecentHeadlines.length > 0
+    ? `\nRECENT HEADLINES FROM THIS PAPER (DO NOT REPEAT THESE ANGLES, PHRASES, OR CHARACTERS):\n- ${pubRecentHeadlines.join('\n- ')}`
+    : '';
 
   const systemPrompt = `${profile.editorialGuidance}
-You write rigorous, varied, non-formulaic financial journalism between 250 and 450 words.
+You write rigorous, varied, non-formulaic financial journalism between 230 and 380 words.
 CRITICAL EDITORIAL STANDARDS:
 1. NEVER reproduce formulaic boilerplate or robotic opening sentences.
-2. Focus strictly on the primary economic drivers selected for this edition rather than listing all variables.
+2. Focus on the selected primary economic driver AND strictly obey every item in MANDATORY FACTUAL GUARDRAILS. Your article's mood, ire, optimism, or calm MUST match the actual numbers!
 3. NEVER cite internal event codes (e.g. do not write "POS-12" or "NEG-05"); refer to events only by their natural real-world names.
-4. Provide sharp narrative immersion, authentic stakeholder voices, and vivid quotes.
+4. Provide authentic stakeholder voices and fresh, non-recycled character names.
 5. Format your output strictly as a JSON object with keys:
-  - "headline": string (punchy, authentic headline)
-  - "body": string (multi-paragraph news story)
-  - "tone": ("hawkish"|"dovish"|"alarmist"|"bullish"|"critical"|"neutral")
-  - "urgency": ("low"|"medium"|"high"|"critical")
+  - "headline": string (punchy, accurate headline reflecting actual indicator reality)
+  - "body": string (multi-paragraph news story separated by \\n\\n)
+  - "tone": ("hawkish"|"dovish"|"alarmist"|"bullish"|"critical"|"neutral") — suggested for current data: "${primaryDriver.suggestedTone || 'neutral'}"
+  - "urgency": ("low"|"medium"|"high"|"critical") — suggested for current data: "${primaryDriver.urgency || 'low'}"
   - "featured_variable": string
   - "byline": string
   - "dateline": string
-  - "whisper_quote": string (a short, pungent market gossip / hallway quote)`;
+  - "whisper_quote": string (a short, pungent market/street/hallway quote that matches current data)`;
 
-  // Clean active events representation without any internal IDs
   const activeEventsClean = (state.active_events && state.active_events.length > 0)
     ? state.active_events.map(e => `${e.name} (${e.summary})`).join('; ')
     : 'None';
 
   const userPrompt = `EDITION: Year ${year}, Month ${month}.
 PUBLISHER: ${profile.name}
-TOP ECONOMIC DRIVERS TO FOCUS ON:
-${drivers.map(d => `- [${d.urgency.toUpperCase()}] ${d.metric}: ${d.detail}`).join('\n')}
+PRIMARY STORY ASSIGNMENT:
+${drivers.map(d => `- [URGENCY: ${d.urgency.toUpperCase()}] ${d.metric}: ${d.detail}`).join('\n')}
 
-BACKGROUND CONTEXT:
-- Policy Rate: ${state.interest_rate}% | Bank Lending: ${state.bank_lending_rate}%
-- Inflation: Headline ${state.inflation_cpi}% (Flexible: ${state.flexible_cpi || state.inflation_cpi}%, Sticky: ${state.sticky_cpi || state.core_inflation}%)
-- Real GDP: ${state.gdp_growth}% | Unemployment: ${state.unemployment_rate}%
-- Doll Street: ${state.stock_market_index} pts | 10Y Yield: ${state.bond_yield_10y}% | 2Y Yield: ${state.bond_yield_2y}%
+MANDATORY FACTUAL GUARDRAILS (DO NOT VIOLATE):
+${factChecks}${antiRepeatNote}
+
+LIVE MACROECONOMIC SNAPSHOT:
+- Policy Rate: ${reality.rate}% | Commercial Bank Lending: ${reality.lending}%
+- Inflation: Headline CPI ${reality.cpi}% (2.0% Target) | Flexible Goods: ${reality.flexCpi}% | Sticky Core: ${reality.stickyCpi}%
+- Real Economy: GDP Growth ${reality.gdp}% | Unemployment: ${reality.unemp}% | Real Wage Growth: ${reality.realWage > 0 ? '+' : ''}${reality.realWage}%
+- Markets: Doll Street ${reality.stocks} pts | 10Y Yield: ${reality.yield10y}% | 2Y Yield: ${reality.yield2y}% (2s10s Spread: ${reality.spread2s10s > 0 ? '+' : ''}${reality.spread2s10s}%)
+- Household & Politics: Housing Index ${reality.housing} | Consumer Confidence ${reality.confidence} | Parliamentary Approval ${reality.parlApproval}% | Public Approval ${reality.pubApproval}%
+- Fiscal: Deficit ${reality.deficit}% of GDP | Debt-to-GDP ${reality.debtToGdp}% | Months to Election: ${state.months_to_election}
 - Active Macro Events: ${activeEventsClean}
 
-Write an engaging, authentic, non-formulaic story for ${profile.name} focusing on the primary economic driver.`;
+Write an engaging, accurate story for ${profile.name} whose tone and urgency honestly reflect these numbers.`;
 
   const controller = new AbortController();
-  // 8 second timeout per parallel request ensures fast fallback without hanging turns
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 8500);
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
@@ -297,7 +690,7 @@ Write an engaging, authentic, non-formulaic story for ${profile.name} focusing o
       ],
       response_format: { type: 'json_object' },
       temperature: 0.72,
-      max_tokens: 1200
+      max_tokens: 1100
     }),
     signal: controller.signal
   });
@@ -316,177 +709,343 @@ Write an engaging, authentic, non-formulaic story for ${profile.name} focusing o
 
   const parsed = JSON.parse(rawContent);
 
+  // Enforce urgency sanity: never mark a calm Goldilocks story as critical unless there's an actual credibility shock
+  let safeUrgency = parsed.urgency || primaryDriver.urgency || 'medium';
+  if (reality.isGoldilocks && !state.credibility_warning && !reality.freshMpcSplit && (safeUrgency === 'critical' || safeUrgency === 'high')) {
+    safeUrgency = 'low';
+  }
+
   return {
     publisher: publisherKey,
     headline: parsed.headline || 'Economic Horizon Shifts',
     body: parsed.body || 'Financial markets digest incoming economic data.',
-    tone: parsed.tone || 'neutral',
-    urgency: parsed.urgency || primaryDriver.urgency || 'medium',
+    tone: parsed.tone || primaryDriver.suggestedTone || 'neutral',
+    urgency: safeUrgency,
     featured_variable: parsed.featured_variable || primaryDriver.metric,
-    byline: parsed.byline || profile.bylines[Math.floor(Math.random() * profile.bylines.length)],
+    byline: parsed.byline || profile.bylines[(year + month) % profile.bylines.length],
     dateline: parsed.dateline || profile.dateline,
-    whisper_quote: parsed.whisper_quote || 'Market desks await further guidance from the central bank.'
+    whisper_quote: parsed.whisper_quote || 'Market desks weigh incoming telemetry.'
   };
 }
 
-// Built-in Macroeconomic Engine (High-fidelity editorial generator with varied openings)
-function generateWithLocalMacroEngine(publisherKey, state, year, month) {
+// Built-in Macroeconomic Editorial Engine (Varied, indicator-faithful multi-regime journalism)
+function generateWithLocalMacroEngine(publisherKey, state, year, month, context = {}) {
   const profile = PUBLISHER_PROFILES[publisherKey];
+  const r = classifyEconomicReality(state);
   const activeEvent = state.active_events && state.active_events.length > 0 ? state.active_events[0] : null;
   const mpcVote = state.last_mpc_vote;
-  const byline = profile.bylines[Math.floor(Math.random() * profile.bylines.length)];
+  const turnIdx = (year - 1) * 12 + month;
+  const byline = profile.bylines[turnIdx % profile.bylines.length];
   const dateline = profile.dateline;
 
   let headline = '';
   let body = '';
   let tone = 'neutral';
-  let urgency = 'medium';
+  let urgency = 'low';
   let featuredVar = 'inflation_cpi';
   let whisperQuote = '';
 
-  const drivers = selectPrimaryEconomicDrivers(state, publisherKey);
-  const primaryDriver = drivers[0];
-
+  // =========================================================================
+  // 1. GLOOMBERG NEWS (Macro, Sovereign Curves, Rates & Liquidity)
+  // =========================================================================
   if (publisherKey === 'gloomberg') {
     featuredVar = 'bond_yield_10y';
-    const yieldInversion = state.bond_yield_2y > state.bond_yield_10y;
 
     if (state.credibility_warning) {
-      headline = `Front-End Bond Desks Reel as Guidance Shock Dislocates 2-Year Paper`;
+      headline = `Front-End Bond Desks Reel as Guidance Reversal Whipsaws Two-Year Paper`;
       tone = 'alarmist';
       urgency = 'critical';
-      whisperQuote = `"The tape went dark for ninety seconds. When the Chair signals dovish patience and then drops a surprise hike, liquidity vaporizes."`;
-      body = `Trading desks at major sovereign clearinghouses halted proprietary arbitrage trades this morning after an abrupt reversal in central bank policy shattered interest rate expectations. Two-year sovereign benchmark notes experienced a violent 28-basis-point yield surge, marking the sharpest single-session yield dislocation in three quarters.
+      whisperQuote = `"The tape went dark for ninety seconds. When forward guidance points one way and policy moves the other, liquidity evaporates."`;
+      body = `Proprietary rates desks widened bid-ask spreads across short-dated sovereign notes this morning after an unexpected central bank policy pivot caught leveraged swaps traders wrong-footed. Two-year yields jumped sharply to ${r.yield2y}%, triggering margin calls across relative-value macro funds.
 
-"You cannot preach data dependency and then blindside market makers," said Marcus Vance, global head of rates trading at Barclays Capital. "Dealers were positioning for an extended pause based on official forward guidance. The sudden move wiped out basis trades across commercial portfolios."
+"Market makers price inventory off central bank forward guidance," said Marcus Vance, head of sovereign rates trading. "When the signalling framework breaks, dealers pull balance sheet capacity until volatility settles."
 
-Concurrently, the benchmark 10-year yield touched ${state.bond_yield_10y}%, steepening the yield curve even as credit spreads widened on investment-grade debt. Liquidity providers report that bid-ask spreads on short-dated bills remain five times wider than historical norms as capital managers await an emergency clarification from the Monetary Policy Committee.`;
+Benchmark 10-year paper closed at ${r.yield10y}% as institutional asset managers trimmed duration risk and awaited fresh communications from the Governor's office.`;
 
-    } else if (mpcVote && mpcVote.dissents > 0) {
-      headline = `Committee Fractures: Dissidents Clash Over Growth Drag as Rate Voted ${mpcVote.tally_label}`;
+    } else if (r.freshMpcSplit) {
+      headline = `MPC Votes ${mpcVote.tally_label} on ${r.rate}% Rate as Members Debate Next Phase`;
+      tone = mpcVote.hawkish_dissents >= mpcVote.dovish_dissents ? 'hawkish' : 'dovish';
+      urgency = mpcVote.dissents >= 3 ? 'high' : 'medium';
+      whisperQuote = `"A ${mpcVote.tally_label} print tells the swaps desk that every upcoming data release is live."`;
+      body = `Minutes from this month's Monetary Policy Committee decision revealed a ${mpcVote.tally_label} split as policymakers set the benchmark rate at ${r.rate}% amid ${r.cpi}% headline inflation and ${r.gdp}% annualized GDP growth.
+
+${mpcVote.hawkish_dissents > 0 ? `The ${mpcVote.hawkish_dissents} hawkish dissenter(s) argued for firmer rates given ${r.gdp}% output momentum and ${r.stickyCpi}% core services inflation.` : ''} ${mpcVote.dovish_dissents > 0 ? `Meanwhile, ${mpcVote.dovish_dissents} dovish member(s) favored faster accommodation to cushion credit-sensitive sectors.` : ''}
+
+Overnight index swaps adjusted modestly following the release, with 2-year sovereign yields settling at ${r.yield2y}% against ${r.yield10y}% on the 10-year benchmark.`;
+
+    } else if (r.econType !== 'large_hegemon' && (state.sovereign_risk_spread > 150 || r.currency < 95)) {
+      featuredVar = 'currency_index';
+      headline = `FX Desks Test Domestic Currency at ${r.currency} as Sovereign Spread Hits ${state.sovereign_risk_spread} bps`;
       tone = 'hawkish';
       urgency = 'high';
-      whisperQuote = `"The unified front at the central bank is dead. Hawks are terrified of wage permanence, while doves are pointing to collapsing order books."`;
-      body = `A bitter ideological rift split the Monetary Policy Committee into opposing camps, concluding in a ${mpcVote.tally_label} decision that leaves market pricing unanchored. Minutes from the review reveal unprecedented friction between conservative governors advocating aggressive tightening and regional members warning that cumulative transmission lags are pushing industrial sectors into retrenchment.
+      whisperQuote = `"Open economies don't set rates in a vacuum—cross-border carry desks watch reserve adequacy every afternoon."`;
+      body = `Foreign exchange dealers pressed the domestic currency index to ${r.currency} this week as sovereign risk spreads widened to ${state.sovereign_risk_spread} basis points over global reserve benchmarks.
 
-${mpcVote.hawkish_dissents > 0 ? `Hawkish members formally dissented, citing persistent core services inflation of ${state.sticky_cpi || state.core_inflation}% as proof that statutory price targets remain in jeopardy.` : ''} ${mpcVote.dovish_dissents > 0 ? `Conversely, dissenting doves argued that annualized GDP growth of ${state.gdp_growth}% signals that monetary restraint has already reached restrictive limits.` : ''}
+With foreign exchange reserves standing at $${state.fx_reserves_billions}B and domestic policy rates at ${r.rate}%, emerging and open-economy portfolio managers weighed imported price pass-through against external yields.
 
-With the policy rate set at ${state.interest_rate}%, swap markets have priced in a 65% probability of further committee volatility at the next quarterly review. Sovereign clearing desks note that foreign asset managers have reduced duration exposure until the Committee reconciles its forward posture.`;
+"Maintaining rate credibility and reserve buffers is paramount when global capital flows turn selective," noted Elena Rostova, senior sovereign strategist.`;
 
-    } else if (yieldInversion) {
-      headline = `Curve Inversion Deepens to ${(state.bond_yield_2y - state.bond_yield_10y).toFixed(2)}% as Fixed Income Desks Price Policy Friction`;
+    } else if (r.curveRegime === 'inverted') {
+      headline = `Yield Curve Inversion Reaches ${Math.abs(r.spread2s10s).toFixed(2)}% as Bond Desks Price Cyclical Cooling`;
       tone = 'hawkish';
       urgency = 'high';
-      whisperQuote = `"An inverted yield curve is the fixed-income market's polite way of saying the central bank is heading for a structural misstep."`;
-      body = `The benchmark yield spread between two-year and ten-year sovereign debt plunged deeper into negative territory, registering an inversion of ${(state.bond_yield_2y - state.bond_yield_10y).toFixed(2)} percentage points as institutional debt buyers braced for extended monetary constriction.
+      whisperQuote = `"Short bills out-yielding ten-year bonds is the bond market's classic warning flare on late-cycle tightness."`;
+      body = `Two-year sovereign notes closed at ${r.yield2y}%, trading ${Math.abs(r.spread2s10s).toFixed(2)} percentage points above the ${r.yield10y}% 10-year benchmark as fixed-income portfolios locked in long-duration yields ahead of projected growth moderation.
 
-The two-year note closed trading at ${state.bond_yield_2y}%, pushed higher by expectations of elevated borrowing costs, while the 10-year benchmark settled at ${state.bond_yield_10y}%. Historically, sustained inversions of this magnitude have preceded cyclical downturns by three to five quarters as bank lending margins compress and interbank liquidity tightens.
+Historically, sustained inversions compress net interest margins for regional lenders and signal expectations that policy rates—currently ${r.rate}%—will eventually ease once cyclical headwinds mature.
 
-"When short-dated paper yields more than ten-year bonds, commercial lenders lose the fundamental incentive to extend long-term investment capital," observed Elena Rostova, senior sovereign debt strategist at Gloomberg. "We are already seeing commercial paper facilities pulling back lines of credit to mid-tier industrial borrowers."`;
+Primary dealers reported brisk pension-fund demand at the long end of the curve even as money-market funds absorbed short-dated Treasury bills.`;
+
+    } else if (r.inflationRegime === 'elevated_inflation' || r.inflationRegime === 'severe_inflation') {
+      featuredVar = 'inflation_cpi';
+      headline = `Inflation Breakevens Climb as ${r.cpi}% CPI Tests Central Bank Resolve`;
+      tone = 'hawkish';
+      urgency = r.cpi > 5.0 ? 'critical' : 'high';
+      whisperQuote = `"Until sticky services break decisively toward 2%, real-money bond buyers will demand extra inflation protection."`;
+      body = `Inflation-linked swap rates pushed higher across sovereign trading floors after headline CPI registered ${r.cpi}%, with sticky services at ${r.stickyCpi}% and flexible goods at ${r.flexCpi}%.
+
+With the policy rate at ${r.rate}%, fixed-income strategists warned that real policy restraint remains under scrutiny. Ten-year sovereign yields traded at ${r.yield10y}% as auction participants demanded firmer compensation for inflation uncertainty.
+
+"Bond vigilantes aren't panicked, but they are unforgiving when headline prints stay north of three percent," said Alistair Finch, chief economics correspondent.`;
+
+    } else if (r.growthRegime === 'recession' || r.growthRegime === 'slowdown') {
+      featuredVar = 'gdp_growth';
+      headline = `Duration Rally Gains Steam as ${r.gdp}% GDP Growth Tilts Odds Toward Easing`;
+      tone = 'dovish';
+      urgency = 'medium';
+      whisperQuote = `"Macro funds are rotating out of cyclicals and buying the belly of the bond curve as growth cools."`;
+      body = `Sovereign bond prices firmed across intermediate maturities as annualized real GDP growth moderated to ${r.gdp}% and unemployment registered ${r.unemp}%.
+
+With headline inflation at ${r.cpi}% and the benchmark rate at ${r.rate}%, rate-futures traders increased bets that policymakers will prioritize buffering domestic demand over coming quarters.
+
+Ten-year yields stood at ${r.yield10y}% against ${r.yield2y}% on two-year notes, reflecting orderly safe-haven flows into government debt.`;
 
     } else {
-      headline = `Benchmark Policy Rate Anchored at ${state.interest_rate}% as Global Capital Flows Steady`;
-      tone = 'neutral';
-      urgency = 'low';
-      whisperQuote = `"Quiet session on the primary dealer desk. Markets have priced terminal rates near equilibrium for the immediate cycle."`;
-      body = `Fixed-income markets settled into an orderly cadence as the benchmark policy rate remained established at ${state.interest_rate}%, with sovereign debt issuance clearing at predictable bid-to-cover ratios. Headline consumer price inflation stood at ${state.inflation_cpi}%, showing measurable signs of stabilization across flexible commodity and freight components.
+      // On-target / Balanced / Goldilocks rotation (3 distinct stories!)
+      const variant = turnIdx % 3;
+      if (variant === 0) {
+        headline = `Soft-Landing Pricing Holds Firm as ${r.cpi}% Inflation Anchors Yield Curve`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"Inflation at ${r.cpi}%, growth at ${r.gdp}%, and an upward-sloping +${r.spread2s10s}% curve—macro desks call this carry nirvana."`;
+        body = `Sovereign debt markets traded with remarkably low implied volatility this week as headline CPI settled at ${r.cpi}%—squarely aligned with the central bank's 2.0% mandate—while sticky core services held at ${r.stickyCpi}%.
 
-Trading volume across commercial paper was steady, with corporate prime lending rates averaging ${state.bank_lending_rate}%. While Quantitative Tightening operations continue to reduce the central bank's balance sheet at -$${Math.abs(state.qt_monthly_pace || 25)}B monthly, dealer absorption has proceeded without signs of repo stress.
+The benchmark yield curve maintained a healthy positive slope of +${r.spread2s10s} percentage points, with two-year notes at ${r.yield2y}% and ten-year bonds at ${r.yield10y}%. Institutional bond buyers absorbed Treasury supply at tight auction tails without dealer indigestion.
 
-Market strategists note that the stabilization of ten-year yields at ${state.bond_yield_10y}% provides room for corporate treasurers to execute planned debt refinancing ahead of the next macroeconomic quarter.`;
+"For the first time in several quarters, neither runaway inflation nor imminent recession dominates client calls," noted Julian Sterling, fixed-income editor. "With the policy rate at ${r.rate}% and GDP expanding ${r.gdp}%, traders see policy sitting comfortably near neutral."`;
+      } else if (variant === 1) {
+        headline = `With Price Stability Secured at ${r.cpi}%, Bond Strategists Debate Long-Run Neutral Rate`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"The inflation battle is won for now; the intellectual debate on the street is whether r-star sits at one percent or higher."`;
+        body = `As consumer price growth tracks quietly at ${r.cpi}% and flexible goods inflation sits at ${r.flexCpi}%, research desks across the financial district have shifted focus from inflation firefighting to estimating the economy's equilibrium interest rate.
+
+The central bank's ${r.rate}% policy rate and -$${Math.abs(state.qt_monthly_pace || 25)}B monthly balance-sheet runoff have coincided with steady ${r.gdp}% real GDP growth and ${r.unemp}% unemployment, suggesting monetary settings are neither choking credit nor overheating demand.
+
+Repo market plumbing remained smooth throughout month-end settlement, giving policymakers ample breathing room ahead of the next quarterly assessment.`;
+      } else {
+        headline = `Foreign Real-Money Funds Add Domestic Bonds on ${r.cpi}% CPI Credibility`;
+        tone = 'bullish';
+        urgency = 'low';
+        whisperQuote = `"Predictable central banking attracts patient capital—pension funds love a boring two-percent inflation print."`;
+        body = `Custodial flow data from major clearing banks showed steady institutional inflows into domestic sovereign debt this month, underpinned by central bank market credibility of ${state.market_credibility || 78}/100 and on-target ${r.cpi}% inflation.
+
+Ten-year yields at ${r.yield10y}% continue to offer attractive positive real returns above ${r.cpi}% inflation, while two-year notes anchored at ${r.yield2y}% reflect calm forward rate expectations around the ${r.rate}% policy benchmark.
+
+${activeEvent ? `Analysts are also tracking ${activeEvent.name}, though core price expectations remain firmly moored.` : `Strategists expect cross-border bond allocations to remain supportive so long as core inflation stays near two percent.`}`;
+      }
     }
 
+  // =========================================================================
+  // 2. THE DOLL STREET JOURNAL (Capital Markets, CFOs, Equities & Credit)
+  // =========================================================================
   } else if (publisherKey === 'doll_street') {
     featuredVar = 'stock_market_index';
 
-    if (state.bank_lending_rate > 6.8) {
-      headline = `CFOs Sound Alarm as 7% Commercial Borrowing Freezes Corporate M&A`;
+    if (r.lending >= 6.8) {
+      headline = `CFOs Shelve Leveraged Buyouts as ${r.lending}% Commercial Credit Bites`;
+      tone = 'critical';
+      urgency = 'high';
+      whisperQuote = `"Private equity debt math breaks down near seven percent. Sponsors are parking capital until credit thaws."`;
+      body = `Corporate finance committees are deferring debt-funded acquisitions as prime commercial borrowing rates of ${r.lending}%—anchored off a ${r.rate}% central bank rate—force treasurers to prioritize interest coverage over expansion.
+
+Mid-market industrial borrowers report tighter bank syndicate covenants, with Doll Street equities trading at ${r.stocks} points as analysts trim earnings multiples on capital-intensive manufacturers.
+
+"High hurdle rates separate cash-rich incumbents from leveraged challengers," said Harrison Cole, corporate finance specialist.`;
+
+    } else if (r.growthRegime === 'recession') {
+      headline = `Boardrooms Trim Guidance as ${r.gdp}% GDP Contraction Weighs on Doll Street`;
       tone = 'dovish';
       urgency = 'high';
-      whisperQuote = `"Private equity debt math completely disintegrates above 7%. Deals that penciled out twelve months ago are being aborted in due diligence."`;
-      body = `Corporate boardrooms across Doll Street are shelving capital expansion plans as commercial loan rates breached ${state.bank_lending_rate}%, forcing chief financial officers to reallocate operating cash flow toward debt servicing rather than research or hiring.
+      whisperQuote = `"Top-line volume is stalling; CEOs want rate relief before inventory cuts turn into plant closures."`;
+      body = `Quarterly earnings calls turned defensive this week as annualized GDP growth of ${r.gdp}% and ${r.unemp}% unemployment weighed on freight, retail, and industrial capital-goods orders, leaving the Doll Street Index at ${r.stocks}.
 
-A survey of thirty mid-cap manufacturing and technology executives revealed that debt-service obligations now devour an average of 19.2% of EBITDA. Several syndicated leveraged buyout transactions were scrapped this week after debt underwriting syndicates demanded equity checks exceeding 55%.
+Executives urged policymakers to lean against cyclical slack, noting that commercial credit at ${r.lending}% remains restrictive relative to softening corporate pricing power.`;
 
-"The era of gratuitous financial engineering is officially closed," stated Julian Cole, managing partner at Sterling Capital Partners. "When commercial paper commands nearly seven percent, industrial corporations cannot borrow to repurchase equity without risking credit downgrades. The hurdle rate for new factory groundbreakings has doubled."`;
+    } else if (r.isGoldilocks || (r.rateRegime !== 'tight_punitive' && r.inflationRegime === 'on_target')) {
+      const variant = turnIdx % 3;
+      if (variant === 0) {
+        headline = `Dealmaking Thaws on Doll Street as ${r.rate}% Base Rates and ${r.cpi}% CPI Calm CFOs`;
+        tone = 'bullish';
+        urgency = 'low';
+        whisperQuote = `"Predictable borrowing costs and two-percent inflation are reopening the M&A playbook across mid-cap industrials."`;
+        body = `Investment-banking advisory desks on Doll Street reported their busiest pitch calendar in quarters as the combination of a ${r.rate}% policy rate, ${r.cpi}% headline inflation, and ${r.gdp}% GDP growth restored boardroom confidence.
 
-    } else if (state.stock_market_index > 5400) {
-      headline = `Doll Street Index Rallies to ${state.stock_market_index} as Mega-Cap Earnings Defy Tight Money`;
-      tone = 'bullish';
-      urgency = 'medium';
-      whisperQuote = `"Mega-cap technology balance sheets are minting interest income while smaller peers suffer under loan costs."`;
-      body = `Equities surged to new cyclical territory as the Doll Street Index closed at ${state.stock_market_index}, propelled by robust earnings releases from cash-rich industrial champions and enterprise software leaders.
+With commercial bank lending rates at ${r.lending}% and the Doll Street Index trading at ${r.stocks} points, chief financial officers say predictable input costs—flexible goods inflation is just ${r.flexCpi}%—allow multi-year factory and technology capital budgets to pencil out cleanly.
 
-Despite central bank policy rates of ${state.interest_rate}%, corporate cash reserves generated substantial yields on short-dated sovereign paper, insulating balance sheets against commercial credit stress. Valuation multiples expanded across high-margin defensives, shrugging off warnings of delayed transmission drags.
+"Executives don't need zero-percent free money to invest; they need visibility," said Victoria Vance, capital markets editor. "A soft landing with steady real demand is the healthiest backdrop for corporate earnings."`;
+      } else if (variant === 1) {
+        headline = `Corporate Margins Firm Up as Input Inflation Cools to ${r.flexCpi}% and Demand Holds`;
+        tone = 'bullish';
+        urgency = 'low';
+        whisperQuote = `"Supply-chain surcharges have vanished from earnings transcripts while consumer unit volumes are growing."`;
+        body = `Industrial and consumer-facing corporations posted resilient operating margins this month as stabilized wholesale costs (${r.flexCpi}% flexible CPI) paired with ${r.gdp}% annualized economic growth lifted the Doll Street Index to ${r.stocks}.
 
-"Investors are bifurcating the market," noted Arthur Pendelton, Doll Street equities columnist. "Companies with pristine balance sheets and dominant pricing power are compounding earnings, while debt-heavy small-caps lag behind. As long as top-line revenue holds, institutional capital is sticking with equity equities."`;
+Equity strategists note that positive real wage growth of +${r.realWage}% is supporting household unit volumes without reigniting destructive cost spirals. Meanwhile, corporate bond issuance cleared smoothly against a ${r.yield10y}% 10-year Treasury benchmark.
+
+"Quality earnings growth—driven by volume and productivity rather than price hikes—is back in the driver's seat," wrote columnist Arthur Pendelton.`;
+      } else {
+        headline = `At ${r.stocks} Points, Institutional Portfolios Rotate Toward Domestic Cyclicals`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"With recession tail-risk fading and rates anchored at ${r.rate}%, asset allocators are broadening beyond mega-caps."`;
+        body = `Portfolio managers on Doll Street broadened equity exposure into domestic industrials, logistics, and regional financials this week, keeping the benchmark index at ${r.stocks} points amid ${r.unemp}% unemployment and ${r.cpi}% inflation.
+
+Commercial credit facilities priced near ${r.lending}% saw steady drawdowns for equipment upgrades and automation software, reflecting constructive business sentiment across mid-sized enterprises.`;
+      }
 
     } else {
-      headline = `Equities Range-Bound at ${state.stock_market_index} as Boardrooms Weigh Capital Costs`;
+      headline = `Doll Street Trades at ${r.stocks} as Boardrooms Weigh ${r.lending}% Credit Against ${r.gdp}% Growth`;
       tone = 'neutral';
       urgency = 'medium';
-      whisperQuote = `"Why take equity risk when risk-free sovereign bills guarantee nearly five percent? Investors are demanding higher earnings yields."`;
-      body = `Trading on the financial district concluded with muted volatility as the Doll Street Index hovered at ${state.stock_market_index}. Portfolio managers reported light institutional turnover as corporate earnings season concluded with modest beats but cautious forward guidance.
+      whisperQuote = `"Earnings are holding up, though CFOs remain selective on leveraged expansion until borrowing spreads narrow."`;
+      body = `Equity trading proceeded at a measured pace with the Doll Street Index at ${r.stocks} points as corporate treasurers balanced ${r.lending}% commercial loan rates against ${r.gdp}% real GDP expansion and ${r.cpi}% inflation.
 
-With the benchmark policy rate at ${state.interest_rate}%, corporate finance committees are debating whether to deploy free cash toward debt retirement or modest dividend increases. Mergers and acquisitions activity remains constrained, though private credit funds report steady demand for customized asset-backed lending.
-
-"We are in a holding pattern," said Victoria Vance, capital markets editor. "Institutional investors are waiting to see whether upcoming consumer spending figures indicate a soft landing or a deeper squeeze on discretionary corporate margins."`;
+Analysts reported solid cash-flow generation among large-cap issuers while smaller firms maintained disciplined inventory and hiring plans.`;
     }
 
+  // =========================================================================
+  // 3. GOTHAM NEWS TRIBUNE (Metro Labor, Paychecks, Housing & Main Street)
+  // =========================================================================
   } else if (publisherKey === 'gotham') {
-    featuredVar = 'housing_cost_index';
+    featuredVar = 'real_wage_growth';
 
-    if (state.housing_cost_index > 145) {
-      headline = `Rent Hikes and Mortgage Lockout Strand Young Families in Outer Boroughs`;
+    if (r.inflationRegime === 'elevated_inflation' || r.inflationRegime === 'severe_inflation') {
+      featuredVar = 'inflation_cpi';
+      headline = `Grocery Aisles Sting Working Budgets as Inflation Runs at ${r.cpi}%`;
       tone = 'critical';
+      urgency = r.cpi > 5.0 ? 'critical' : 'high';
+      whisperQuote = `"Two bags of essentials eat half an overtime shift when inflation stays up at ${r.cpi}%."`;
+      body = `Along neighborhood shopping corridors in outer Gotham, households are trimming weekly lists as ${r.cpi}% consumer price inflation—including ${r.flexCpi}% in flexible goods—presses family budgets and keeps real wage growth at ${r.realWage}%.
+
+Local grocers and diner owners report shoppers trading down to store brands while utility bills strain fixed-income retirees, pushing the social discontent gauge to ${r.discontent}/100.`;
+
+    } else if (r.unemp >= 5.0 || r.growthRegime === 'recession') {
+      featuredVar = 'unemployment_rate';
+      headline = `Longer Lines at Union Hiring Halls as Unemployment Reaches ${r.unemp}%`;
+      tone = 'dovish';
       urgency = 'high';
-      whisperQuote = `"My landlord raised rent by $250 while my grocery bill climbed by another hundred. The central bank says inflation is under control, but our household budget is sinking."`;
-      body = `At neighborhood community meetings across Gotham's working-class boroughs, frustration over living standards boiled over as the metropolitan housing cost index surged to ${state.housing_cost_index}.
+      whisperQuote = `"Overtime dried up first; now warehouse shifts are getting cut across the industrial district."`;
+      body = `Outside municipal workforce centers and trade halls in Gotham, job seekers reported stiffer competition for steady shifts this month as national unemployment stood at ${r.unemp}% alongside ${r.gdp}% GDP growth.
 
-With mortgage rates locked near commercial lending levels of ${state.bank_lending_rate}%, first-time home purchases have vanished for working families, funneling thousands into an already overheated rental market. Eviction filings in municipal housing court have increased by 22% year-over-year, while local food banks report unprecedented lines of fully employed citizens seeking emergency grocery staples.
+Labor advocates urged central bank policymakers to prioritize job preservation, warning that prolonged hiring freezes erode working-class savings faster than modest fluctuations in credit markets.`;
 
-"Every month feels like a high-wire act with no safety net," said Clara Morales, a certified nursing assistant in South Gotham. "My paycheck hasn't moved, but my rent, milk, and electricity bills have skyrocketed. We are cutting back on everything just to keep a roof overhead."
+    } else if (r.inflationRegime === 'on_target' && r.wageRegime === 'rising_purchasing_power') {
+      const variant = turnIdx % 3;
+      if (variant === 0 && r.housing > 144) {
+        featuredVar = 'housing_cost_index';
+        headline = `Grocery Prices Steady at ${r.cpi}%, Allowing Paychecks to Breathe—Though Metro Rents Stay Tight`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"Checkout receipts finally stopped jumping every month, and wages are beating inflation—now the city just needs to build more apartments."`;
+        body = `In neighborhood markets across Gotham, shoppers say the weekly sticker shock that once dominated kitchen-table talk has noticeably faded: headline inflation sits at ${r.cpi}% while real wages are growing +${r.realWage}% faster than prices.
 
-Community organizers and tenant unions are demanding immediate legislative intervention, warning that without shelter rent stabilization, civic discontent will continue to spill into municipal labor negotiations.`;
+"Milk, eggs, and transit fares aren't eating every raise anymore," said Mateo Alvarez, an electrician in Queensborough whose union contract delivered real purchasing-power gains this quarter as consumer confidence rose to ${r.confidence}.
+
+Still, housing advocates note that while monetary policy has tamed everyday inflation, municipal zoning bottlenecks keep the metropolitan Housing Cost Index at ${r.housing}—a structural supply challenge tenant groups say City Hall and Parliament, rather than interest rates alone, must solve.`;
+      } else if (variant === 1) {
+        headline = `Paychecks Outpace ${r.cpi}% Inflation as Real Wages Climb +${r.realWage}% Across Metro`;
+        tone = 'bullish';
+        urgency = 'low';
+        whisperQuote = `"For the first time in years, a cost-of-living raise actually feels like a real raise at the end of the month."`;
+        body = `Working households across Gotham are seeing tangible breathing room in monthly budgets as headline inflation holds quietly at ${r.cpi}% and real wage growth registers +${r.realWage}%, lifting consumer confidence to ${r.confidence}.
+
+With unemployment steady at ${r.unemp}% and social discontent down to ${r.discontent}/100, neighborhood restaurants, hardware stores, and weekend markets reported brisker family foot traffic than a year ago.
+
+"Predictable prices let working people plan—whether that's replacing a delivery van or saving for community college," said Rosa Morales, metro labor reporter.`;
+      } else {
+        headline = `Steady ${r.unemp}% Employment and Tame ${r.cpi}% Prices Bolster Neighborhood Shops`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"Suppliers aren't hiking wholesale invoices every thirty days anymore, and regular customers are back."`;
+        body = `Small storefront owners from South Gotham to the harbor district described a welcome return to normalcy this month as flexible goods inflation cooled to ${r.flexCpi}% and overall CPI anchored at ${r.cpi}%.
+
+Trade apprenticeship programs reported steady placement rates under ${r.gdp}% economic growth, while real paycheck gains of +${r.realWage}% helped working renters absorb ${r.lending}% commercial credit conditions without rising delinquency.`;
+      }
 
     } else {
-      headline = `Paychecks Strained as Inflation Hits Grocery Receipts in Neighborhood Markets`;
-      tone = 'critical';
-      urgency = 'medium';
-      whisperQuote = `"You walk out of the supermarket with two brown bags and you've spent seventy dollars. That's three hours of overtime gone."`;
-      body = `Across grocery aisles in Gotham's working neighborhoods, consumer price statistics translate into agonizing choices between essential dairy products, heating bills, and winter clothing. While headline figures cite an unemployment rate of ${state.unemployment_rate}%, real wage growth remains depressed at ${state.real_wage_growth}%.
+      headline = `Metro Households Navigate ${r.cpi}% Inflation and ${r.lending}% Borrowing Rates`;
+      tone = r.realWage < 0 ? 'critical' : 'neutral';
+      urgency = r.realWage < 0 ? 'medium' : 'low';
+      whisperQuote = `"Jobs are holding at ${r.unemp}%, though first-time homebuyers are watching mortgage spreads closely."`;
+      body = `Across Gotham's commuter neighborhoods, household ledgers reflect a mixed but manageable picture: headline inflation stands at ${r.cpi}%, unemployment is ${r.unemp}%, and real wage growth sits at ${r.realWage}%.
 
-Small business owners report that foot traffic is declining as working households eliminate discretionary outings. Neighborhood bodegas and hardware shops cite declining wholesale inventory turnover, while utility shut-off warnings have reached multi-year peaks.
-
-"Families are exhausted," remarked Terrell Jenkins, urban housing and economy reporter. "The economic communiques released downtown sound clinical, but on Main Street, working people are managing household deficits that cannot be resolved without real purchasing power growth."`;
+While consumer confidence registers ${r.confidence}, housing counselors note the metropolitan Housing Cost Index of ${r.housing} and ${r.lending}% bank lending rates continue to keep young buyers price-conscious.`;
     }
 
+  // =========================================================================
+  // 4. THE CASHINGTON POST (Parliament, Coalition Politics & Fiscal Policy)
+  // =========================================================================
   } else if (publisherKey === 'cashington') {
     featuredVar = 'parliamentary_approval';
 
-    if (state.parliamentary_approval < 50) {
-      headline = `Committee Summons Central Bank Leadership as Approval Plunges to ${state.parliamentary_approval}%`;
+    if (r.politicsRegime === 'hostile_oversight') {
+      headline = `Backbenchers Sharpen Knives as Governor's Parliamentary Approval Drops to ${r.parlApproval}%`;
       tone = 'critical';
-      urgency = 'critical';
-      whisperQuote = `"The backbenchers are facing furious town halls over mortgage rates. If the central bank refuses to listen, Parliament will introduce legislation to curb its charter."`;
-      body = `A storm erupted in the corridors of Parliament Hill as legislative approval for the central bank chair slid to ${state.parliamentary_approval}%, prompting senior members of the Treasury Select Committee to demand an emergency oversight hearing.
+      urgency = r.parlApproval < 32 ? 'critical' : 'high';
+      whisperQuote = `"Swing-seat MPs are getting earfuls at constituency clinics—and they want the Central Bank in the witness chair."`;
+      body = `Senior whips in Parliament Hill warned of turbulent committee sessions ahead as legislative confidence in the central bank leadership stood at ${r.parlApproval}%, with ${state.months_to_election} months remaining before voters head to the polls.
 
-With ${state.months_to_election} months remaining before general elections, coalition MPs in suburban swing ridings delivered fierce speeches on the parliamentary floor, accusing appointed central bankers of indifference toward family mortgage distress and municipal financing shortfalls.
+Opposition lawmakers pointed to constituent frustration, floating draft amendments to tighten statutory reporting requirements if economic indicators fail to improve.`;
 
-"Statutory independence is a privilege granted by Parliament, not a divine right to ignore public suffering," declared Member of Parliament Donald Sterling during question time. "When working families lose their homes to punitive borrowing rates, the officials responsible must answer directly to the elected representatives of the people."
+    } else if (r.politicsRegime === 'strong_bipartisan_support' && r.inflationRegime === 'on_target') {
+      const variant = turnIdx % 3;
+      if (variant === 0) {
+        headline = `Riding ${r.parlApproval}% Approval and ${r.cpi}% Inflation, Governor Enjoys Rare Capitol Detente`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"Nobody on the Treasury Committee wants to pick a television fight with a Governor delivering 2% inflation and ${r.gdp}% growth."`;
+        body = `A rare bipartisan calm has settled over central bank oversight on Parliament Hill: with headline inflation anchored at ${r.cpi}%, GDP expanding at ${r.gdp}%, and legislative confidence at an enviable ${r.parlApproval}%, both coalition ministers and opposition spokespeople spent the week praising price stability.
 
-Several opposition backbenchers confirmed they are drafting private member bills that would impose formal parliamentary oversight mechanisms on future interest rate adjustments, escalating a constitutional showdown over monetary sovereignty.`;
+Behind closed doors, party strategists preparing for elections in ${state.months_to_election} months are already vying to claim political credit for the +${r.realWage}% rise in real wages and ${r.pubApproval}% public sentiment.
+
+"When grocery inflation is tame and policy rates sit at a moderate ${r.rate}%, lawmakers turn their fire on each other's tax plans rather than the central bank charter," observed bureau chief Eleanor Sterling.`;
+      } else if (variant === 1) {
+        headline = `With Inflation Tamed at ${r.cpi}%, Parliament Pivots to ${r.deficit}% Fiscal Deficit Debate`;
+        tone = 'neutral';
+        urgency = 'low';
+        whisperQuote = `"The Central Bank did its job getting rates to ${r.rate}% and CPI to two percent—now the Treasury bench owns the budget math."`;
+        body = `Freed from emergency inflation hearings as CPI rests at ${r.cpi}% and central bank approval stands at ${r.parlApproval}%, lawmakers on the Public Accounts Committee turned their focus squarely onto the Treasury's ${r.deficit}% fiscal deficit and ${r.debtToGdp}% debt-to-GDP ratio.
+
+Fiscal conservatives argued that a healthy ${r.gdp}% expansion and ${r.unemp}% unemployment represent the textbook moment to trim structural deficits, while coalition MPs lobbied for housing-supply and grid-modernization grants.`;
+      } else {
+        headline = `Bipartisan Lawmakers Eye Housing Supply & Banking Competition as Macro Waters Calm`;
+        tone = 'bullish';
+        urgency = 'low';
+        whisperQuote = `"High institutional trust (${r.parlApproval}% in Parliament) gives the Governor real sway when technical reform bills hit the floor."`;
+        body = `With monetary policy steady at ${r.rate}%, inflation near target at ${r.cpi}%, and public approval of economic stewardship at ${r.pubApproval}%, senior committee chairs signaled openness to structural legislation on mortgage competition and industrial productivity.
+
+Political analysts note that ${state.months_to_election} months out from general elections, maintaining non-partisan discipline remains the Governor's strongest shield as campaign rhetoric gradually warms.`;
+      }
 
     } else {
-      headline = `Parliament Clashes Over Sovereign Debt Burden as Election Season Draws Near`;
-      tone = 'hawkish';
+      headline = `Lawmakers Weigh ${r.deficit}% Deficit and ${r.rate}% Rates With ${state.months_to_election} Months to Election`;
+      tone = 'neutral';
       urgency = 'medium';
-      whisperQuote = `"The fiscal deficit is crowding out every domestic legislative priority. Ministers cannot build hospitals when sovereign interest payments consume the budget."`;
-      body = `Tensions between Treasury ministers and legislative budget committees intensified as lawmakers debated the national fiscal deficit of ${state.fiscal_deficit}% of GDP and total debt-to-GDP of ${state.debt_to_gdp}%.
+      whisperQuote = `"Every committee question between now and election day is written with suburban swing voters in mind."`;
+      body = `On Parliament Hill, where the central bank chair holds a ${r.parlApproval}% confidence rating, budget and Treasury committees spent the week debating the interplay between ${r.rate}% benchmark interest rates, ${r.cpi}% inflation, and sovereign debt at ${r.debtToGdp}% of GDP.
 
-With benchmark borrowing costs holding at ${state.interest_rate}%, national debt service obligations have become the fastest-growing line item in the sovereign budget, forcing cabinet leaders to freeze funding allocations for transit modernization and regional hospital networks.
-
-"The arithmetic is unyielding," noted Eleanor Sterling, parliamentary bureau chief. "Every quarter that interest rates remain restrictive adds billions to the sovereign carrying cost. With campaign season approaching in ${state.months_to_election} months, lawmakers are increasingly unwilling to absorb the political cost of fiscal austerity while central bank officials operate with unyielding discretion."`;
+With ${state.months_to_election} months on the electoral clock, party whips from both benches are closely tracking consumer confidence (${r.confidence}) and mortgage spreads (${r.lending}%).`;
     }
   }
 
@@ -507,5 +1066,6 @@ module.exports = {
   generateMonthlyNews,
   generateWithLocalMacroEngine,
   PUBLISHER_PROFILES,
-  selectPrimaryEconomicDrivers
+  selectPrimaryEconomicDrivers,
+  classifyEconomicReality
 };

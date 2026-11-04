@@ -22,7 +22,7 @@ const MPC_MEMBERS = [
     hawkishness: 50, // 0 = hyper-dove, 100 = hyper-hawk
     beta_inflation: 1.5,
     beta_output: 0.5,
-    r_star: 1.5,
+    r_star: 1.15,
     bio: 'Committee Chair committed to data dependency and institutional consensus.'
   },
   {
@@ -31,9 +31,9 @@ const MPC_MEMBERS = [
     title: 'Deputy Governor for Monetary Analysis',
     role: 'Hawk',
     hawkishness: 82,
-    beta_inflation: 2.2,
-    beta_output: 0.2,
-    r_star: 1.75,
+    beta_inflation: 2.0,
+    beta_output: 0.25,
+    r_star: 1.45,
     bio: 'Staunch monetary conservative who argues inflation expectations unanchor if policy is too loose.'
   },
   {
@@ -42,9 +42,9 @@ const MPC_MEMBERS = [
     title: 'External Member (Financial Markets)',
     role: 'Hawk',
     hawkishness: 75,
-    beta_inflation: 1.9,
-    beta_output: 0.3,
-    r_star: 1.6,
+    beta_inflation: 1.8,
+    beta_output: 0.30,
+    r_star: 1.35,
     bio: 'Former chief fixed income strategist worried about sovereign bond vigilantes and wage spirals.'
   },
   {
@@ -55,7 +55,7 @@ const MPC_MEMBERS = [
     hawkishness: 55,
     beta_inflation: 1.5,
     beta_output: 0.5,
-    r_star: 1.5,
+    r_star: 1.15,
     bio: 'Balances price stability against systemic debt burdens and credit liquidity.'
   },
   {
@@ -66,7 +66,7 @@ const MPC_MEMBERS = [
     hawkishness: 48,
     beta_inflation: 1.4,
     beta_output: 0.6,
-    r_star: 1.4,
+    r_star: 1.10,
     bio: 'Strict follower of empirical Taylor-rule models and neutral interest rate calculations.'
   },
   {
@@ -77,7 +77,7 @@ const MPC_MEMBERS = [
     hawkishness: 50,
     beta_inflation: 1.5,
     beta_output: 0.5,
-    r_star: 1.5,
+    r_star: 1.15,
     bio: 'Author of the quarterly macroeconomic staff forecast; seeks pragmatic compromise.'
   },
   {
@@ -86,9 +86,9 @@ const MPC_MEMBERS = [
     title: 'External Member (Labor Economics)',
     role: 'Dove',
     hawkishness: 25,
-    beta_inflation: 0.8,
-    beta_output: 1.4,
-    r_star: 1.25,
+    beta_inflation: 0.85,
+    beta_output: 1.3,
+    r_star: 0.80,
     bio: 'Focuses on employment hysteresis and living wages; skeptical of Phillips-curve trade-offs.'
   },
   {
@@ -97,9 +97,9 @@ const MPC_MEMBERS = [
     title: 'Deputy Governor for Markets & Banking',
     role: 'Dove',
     hawkishness: 32,
-    beta_inflation: 0.9,
-    beta_output: 1.2,
-    r_star: 1.3,
+    beta_inflation: 0.95,
+    beta_output: 1.15,
+    r_star: 0.90,
     bio: 'Vigilant against credit crunch risks and small business insolvency from elevated borrowing costs.'
   },
   {
@@ -108,9 +108,9 @@ const MPC_MEMBERS = [
     title: 'External Member (Industrial Strategy)',
     role: 'Dove',
     hawkishness: 28,
-    beta_inflation: 0.85,
-    beta_output: 1.3,
-    r_star: 1.25,
+    beta_inflation: 0.90,
+    beta_output: 1.25,
+    r_star: 0.85,
     bio: 'Passionate about capital investment in green and manufacturing infrastructure.'
   }
 ];
@@ -121,6 +121,9 @@ function calculateMpcVote(state, proposedRateBps) {
   const proposedRate = Number((currentRate + (proposedRateBps / 100.0)).toFixed(2));
   const inflationGap = state.inflation_cpi - 2.0;
   const outputGap = state.gdp_growth - 2.1;
+  const inflationNearTarget = Math.abs(inflationGap) <= 0.35 && Math.abs((state.sticky_cpi || state.inflation_cpi) - 2.0) <= 0.45;
+  // Collegial central bank norm: when credibility is solid and inflation is near target, members give modest deference to the Chair
+  const collegialBandBps = inflationNearTarget && (state.market_credibility || 75) >= 55 ? 35 : 25;
 
   const votes = MPC_MEMBERS.map(member => {
     // If it's the chair (first member), they propose the rate so they vote AYE
@@ -134,10 +137,12 @@ function calculateMpcVote(state, proposedRateBps) {
         preferred_delta_bps: proposedRateBps,
         vote: 'AYE',
         rationale: proposedRateBps === 0 
-          ? 'Rates remain appropriate to anchor inflation expectations while monitoring lagging transmission.'
+          ? (inflationNearTarget
+              ? 'Policy is appropriately calibrated with inflation anchored near the 2.0% statutory target.'
+              : 'Rates remain appropriate to anchor expectations while monitoring lagging transmission.')
           : proposedRateBps > 0
-          ? `A ${proposedRateBps} bps tightening is necessary to lean against persistent price pressures.`
-          : `A ${Math.abs(proposedRateBps)} bps easing provides necessary accommodation for macroeconomic momentum.`
+          ? `A ${proposedRateBps} bps tightening is warranted to lean against price and demand pressures.`
+          : `A ${Math.abs(proposedRateBps)} bps easing recalibrates policy toward neutral to sustain balanced growth.`
       };
     }
 
@@ -147,25 +152,29 @@ function calculateMpcVote(state, proposedRateBps) {
       (member.beta_output * 0.5 * outputGap);
     
     // Nearest quarter-percent step
-    const rawDelta = memberTaylorRate - currentRate;
-    const preferredDeltaBps = Math.round(rawDelta * 4) * 25; // in bps
+    const rawDeltaBps = (memberTaylorRate - currentRate) * 100;
+    const preferredDeltaBps = Math.round(rawDeltaBps / 25) * 25;
     const boundedDeltaBps = Math.max(-100, Math.min(100, preferredDeltaBps));
     const preferredRate = Number((currentRate + boundedDeltaBps / 100.0).toFixed(2));
 
-    // Determine vote: AYE if member's preference is within 25 bps of proposed rate, else DISSENT
-    const diff = Math.abs(boundedDeltaBps - proposedRateBps);
+    // Determine vote: AYE if member's preference is within collegial band of proposed rate, else DISSENT
+    const diff = Math.abs(rawDeltaBps - proposedRateBps);
     let vote = 'AYE';
     let rationale = '';
 
-    if (diff <= 25) {
+    if (diff <= collegialBandBps || Math.abs(boundedDeltaBps - proposedRateBps) <= 25) {
       vote = 'AYE';
       rationale = `Concurs with the Chair's ${proposedRateBps >= 0 ? '+' : ''}${proposedRateBps} bps stance based on balanced medium-term risk weighting.`;
     } else if (boundedDeltaBps > proposedRateBps) {
       vote = 'DISSENT_HAWK';
-      rationale = `Dissents in favor of a steeper tightening (${boundedDeltaBps >= 0 ? '+' : ''}${boundedDeltaBps} bps) to preempt unanchored inflation risks.`;
+      rationale = state.inflation_cpi > 2.5
+        ? `Dissents in favor of firmer policy (${boundedDeltaBps >= 0 ? '+' : ''}${boundedDeltaBps} bps) to curb above-target ${state.inflation_cpi}% inflation.`
+        : `Dissents in favor of a higher neutral rate (${boundedDeltaBps >= 0 ? '+' : ''}${boundedDeltaBps} bps) given ${state.gdp_growth}% GDP expansion.`;
     } else {
       vote = 'DISSENT_DOVE';
-      rationale = `Dissents in favor of greater accommodation (${boundedDeltaBps >= 0 ? '+' : ''}${boundedDeltaBps} bps) to shield employment and domestic growth.`;
+      rationale = state.gdp_growth < 1.5 || state.unemployment_rate > 4.6
+        ? `Dissents in favor of greater accommodation (${boundedDeltaBps >= 0 ? '+' : ''}${boundedDeltaBps} bps) to shield employment and domestic growth.`
+        : `Dissents in favor of faster normalization (${boundedDeltaBps >= 0 ? '+' : ''}${boundedDeltaBps} bps) now that inflation sits at ${state.inflation_cpi}%.`;
     }
 
     return {
@@ -193,6 +202,8 @@ function calculateMpcVote(state, proposedRateBps) {
     hawkish_dissents: hawkishDissents,
     dovish_dissents: dovishDissents,
     passed: ayes >= 5,
+    just_voted: true,
+    months_ago: 0,
     tally_label: `${ayes}-${dissents} Decision`,
     member_votes: votes,
     consensus_summary: dissents === 0 
@@ -554,7 +565,7 @@ function getInitialChairState(playMode, customChairName = 'Helena Vance') {
 
 // Calculate theoretical Taylor Rule benchmark
 function calculateTaylorRule(state) {
-  const rStar = 1.5; // Equilibrium neutral real rate
+  const rStar = 1.15; // Equilibrium neutral real rate (consistent with MPC median r*)
   const targetInflation = 2.0;
   const potentialGdpGrowth = 2.1;
   
@@ -570,6 +581,15 @@ function evolveEconomy(prevState, action, playMode, difficulty, chairState) {
   const state = JSON.parse(JSON.stringify(prevState));
   state.term_months_completed = (state.term_months_completed || 0) + 1;
   state.credibility_warning = null;
+
+  // Age previous MPC vote in inter-meeting months so press/parliament know whether a vote just happened
+  if (state.last_mpc_vote && action.action_type !== 'mpc_rate_decision') {
+    state.last_mpc_vote = {
+      ...state.last_mpc_vote,
+      just_voted: false,
+      months_ago: (state.last_mpc_vote.months_ago || 0) + 1
+    };
+  }
 
   // Ensure arrays exist
   if (!Array.isArray(state.transmission_pipeline)) state.transmission_pipeline = [];
@@ -767,7 +787,7 @@ function evolveEconomy(prevState, action, playMode, difficulty, chairState) {
     return item;
   }).filter(item => item.months_remaining > 0);
 
-  const neutralRate = 3.50;
+  const neutralRate = 3.15;
   const policyStance = state.interest_rate - neutralRate;
 
   // Aggregate Demand (IS Curve): Mean reversion + Friedman lagged impulse

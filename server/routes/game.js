@@ -405,8 +405,26 @@ router.post('/:sessionId/action', async (req, res) => {
     }
     const nextTotalMonths = session.total_months_elapsed + 1;
 
-    // Generate news stories for the NEW month concurrently
-    const newArticles = await generateMonthlyNews(newEconomicState, session.difficulty, nextYear, nextMonth);
+    // Fetch recent headlines across publishers so news avoids repeating recent angles
+    const recentHeadlines = db.prepare(`
+      SELECT publisher, headline
+      FROM news_articles
+      WHERE session_id = ?
+      ORDER BY year DESC, month DESC, created_at DESC
+      LIMIT 12
+    `).all(session.id);
+
+    // Generate news stories for the NEW month concurrently with full action & anti-repetition context
+    const newArticles = await generateMonthlyNews(
+      newEconomicState,
+      session.difficulty,
+      nextYear,
+      nextMonth,
+      {
+        lastAction: { action_type, action_value, statement },
+        recentHeadlines
+      }
+    );
 
     // Save action, turn history, news articles, and session state in a single atomic transaction
     const currentQuarter = Math.floor((session.current_month - 1) / 3) + 1;
@@ -622,20 +640,37 @@ router.get('/:sessionId/parliament-hearing', (req, res) => {
     }
 
     // Fetch turn history so parliamentary question generator knows policy rate trajectory (cutting, hiking, neutral)
-    const turns = db.prepare('SELECT year, month, action_type, action_value, statement, economic_snapshot FROM turn_history WHERE session_id = ? ORDER BY year ASC, month ASC').all(session.id);
-    const enrichedSession = {
-      ...session,
-      history: turns.map(t => {
-        try {
-          return { ...t, economic_state: JSON.parse(t.economic_snapshot) };
-        } catch (e) {
-          return t;
-        }
-      })
-    };
+    // Reuse cached summons questions for this exact month if already generated, otherwise generate & persist
+    let questions;
+    if (
+      state.current_hearing_month === session.total_months_elapsed &&
+      Array.isArray(state.current_hearing_questions) &&
+      state.current_hearing_questions.length > 0
+    ) {
+      questions = state.current_hearing_questions;
+    } else {
+      const turns = db.prepare('SELECT year, month, action_type, action_value, statement, economic_snapshot FROM turn_history WHERE session_id = ? ORDER BY year ASC, month ASC').all(session.id);
+      const enrichedSession = {
+        ...session,
+        history: turns.map(t => {
+          try {
+            return { ...t, economic_state: JSON.parse(t.economic_snapshot) };
+          } catch (e) {
+            return t;
+          }
+        })
+      };
 
-    // Generate dynamic varied questions tailored to the current economic situation
-    const questions = generateParliamentaryQuestions(state, enrichedSession);
+      questions = generateParliamentaryQuestions(state, enrichedSession);
+      state.current_hearing_month = session.total_months_elapsed;
+      state.current_hearing_questions = questions;
+
+      db.prepare(`
+        UPDATE game_sessions
+        SET economic_state = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(JSON.stringify(state), session.id);
+    }
 
     res.json({
       hearing: {
@@ -659,7 +694,7 @@ router.post('/:sessionId/parliament-hearing/testify', (req, res) => {
     const session = db.prepare('SELECT * FROM game_sessions WHERE id = ?').get(req.params.sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    const { choices } = req.body; // e.g. { q_mortgage_cost: 'empathetic_disinflation', ... }
+    const { choices } = req.body; // e.g. { q_soft_landing_and_neutral_rate: 'empathetic_disinflation', ... }
     let state = JSON.parse(session.economic_state);
 
     let netParlDelta = 0;
@@ -667,9 +702,21 @@ router.post('/:sessionId/parliament-hearing/testify', (req, res) => {
     let netAutonomyDelta = 0;
     let netCredibilityDelta = 0;
 
-    // Compute deltas from choices
+    const cachedQuestions = Array.isArray(state.current_hearing_questions) ? state.current_hearing_questions : [];
+
+    // Compute exact deltas from question strategies (falling back cleanly if not cached)
     for (const [qId, stratKey] of Object.entries(choices || {})) {
-      if (stratKey === 'empathetic_disinflation') {
+      const qObj = cachedQuestions.find(q => q.id === qId);
+      const stratObj = qObj && Array.isArray(qObj.strategies)
+        ? qObj.strategies.find(s => s.key === stratKey)
+        : null;
+
+      if (stratObj) {
+        netParlDelta += Number(stratObj.parl_approval_delta || 0);
+        netPublicDelta += Number(stratObj.public_approval_delta || 0);
+        netAutonomyDelta += Number(stratObj.autonomy_delta || 0);
+        netCredibilityDelta += Number(stratObj.market_credibility_delta || 0);
+      } else if (stratKey === 'empathetic_disinflation') {
         netParlDelta += 6;
         netPublicDelta += 5;
         netCredibilityDelta += 2;
@@ -696,8 +743,14 @@ router.post('/:sessionId/parliament-hearing/testify', (req, res) => {
       state.parliamentary_approval * 0.45 + state.public_approval * 0.25 + state.market_credibility * 0.15 + (100 - Math.abs(state.inflation_cpi - 2.0) * 10) * 0.15 - ((state.warning_count || 0) * 15)
     )).toFixed(1));
 
+    // Track asked question IDs in anti-repetition history (last 8 questions) and clear active cache
+    const askedIds = Object.keys(choices || {});
+    const prevIds = Array.isArray(state.recent_hearing_question_ids) ? state.recent_hearing_question_ids : [];
+    state.recent_hearing_question_ids = [...prevIds, ...askedIds].slice(-8);
+    state.current_hearing_questions = null;
+
     // Record that hearing has been completed for this round
-    const summary = `Testimony concluded before Parliamentary Select Committee. Parliamentary Approval changed by ${netParlDelta >= 0 ? '+' : ''}${netParlDelta}%, Public Approval changed by ${netPublicDelta >= 0 ? '+' : ''}${netPublicDelta}%, Market Credibility +${netCredibilityDelta}%.`;
+    const summary = `Testimony concluded before Parliamentary Select Committee. Parliamentary Approval changed by ${netParlDelta >= 0 ? '+' : ''}${netParlDelta}%, Public Approval changed by ${netPublicDelta >= 0 ? '+' : ''}${netPublicDelta}%, Market Credibility ${netCredibilityDelta >= 0 ? '+' : ''}${netCredibilityDelta}%.`;
     state.last_hearing_completed_month = session.total_months_elapsed;
     state.last_hearing_summary = summary;
     state.hearing_pending = false;

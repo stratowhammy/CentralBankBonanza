@@ -133,11 +133,15 @@ export const NewspaperDesk: React.FC<NewspaperDeskProps> = ({ articles, currentY
               <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
                 activeArticle.tone === 'hawkish'
                   ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
-                  : (activeArticle.tone === 'dovish'
-                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-                    : (activeArticle.tone === 'alarmist'
-                      ? 'bg-purple-500/15 text-purple-300 border-purple-500/40'
-                      : 'bg-amber-500/15 text-amber-300 border-amber-500/40'))
+                  : activeArticle.tone === 'dovish'
+                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                  : activeArticle.tone === 'bullish'
+                  ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                  : activeArticle.tone === 'neutral'
+                  ? 'bg-slate-700/40 text-slate-200 border-slate-600/50'
+                  : activeArticle.tone === 'alarmist'
+                  ? 'bg-purple-500/15 text-purple-300 border-purple-500/40'
+                  : 'bg-amber-500/15 text-amber-300 border-amber-500/40'
               }`}>
                 {activeArticle.tone}
               </span>
