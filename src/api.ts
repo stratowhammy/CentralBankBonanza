@@ -2,6 +2,23 @@ import { GameSession, User, EventCatalogItem } from './types';
 
 const API_BASE = '/api';
 
+async function safeErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      if (json && json.error) return json.error;
+    } catch {
+      if (text && text.length < 160 && !text.includes('<!DOCTYPE') && !text.includes('<html')) {
+        return text;
+      }
+    }
+    return `${fallback} (HTTP ${res.status}: ${res.statusText || 'Error'})`;
+  } catch {
+    return `${fallback} (HTTP ${res.status}: ${res.statusText || 'Error'})`;
+  }
+}
+
 export const api = {
   // Auth
   async register(username: string, password: string, display_name?: string): Promise<{ success: boolean; user: User }> {
@@ -11,8 +28,7 @@ export const api = {
       body: JSON.stringify({ username, password, display_name })
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Registration failed');
+      throw new Error(await safeErrorMessage(res, 'Registration failed'));
     }
     return res.json();
   },
@@ -24,8 +40,7 @@ export const api = {
       body: JSON.stringify({ username, password })
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Login failed');
+      throw new Error(await safeErrorMessage(res, 'Login failed'));
     }
     return res.json();
   },
@@ -59,8 +74,7 @@ export const api = {
       body: JSON.stringify(params)
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to start game');
+      throw new Error(await safeErrorMessage(res, 'Failed to start game'));
     }
     return res.json();
   },
@@ -82,8 +96,7 @@ export const api = {
       body: JSON.stringify(params)
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to advance turn');
+      throw new Error(await safeErrorMessage(res, 'Failed to advance turn'));
     }
     return res.json();
   },
@@ -336,21 +349,20 @@ export const api = {
       body: JSON.stringify(params)
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to start political career');
+      throw new Error(await safeErrorMessage(res, 'Failed to start political career'));
     }
     return res.json();
   },
 
   async getPoliticalSession(sessionId: string) {
     const res = await fetch(`${API_BASE}/political/session/${sessionId}`);
-    if (!res.ok) throw new Error('Failed to load political session');
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to load political session'));
     return res.json();
   },
 
   async getPoliticalSessions(userId: string) {
     const res = await fetch(`${API_BASE}/political/sessions?user_id=${userId}`);
-    if (!res.ok) throw new Error('Failed to list political sessions');
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to list political sessions'));
     return res.json();
   },
 
@@ -365,8 +377,7 @@ export const api = {
       body: JSON.stringify(params)
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to advance political turn');
+      throw new Error(await safeErrorMessage(res, 'Failed to advance political turn'));
     }
     return res.json();
   },
