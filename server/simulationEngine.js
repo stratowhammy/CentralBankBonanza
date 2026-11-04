@@ -298,41 +298,125 @@ const ECONOMY_TYPE_PROFILES = {
     name: 'Large Reserve Currency Hegemon',
     subtitle: 'Autonomous Monetary Superpower (US / Eurozone / UK parallel)',
     description: 'Deep domestic bond market, trillion-dollar balance sheet QE/QT, minimal imported inflation pass-through, reserve currency status.',
+    country_name: 'Federal Republic of Aurelia',
+    central_bank_name: 'The Federal Reserve Board of Aurelia',
+    short_bank_name: 'The Federal Reserve',
+    currency_name: 'Aurelian Dollar',
+    currency_moniker: 'Dollar',
+    currency_symbol: '$',
+    currency_slang: 'The Aurum / Greenback',
+    sovereign_bond_name: 'Aurelian Treasuries (T-Bonds & T-Bills)',
+    financial_center: 'Doll Street',
+    capital_city: 'New Cashington',
+    parliament_body: 'Senate Banking & Select Economic Committee',
     fx_passthrough: 0.03,
     sovereign_spread_base: 0,
     default_foreign_benchmark: 4.50,
     fx_reserves_default: 480.0, // $B
     import_share: 0.15,
-    balance_sheet_trillions: 7.20,
-    financial_center: 'Doll Street'
+    balance_sheet_trillions: 7.20
   },
   middle_advanced: {
     key: 'middle_advanced',
     name: 'Middle Advanced Open Economy',
     subtitle: 'Open Industrial Economy (Canada / Australia / Sweden / South Korea parallel)',
     description: 'Constrained by global rate differentials, moderate imported CPI pass-through, sensitive to terms of trade, housing mortgage debt, and capital flows.',
+    country_name: 'Dominion of Zeelandia',
+    central_bank_name: 'The Reserve Bank of Zeelandia',
+    short_bank_name: 'The Reserve Bank',
+    currency_name: 'Zeeland Dollar',
+    currency_moniker: 'Dollar',
+    currency_symbol: 'Z$',
+    currency_slang: 'The Zee',
+    sovereign_bond_name: 'Zeeland Commonwealth Gilts',
+    financial_center: 'Metropolitan Exchange',
+    capital_city: 'Port Victoria',
+    parliament_body: 'Parliamentary Finance & Treasury Committee',
     fx_passthrough: 0.18,
     sovereign_spread_base: 65, // 65 bps spread over global benchmark
     default_foreign_benchmark: 4.50,
     fx_reserves_default: 185.0, // $B
     import_share: 0.35,
-    balance_sheet_trillions: 0.85,
-    financial_center: 'Metropolitan Exchange'
+    balance_sheet_trillions: 0.85
   },
   small_emerging: {
     key: 'small_emerging',
     name: 'Small Open Economy',
     subtitle: 'Vulnerable Price-Taking Economy (Chile / Czechia / Poland / Singapore / South Africa parallel)',
     description: 'Hypersensitive to capital flight and sudden stops, high imported inflation pass-through, sovereign risk spreads, requires active FX reserve market defense.',
+    country_name: 'Republic of Solaria',
+    central_bank_name: 'Banco Central de Solaria',
+    short_bank_name: 'Banco Central',
+    currency_name: 'Solarian Peso',
+    currency_moniker: 'Peso',
+    currency_symbol: '₱',
+    currency_slang: 'The Sol',
+    sovereign_bond_name: 'Bonos Soberanos de Solaria',
+    financial_center: 'National Bourse',
+    capital_city: 'Ciudad Sol',
+    parliament_body: 'National Congress Economic Oversight Commission',
     fx_passthrough: 0.38,
     sovereign_spread_base: 220, // 220 bps spread over global benchmark
     default_foreign_benchmark: 4.50,
     fx_reserves_default: 65.0, // $B
     import_share: 0.55,
-    balance_sheet_trillions: 0.18,
-    financial_center: 'National Bourse'
+    balance_sheet_trillions: 0.18
   }
 };
+
+// Global Trading Partners & Vulnerable Foreign Shock Economies
+const FOREIGN_SHOCK_ECONOMIES = [
+  {
+    country_name: 'Republic of Maravedi',
+    central_bank_name: 'Banco Nacional de Maravedi (BNM)',
+    currency_name: 'Maravedi Peso',
+    currency_moniker: 'Peso',
+    currency_symbol: '₱',
+    currency_slang: 'The Mara',
+    vulnerability_type: 'Dollar-denominated external debt & sudden capital stop',
+    typical_shock: 'Sudden Stop: Currency depreciation (-20% to -35%) triggering emergency rate hikes and sovereign restructuring.'
+  },
+  {
+    country_name: 'Sultanate of Qashan',
+    central_bank_name: 'Monetary Authority of Qashan (MAQ)',
+    currency_name: 'Qashani Dinar',
+    currency_moniker: 'Dinar',
+    currency_symbol: 'د.إ',
+    currency_slang: 'The Petrodinar',
+    vulnerability_type: 'Energy price swings & shipping route blockade',
+    typical_shock: 'Hydrocarbon Shock: Export embargo or oil facility disruption spiking global crude and gas prices.'
+  },
+  {
+    country_name: 'Republic of Danubia',
+    central_bank_name: 'National Bank of Danubia (NBD)',
+    currency_name: 'Danubian Koruna',
+    currency_moniker: 'Koruna',
+    currency_symbol: 'Kč',
+    currency_slang: 'The Crown',
+    vulnerability_type: 'Supply-chain dislocation & imported producer inflation',
+    typical_shock: 'Industrial Disruption: Raw intermediate goods shortages causing localized factory shutdowns.'
+  },
+  {
+    country_name: 'Maritime Federation of Cipangu',
+    central_bank_name: 'Bank of Cipangu (BoC)',
+    currency_name: 'Cipangese Yen',
+    currency_moniker: 'Yen',
+    currency_symbol: '¥',
+    currency_slang: 'The Yen',
+    vulnerability_type: 'Global carry trade unwinding & yield curve defense',
+    typical_shock: 'Carry Trade Liquidation: Abrupt yield curve adjustment prompting sudden repatriation of global offshore assets.'
+  },
+  {
+    country_name: 'Commonwealth of Australis',
+    central_bank_name: 'Reserve Bank of Australis (RBA)',
+    currency_name: 'Austral Dollar',
+    currency_moniker: 'Dollar',
+    currency_symbol: 'A$',
+    currency_slang: 'The Digger',
+    vulnerability_type: 'Commodity terms of trade & mineral slump',
+    typical_shock: 'Mining Bust: Global demand slump for battery metals and iron ore depressing export earnings.'
+  }
+];
 
 // Initial Economic State with full Section 5 variables & configurable economy types / conditions / volatility
 function getInitialEconomicState(difficulty = 'normal', economyType = 'large_hegemon', startingCondition = null, volatility = 'normal') {
@@ -429,6 +513,18 @@ function getInitialEconomicState(difficulty = 'normal', economyType = 'large_heg
     economy_type: econType,
     starting_condition: condition,
     volatility: vol,
+
+    // Sovereign Identity & Monetary Charter
+    country_name: profile.country_name,
+    central_bank_name: profile.central_bank_name,
+    short_bank_name: profile.short_bank_name,
+    currency_name: profile.currency_name,
+    currency_moniker: profile.currency_moniker,
+    currency_symbol: profile.currency_symbol,
+    currency_slang: profile.currency_slang,
+    sovereign_bond_name: profile.sovereign_bond_name,
+    financial_center: profile.financial_center,
+    capital_city: profile.capital_city,
 
     // Core Macro Variables
     interest_rate: baseRate,
@@ -953,5 +1049,6 @@ module.exports = {
   injectEvent,
   GOD_MODE_CHAIRS,
   VOLATILITY_SCALERS,
-  ECONOMY_TYPE_PROFILES
+  ECONOMY_TYPE_PROFILES,
+  FOREIGN_SHOCK_ECONOMIES
 };

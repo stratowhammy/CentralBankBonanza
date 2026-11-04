@@ -1,10 +1,12 @@
-const { calculateTaylorRule } = require('./simulationEngine');
+const { calculateTaylorRule, ECONOMY_TYPE_PROFILES, FOREIGN_SHOCK_ECONOMIES } = require('./simulationEngine');
 
 // Advisor chat response generator
 async function handleAdvisorChat(userMessage, state, chatHistory = [], apiKey = null, newsArticles = [], sessionMeta = {}, model = 'deepseek-v4-pro') {
   const taylorRate = calculateTaylorRule(state);
   const currentRate = Number(state.interest_rate).toFixed(2);
   const cpiRate = Number(state.inflation_cpi).toFixed(2);
+  const econType = state.economy_type || 'large_hegemon';
+  const profile = ECONOMY_TYPE_PROFILES[econType] || ECONOMY_TYPE_PROFILES.large_hegemon;
 
   const rowProvider = require('./db').prepare("SELECT value FROM system_settings WHERE key = 'llm_provider'").get();
   const provider = rowProvider ? rowProvider.value : 'deepseek_flash';
@@ -247,6 +249,34 @@ ${state.discount_window_active
 
 You can adjust the QE/QT monthly pace or toggle the Emergency Discount Window at any time via the **Central Bank Portfolio** tile on your dashboard.`;
 
+  // 7c. COUNTRY / JURISDICTION / CENTRAL BANK / CURRENCY / FOREIGN SHOCKS
+  } else if (
+    msgLower.includes('country') || msgLower.includes('nation') || msgLower.includes('who are we') ||
+    msgLower.includes('what are we') || msgLower.includes('central bank name') || msgLower.includes('our name') ||
+    msgLower.includes('what currency') || msgLower.includes('currency name') || msgLower.includes('currency symbol') ||
+    msgLower.includes('maravedi') || msgLower.includes('qashan') || msgLower.includes('danubia') ||
+    msgLower.includes('cipangu') || msgLower.includes('australis') || msgLower.includes('foreign shock') ||
+    msgLower.includes('other country') || msgLower.includes('other countries')
+  ) {
+    reply = `Governor, here is our sovereign monetary charter and international context:
+
+**Our Sovereign Monetary Charter:**
+• **Sovereign Nation:** **${profile.country_name}** (${profile.subtitle})
+• **Central Bank Institution:** **${profile.central_bank_name}** (*"${profile.short_bank_name}"*)
+• **Official Currency:** **${profile.currency_name}** (Moniker: **${profile.currency_moniker}**, Symbol: **${profile.currency_symbol}**, Slang: *"${profile.currency_slang}"*)
+• **Benchmark Sovereign Debt:** **${profile.sovereign_bond_name}**
+• **Domestic Financial Capital:** **${profile.financial_center}** (National Capital: ${profile.capital_city})
+• **Parliamentary Oversight:** **${profile.parliament_body}**
+
+**International Peer Nations & Shock Economies:**
+• **Republic of Maravedi:** Banco Nacional de Maravedi (BNM) | **Maravedi Peso (₱ / MP)** — *Vulnerability: Dollar-denominated external debt & sudden stops during global rate hiking cycles.*
+• **Sultanate of Qashan:** Monetary Authority of Qashan (MAQ) | **Qashani Dinar (د.إ / QD)** — *Vulnerability: Hydrocarbon supply bottlenecks and petrodollar terms-of-trade shocks.*
+• **Republic of Danubia:** National Bank of Danubia (NBD) | **Danubian Koruna (Kč / DK)** — *Vulnerability: Industrial manufacturing dislocations and imported producer cost shocks.*
+• **Maritime Federation of Cipangu:** Bank of Cipangu (BoC) | **Cipangese Yen (¥ / CY)** — *Vulnerability: Global carry-trade unwinds and offshore bond repatriation.*
+• **Commonwealth of Australis:** Reserve Bank of Australis (RBA) | **Austral Dollar (A$ / AUD)** — *Vulnerability: Commodity terms-of-trade and lithium/iron ore price collapse.*
+
+When foreign trading partners suffer financial instability, risk premia ripple into our domestic credit markets and exchange rate parity.`;
+
   // 8. BANKING / CREDIT / FINANCIAL STABILITY / LIQUIDITY
   } else if (
     msgLower.includes('bank') || msgLower.includes('credit') || msgLower.includes('lend') ||
@@ -384,6 +414,8 @@ You can direct me to analyze **interest rate scenarios**, assess **labor and inf
 async function generateChatWithDeepSeek(userMessage, state, history, apiKey, taylorRate, newsArticles = [], sessionMeta = {}, model = 'deepseek-v4-pro') {
   const currentRate = Number(state.interest_rate).toFixed(2);
   const cpiRate = Number(state.inflation_cpi).toFixed(2);
+  const econType = state.economy_type || 'large_hegemon';
+  const profile = ECONOMY_TYPE_PROFILES[econType] || ECONOMY_TYPE_PROFILES.large_hegemon;
 
   // Format press articles context for the Chief of Staff
   const pressBriefing = (newsArticles && newsArticles.length > 0)
@@ -403,6 +435,21 @@ async function generateChatWithDeepSeek(userMessage, state, history, apiKey, tay
   const systemPrompt = `You are the Chief of Staff and Senior Economic Advisor to the Governor / Chair of the Central Bank.
 You are an elite macroeconomic strategist, master of monetary theory, bond market micro-structure, and legislative parliamentary politics.
 You speak candidly, strategically, and loyally to the Governor, addressing them respectfully as "Governor".
+
+SOVEREIGN IDENTITY & MONETARY CHARTER:
+- Sovereign Nation: ${profile.country_name} (${profile.name} - ${profile.subtitle})
+- Central Bank Institution: ${profile.central_bank_name} (Colloquial Short Title: "${profile.short_bank_name}")
+- Official National Currency: ${profile.currency_name} (Moniker: ${profile.currency_moniker}, Symbol: ${profile.currency_symbol}, Market Slang: "${profile.currency_slang}")
+- Benchmark Sovereign Paper: ${profile.sovereign_bond_name}
+- Financial Epicenter: ${profile.financial_center} (National Capital: ${profile.capital_city})
+- Legislative Oversight Body: ${profile.parliament_body}
+
+INTERNATIONAL PEERS & SHOCK ROSTER (FOREIGN CURRENCIES SUBJECT TO SHOCKS):
+- Republic of Maravedi: Banco Nacional de Maravedi (BNM) | Currency: Maravedi Peso (₱ / MP, "The Mara") — Vulnerable to dollar debt rollover and sudden stop capital flight.
+- Sultanate of Qashan: Monetary Authority of Qashan (MAQ) | Currency: Qashani Dinar (د.إ / QD, "Petrodinar") — Vulnerable to oil export disruptions and energy price spikes.
+- Republic of Danubia: National Bank of Danubia (NBD) | Currency: Danubian Koruna (Kč / DK, "The Crown") — Vulnerable to industrial supply bottlenecks and imported intermediate goods inflation.
+- Maritime Federation of Cipangu: Bank of Cipangu (BoC) | Currency: Cipangese Yen (¥ / CY) — Vulnerable to global carry trade unwinds and offshore capital repatriation.
+- Commonwealth of Australis: Reserve Bank of Australis (RBA) | Currency: Austral Dollar (A$ / AUD, "The Digger") — Vulnerable to commodity slumps and mining export drops.
 
 AUTHORITATIVE CURRENT MACROECONOMIC TELEMETRY (LIVE GROUND TRUTH):
 - Calendar Date: Year ${sessionMeta.current_year || 1}, Month ${sessionMeta.current_month || 1} (Quarter ${sessionMeta.current_quarter || 1}, Month ${sessionMeta.month_in_quarter || 1} of 3)
@@ -435,7 +482,8 @@ CORE ADVISORY GUIDELINES:
 5. Offer concrete tactical advice on interest rate decisions (Month 3), forward guidance signals (Months 1 & 2), parliamentary legislation, or targeted media blitzes.
 6. NEVER cite raw internal software IDs (like POS-12 or NEG-05); refer to events by their natural real-world names.
 7. FORMATTING REQUIREMENT: Always structure your response with clean, readable Markdown: separate distinct paragraphs with blank lines (\n\n), use bold headers for sections or topic areas, and use bullet points (• ) or numbered lists (1. , 2. ) for actionable recommendations and multi-metric summaries. Never output an unbroken wall of unspaced text. Keep your counsel crisp, authoritative, strategic, and under 260 words.
-8. BALANCE SHEET & LIQUIDITY ACCURACY: Look strictly at "Balance Sheet Operational Mode". If the monthly pace is positive (e.g. +$30B/mo), the bank is actively conducting QUANTITATIVE EASING (QE), NOT QT. Do NOT state "we are not conducting QE" or claim "we are in QT" when the pace is positive! If the Emergency Discount Window is OPEN, acknowledge that standing emergency liquidity is active.`;
+8. BALANCE SHEET & LIQUIDITY ACCURACY: Look strictly at "Balance Sheet Operational Mode". If the monthly pace is positive (e.g. +$30B/mo), the bank is actively conducting QUANTITATIVE EASING (QE), NOT QT. Do NOT state "we are not conducting QE" or claim "we are in QT" when the pace is positive! If the Emergency Discount Window is OPEN, acknowledge that standing emergency liquidity is active.
+9. SOVEREIGN & CURRENCY CANON: Always refer to our country as "${profile.country_name}", our central bank as "${profile.central_bank_name}" (or "${profile.short_bank_name}"), and our currency as "${profile.currency_name}" (${profile.currency_symbol} ${profile.currency_moniker}). When analyzing foreign contagion, exchange rate risks, or cross-border trade shocks, reference the international shock roster nations and their specific currencies (e.g. Maravedi Peso ₱, Qashani Dinar د.إ, Danubian Koruna Kč, Cipangese Yen ¥).`;
 
   // Build message history with the user's latest query
   const messages = [
