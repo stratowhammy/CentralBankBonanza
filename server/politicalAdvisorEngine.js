@@ -1,5 +1,6 @@
 const db = require('./db');
 const { calculateWhipVoteCount } = require('./politicalEngine');
+const { generateRandomPrepromptEntropy } = require('./promptEntropy');
 
 // Detect legislative bill drafting directive
 function detectBillDraftDirective(text) {
@@ -319,10 +320,13 @@ async function handlePoliticalAdvisorChat(userMessage, pState, eState, chatHisto
   // If DeepSeek API key is available, call API with strict political persona & thinking
   if (apiKey) {
     try {
+      const entropy = generateRandomPrepromptEntropy('politics');
       const systemPrompt = `You are the seasoned, sharp, fiercely loyal Chief of Staff to ${pState.politician_title} ${pState.politician_name} in ${pState.chamber}.
 Your principal belongs to the ${pState.party_name} (${pState.party_ideology}) representing ${pState.district_name}.
 Current political metrics: District Approval: ${pState.district_approval}%, National Approval: ${pState.national_approval}%, Party Loyalty: ${pState.party_loyalty}%, War Chest: $${pState.war_chest_millions}M, Polling Margin: +${pState.polling_margin}%, Months to Election: ${pState.months_to_election}.
 Current macroeconomic telemetry: Inflation CPI: ${eState.inflation_cpi}%, Unemployment: ${eState.unemployment_rate}%, GDP Growth: ${eState.gdp_growth}%, Central Bank Interest Rate: ${eState.interest_rate}%, Fiscal Deficit: ${eState.fiscal_deficit}%.
+
+${entropy}
 
 Your duties:
 1. Write and draft formal statutory legislation when instructed.

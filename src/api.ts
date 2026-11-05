@@ -342,6 +342,9 @@ export const api = {
     party_name?: string;
     district_name?: string;
     linked_cbs_session_id?: string;
+    economy_type?: string;
+    starting_condition?: string;
+    volatility?: string;
   }) {
     const res = await fetch(`${API_BASE}/political/new`, {
       method: 'POST',
@@ -351,6 +354,14 @@ export const api = {
     if (!res.ok) {
       throw new Error(await safeErrorMessage(res, 'Failed to start political career'));
     }
+    return res.json();
+  },
+
+  async deletePoliticalSession(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to delete political career'));
     return res.json();
   },
 

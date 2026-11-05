@@ -161,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* User Profile / Auth */}
-          {user ? (
+          {user && user.username !== 'guest' ? (
             <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
               <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-amber-400">
                 {user.display_name.charAt(0).toUpperCase()}
@@ -180,10 +180,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={onOpenAuth}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors shadow-sm"
             >
               <UserCircle className="w-3.5 h-3.5" />
-              <span>Sign In</span>
+              <span>Sign In / Register</span>
             </button>
           )}
 

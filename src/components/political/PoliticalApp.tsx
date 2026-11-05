@@ -7,16 +7,17 @@ import { PoliticalDashboard } from './PoliticalDashboard';
 interface Props {
   user: User | null;
   onSwitchToCbs: () => void;
+  onOpenAuth?: () => void;
+  onLogout?: () => void;
 }
 
-export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs }) => {
+export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs, onOpenAuth, onLogout }) => {
   const [activeSession, setActiveSession] = useState<PoliticalSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load existing session from localStorage or fetch last session
+  // Load existing session from localStorage if present
   useEffect(() => {
     const savedId = localStorage.getItem('ps_session_id');
-    const effectiveUserId = user?.id || 'user_guest_default';
 
     if (savedId) {
       api.getPoliticalSession(savedId)
@@ -25,27 +26,13 @@ export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs }) => {
         })
         .catch(() => {
           localStorage.removeItem('ps_session_id');
-          // Try fetching any sessions for user
-          fetchUserSessions(effectiveUserId);
+          setActiveSession(null);
         })
         .finally(() => setIsLoading(false));
     } else {
-      fetchUserSessions(effectiveUserId);
+      setIsLoading(false);
     }
   }, [user]);
-
-  const fetchUserSessions = (userId: string) => {
-    api.getPoliticalSessions(userId)
-      .then(res => {
-        if (res.sessions && res.sessions.length > 0) {
-          const latest = res.sessions[0];
-          setActiveSession(latest);
-          localStorage.setItem('ps_session_id', latest.id);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  };
 
   const handleStartCareer = async (params: {
     politician_name: string;
@@ -54,12 +41,20 @@ export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs }) => {
     party_name: string;
     district_name: string;
     linked_cbs_session_id?: string;
+    economy_type?: string;
+    starting_condition?: string;
+    volatility?: string;
   }) => {
+    if (!user || user.username === 'guest') {
+      if (onOpenAuth) onOpenAuth();
+      alert('Registration required. Please sign in or create an account to start a political simulation.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const effectiveUserId = user?.id || 'user_guest_default';
       const res = await api.startNewPoliticalCareer({
-        user_id: effectiveUserId,
+        user_id: user.id,
         ...params
       });
       setActiveSession(res.session);
@@ -69,6 +64,16 @@ export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResumeCareer = (session: PoliticalSession) => {
+    setActiveSession(session);
+    localStorage.setItem('ps_session_id', session.id);
+  };
+
+  const handleExitCareer = () => {
+    setActiveSession(null);
+    localStorage.removeItem('ps_session_id');
   };
 
   const handleRefreshSession = async () => {
@@ -100,17 +105,21 @@ export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs }) => {
       {activeSession ? (
         <PoliticalDashboard
           session={activeSession}
+          user={user}
           onRefreshSession={handleRefreshSession}
           onSwitchToCbs={onSwitchToCbs}
-          onNewCareer={() => {
-            setActiveSession(null);
-            localStorage.removeItem('ps_session_id');
-          }}
+          onNewCareer={handleExitCareer}
+          onOpenAuth={onOpenAuth}
+          onLogout={onLogout}
         />
       ) : (
         <PoliticalLanding
+          user={user}
           onStartCareer={handleStartCareer}
+          onResumeCareer={handleResumeCareer}
           onSwitchToCbs={onSwitchToCbs}
+          onOpenAuth={onOpenAuth}
+          onLogout={onLogout}
         />
       )}
     </div>

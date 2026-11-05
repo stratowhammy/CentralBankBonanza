@@ -57,7 +57,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // Auto-login guest or restore saved user session
+  // Restore saved registered user session (unregistered guests must register to play)
   useEffect(() => {
     const savedUser = localStorage.getItem('cbb_user');
     const savedSessionId = localStorage.getItem('cbb_session_id');
@@ -65,32 +65,29 @@ export const App: React.FC = () => {
     if (savedUser) {
       try {
         const u = JSON.parse(savedUser);
-        setCurrentUser(u);
-        // Regular users always stay in user_portal view
-        if (u.role !== 'admin') {
-          setCurrentView('user_portal');
-        }
-        if (savedSessionId) {
-          api.getGameSession(savedSessionId)
-            .then(res => {
-              setActiveSession(res.session);
-            })
-            .catch(() => {
-              localStorage.removeItem('cbb_session_id');
-            });
+        if (u && u.username && u.username !== 'guest') {
+          setCurrentUser(u);
+          // Regular users always stay in user_portal view
+          if (u.role !== 'admin') {
+            setCurrentView('user_portal');
+          }
+          if (savedSessionId) {
+            api.getGameSession(savedSessionId)
+              .then(res => {
+                setActiveSession(res.session);
+              })
+              .catch(() => {
+                localStorage.removeItem('cbb_session_id');
+              });
+          }
+        } else {
+          localStorage.removeItem('cbb_user');
+          setCurrentUser(null);
         }
       } catch {
-        // ignore
+        localStorage.removeItem('cbb_user');
+        setCurrentUser(null);
       }
-    } else {
-      // Default to guest player
-      api.guestLogin()
-        .then(res => {
-          setCurrentUser(res.user);
-          localStorage.setItem('cbb_user', JSON.stringify(res.user));
-          setCurrentView('user_portal');
-        })
-        .catch(() => {});
     }
   }, []);
 
@@ -106,7 +103,7 @@ export const App: React.FC = () => {
     setCurrentView(view);
   };
 
-  // Start new game / simulation
+  // Start new game / simulation (strictly requires registered user)
   const handleStartGame = async (params: {
     chair_name: string;
     play_mode: PlayMode;
@@ -115,22 +112,15 @@ export const App: React.FC = () => {
     starting_condition?: StartingCondition;
     volatility?: VolatilityLevel;
   }) => {
-    let user = currentUser;
-    if (!user) {
-      try {
-        const res = await api.guestLogin();
-        user = res.user;
-        setCurrentUser(user);
-        localStorage.setItem('cbb_user', JSON.stringify(user));
-      } catch (err: any) {
-        alert('Could not initialize session user');
-        return;
-      }
+    if (!currentUser || currentUser.username === 'guest') {
+      setIsAuthModalOpen(true);
+      alert('Registration required. Please sign in or create an account to start a central bank simulation.');
+      return;
     }
 
     try {
       const res = await api.startNewGame({
-        user_id: user.id,
+        user_id: currentUser.id,
         chair_name: params.chair_name,
         play_mode: params.play_mode,
         difficulty: params.difficulty,
@@ -234,12 +224,7 @@ export const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('cbb_user');
-    // Login back as guest
-    api.guestLogin().then(res => {
-      setCurrentUser(res.user);
-      localStorage.setItem('cbb_user', JSON.stringify(res.user));
-      setCurrentView('user_portal');
-    });
+    setCurrentView('user_portal');
   };
 
   const handleAuthSuccess = (u: User) => {
@@ -257,16 +242,39 @@ export const App: React.FC = () => {
 
   // If in Portal Gateway mode (root /)
   if (appMode === 'portal') {
-    return <PortalGateway onSelectSimulator={mode => handleSwitchSimulator(mode)} />;
+    return (
+      <>
+        <PortalGateway 
+          user={currentUser}
+          onSelectSimulator={mode => handleSwitchSimulator(mode)} 
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      </>
+    );
   }
 
   // If in Political Simulator mode (~/ps)
   if (appMode === 'ps') {
     return (
-      <PoliticalApp 
-        user={currentUser} 
-        onSwitchToCbs={() => handleSwitchSimulator('cbs')} 
-      />
+      <>
+        <PoliticalApp 
+          user={currentUser} 
+          onSwitchToCbs={() => handleSwitchSimulator('cbs')} 
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onLogout={handleLogout}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      </>
     );
   }
 

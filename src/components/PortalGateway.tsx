@@ -1,16 +1,22 @@
 import React from 'react';
-import { Landmark, Vote, Scale, Shield, ArrowRight, Sparkles, Building2, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { Landmark, Vote, Scale, Shield, ArrowRight, Sparkles, Building2, TrendingUp, Users, DollarSign, UserCircle, LogOut } from 'lucide-react';
+import { User } from '../types';
 
 interface Props {
   onSelectSimulator: (sim: 'cbs' | 'ps') => void;
+  user?: User | null;
+  onOpenAuth?: () => void;
+  onLogout?: () => void;
 }
 
-export const PortalGateway: React.FC<Props> = ({ onSelectSimulator }) => {
+export const PortalGateway: React.FC<Props> = ({ onSelectSimulator, user, onOpenAuth, onLogout }) => {
+  const isRegistered = user && user.username !== 'guest';
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
       
       {/* Top Header */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-8 py-5 flex items-center justify-between">
+      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-8 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 p-0.5 shadow-lg flex items-center justify-center text-slate-950 font-bold">
             <Scale className="w-6 h-6" />
@@ -21,8 +27,40 @@ export const PortalGateway: React.FC<Props> = ({ onSelectSimulator }) => {
           </div>
         </div>
 
-        <div className="text-xs font-mono px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
-          Tandem Shared Engine Architecture
+        <div className="flex items-center space-x-3">
+          <div className="hidden sm:inline-block text-xs font-mono px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
+            Tandem Engine
+          </div>
+
+          {isRegistered ? (
+            <div className="flex items-center space-x-2 pl-3 border-l border-slate-800">
+              <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-amber-400">
+                {user.display_name.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs font-medium text-slate-300 max-w-[120px] truncate">
+                {user.display_name}
+              </span>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ) : (
+            onOpenAuth && (
+              <button
+                onClick={onOpenAuth}
+                className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-all active:scale-95"
+              >
+                <UserCircle className="w-4 h-4" />
+                <span>Sign In / Register</span>
+              </button>
+            )
+          )}
         </div>
       </header>
 

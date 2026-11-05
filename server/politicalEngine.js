@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { evolveEconomy, getInitialEconomicState } = require('./simulationEngine');
+const { generateRandomPrepromptEntropy, enforceWordCount } = require('./promptEntropy');
 
 // Load political event web
 let politicalEventWeb = null;
@@ -385,29 +386,30 @@ function evolvePoliticalState(politicalState, economicState, primaryAction = nul
   return { politicalState: pState, economicState: eState };
 }
 
-// Generate monthly political news dispatches
+// Generate monthly political news dispatches (strictly 100-120 words per story)
 function generatePoliticalNews(pState, eState, year, month) {
   const articles = [];
 
   // Publisher 1: The Capital Gazette (Beltway / Westminster elite political insider)
-  const isHighInflation = eState.inflation_cpi > 4.0;
-  const approval = pState.district_approval;
+  const isHighInflation = Number(eState.inflation_cpi || 0) > 4.0;
+  const approval = Number(pState.district_approval || 50);
 
-  let gazetteHeadline = `Lawmakers Return as Economic Telemetry Shifts`;
-  let gazetteBody = `Legislative leaders reconvened this week amid intense committee negotiations over the national budget and regulatory priorities.`;
+  let gazetteHeadline = `Lawmakers Return as Macro Indicators Press Floor Calendar`;
+  let gazetteBody = `Legislative leaders reconvened this week amid intense committee negotiations over the national budget and regulatory priorities. Senior committee chairs across both chambers are evaluating whether benchmark borrowing rates of ${Number(eState.interest_rate || 3.25).toFixed(2)}% and consumer price inflation of ${Number(eState.inflation_cpi || 2.0).toFixed(2)}% necessitate emergency fiscal appropriations. With backbench factions demanding targeted relief for their constituencies, party leadership is working around the clock to prevent floor revolts. Analysts note that fiscal commitments must balance macroeconomic stability against growing voter anxiety in frontline districts. Both party caucuses have dispatched regional whips to tally swing votes ahead of crucial floor roll-calls, warning that misjudging the economic telemetry could endanger fragile legislative majorities well into the next fiscal quarter.`;
+
   if (isHighInflation) {
-    gazetteHeadline = `Inflation Anger Dominates Town Halls as Voters Demand Relief`;
-    gazetteBody = `Backbenchers and district representatives report fierce constituent backlash over grocery and power utility rates, complicating upcoming floor votes.`;
-  } else if (pState.bills_passed > 0) {
+    gazetteHeadline = `Inflation Anger Dominates Town Halls as Voters Demand Immediate Relief`;
+    gazetteBody = `Backbenchers and frontline district representatives report fierce constituent backlash over grocery and power utility rates, severely complicating upcoming floor votes on fiscal appropriations. With headline inflation standing at ${Number(eState.inflation_cpi).toFixed(2)}%, caucus leaders spent the weekend attempting to reconcile divergent demands from deficit hawks and public investment champions. Backbench factions from competitive swing districts warned party whips that voting for unadjusted spending measures without direct household tax offsets could prove politically fatal in the upcoming election cycle. Leadership has convened emergency committee hearings to craft compromise statutory amendments before the legislative recess, acknowledging that consumer price pressures now represent the single greatest liability to their parliamentary agenda.`;
+  } else if ((pState.bills_passed || 0) > 0) {
     gazetteHeadline = `${pState.politician_title} ${pState.politician_name} Consolidates Committee Influence After Legislative Wins`;
-    gazetteBody = `Senior party whips note growing momentum around ${pState.politician_name}'s policy docket, positioning the office for senior leadership consideration.`;
+    gazetteBody = `Senior party whips note growing institutional momentum around ${pState.politician_name}'s policy docket, positioning the office for senior leadership consideration and plum committee assignments. Having shepherded ${pState.bills_passed} substantive statutory measure${pState.bills_passed > 1 ? 's' : ''} through arduous committee divisions and floor votes, ${pState.politician_name} has emerged as an indispensable legislative operator capable of bridging ideological divides. Capitol insiders report that both frontline colleagues and parliamentary leadership are increasingly seeking the member's backing on pivotal fiscal compromises. With public approval holding steady and campaign war chest reserves continuing to accumulate, rival caucuses concede that the office's strategic stature and policy influence have reached a formidable new high water mark.`;
   }
 
   articles.push({
     publisher: 'capital_gazette',
     publisher_name: 'The Capital Gazette',
     headline: gazetteHeadline,
-    body: gazetteBody,
+    body: enforceWordCount(gazetteBody, 100, 120),
     tone: isHighInflation ? 'alarmist' : 'analytical',
     urgency: isHighInflation ? 'high' : 'medium',
     featured_issue: isHighInflation ? 'Inflation & Cost of Living' : 'Legislative Docket',
@@ -416,21 +418,22 @@ function generatePoliticalNews(pState, eState, year, month) {
   });
 
   // Publisher 2: Daily Tribune (Populist / Main Street daily)
-  let tribuneHeadline = `Constituents Demand Action on Mortgages and Job Security`;
-  let tribuneBody = `Working families across ${pState.district_name} are watching parliament closely as living expenses and housing pressures mount.`;
+  let tribuneHeadline = `Constituents Demand Action on Mortgages, Groceries, and Job Security`;
+  let tribuneBody = `Working families across ${pState.district_name} are watching the capital with mounting impatience as household living expenses, mortgage borrowing costs, and utility pressures pinch monthly kitchen-table budgets. With unemployment registered at ${Number(eState.unemployment_rate || 4.2).toFixed(1)}% and bank lending rates averaging ${Number(eState.bank_lending_rate || 5.75).toFixed(2)}%, local civic associations and small business owners held coordinated town halls this week to demand immediate legislative relief. Union representatives and civic advocates voiced acute frustration over congressional gridlock, urging ${pState.politician_name} to champion tangible regional investments rather than partisan posturing. Community organizers warned that voters across the district are keeping detailed score of who delivers real results and who merely recites talking points.`;
+
   if (approval >= 65) {
     tribuneHeadline = `District Poll Shows Surging Approval for ${pState.politician_name}`;
-    tribuneBody = `Local voters cite constituent responsiveness and infrastructure advocacy as key factors behind strong polling margins.`;
+    tribuneBody = `Local voters across ${pState.district_name} continue to voice robust confidence in ${pState.politician_title} ${pState.politician_name}, with the latest comprehensive regional polling showing an impressive ${approval}% favorable rating. Constituents at local town halls repeatedly cited responsive casework, visible municipal infrastructure advocacy, and consistent engagement with civic leaders as the cornerstone of the office's enduring popularity. Even registered opposition voters acknowledged that the member has maintained an authentic presence in district communities while navigating contentious national policy debates. As campaign season approaches, local political analysts note that this commanding approval margin provides substantial political capital to advance ambitious statutory priorities without fearing imminent primary or general election headwinds.`;
   } else if (approval < 45) {
-    tribuneHeadline = `Challenger Launches Early Ad Blitz Targeting Incumbent Record`;
-    tribuneBody = `Opposition campaigns have begun buying local airtime, highlighting economic anxieties and legislative gridlock.`;
+    tribuneHeadline = `Challenger Launches Early Ad Blitz Targeting Incumbent District Record`;
+    tribuneBody = `Opposition campaigns have begun buying heavy television airtime across ${pState.district_name}, capitalizing on voter dissatisfaction and flagging approval ratings that have slumped to ${approval}%. Challenger commercials aggressively highlight rising grocery receipts, unresolved infrastructure bottlenecks, and legislative stalemates in the capital, portraying ${pState.politician_title} ${pState.politician_name} as disconnected from the daily economic realities of working-class households. In response, campaign surrogates emphasize upcoming community grants and bipartisan committee efforts, but local ward chairs acknowledge that voter fatigue is real and immediate course correction is imperative. With polling margins narrowing rapidly, district strategists concede that the campaign must demonstrate decisive leadership before the primary filing window closes.`;
   }
 
   articles.push({
     publisher: 'daily_tribune',
     publisher_name: 'The Daily Tribune',
     headline: tribuneHeadline,
-    body: tribuneBody,
+    body: enforceWordCount(tribuneBody, 100, 120),
     tone: approval < 45 ? 'critical' : 'favorable',
     urgency: 'medium',
     featured_issue: 'Constituent Mood',
@@ -439,11 +442,14 @@ function generatePoliticalNews(pState, eState, year, month) {
   });
 
   // Publisher 3: Westminster Wire / Beltway Insider
+  let wireHeadline = `Whip Operations Gauge Floor Margins Ahead of Decisive Divisions`;
+  let wireBody = `Party whips are keeping an exhaustive roll-call tally on moderate and frontline members as legislative leadership prepares the contentious upcoming calendar. With crossbench factions threatening procedural delay and floor amendments on key economic measures, party whips have established round-the-clock monitoring of committee corridors to guarantee quorum and enforce caucus discipline. Private whipping memoranda circulated this morning indicate that several vulnerable backbenchers are demanding substantial district carve-outs in exchange for supporting the executive's broader legislative package. Leadership aides concede that managing these divergent factional demands requires delicate political brinkmanship, especially with macro indicators generating renewed volatility. Every prospective vote is being calibrated to prevent embarrassing floor defections that could shake government confidence.`;
+
   articles.push({
     publisher: 'westminster_wire',
     publisher_name: pState.system_type === 'parliamentary' ? 'Westminster Wire' : 'Beltway Insider',
-    headline: `Whip Operations Gauge Floor Margins Ahead of Key Divisions`,
-    body: `Party whips are keeping a close tally on moderate and frontline members as leadership prepares the legislative calendar. Factional discipline remains tight.`,
+    headline: wireHeadline,
+    body: enforceWordCount(wireBody, 100, 120),
     tone: 'insider',
     urgency: 'low',
     featured_issue: 'Whip Operations',
@@ -458,8 +464,28 @@ function generatePoliticalNews(pState, eState, year, month) {
 function checkForPoliticalEvent(pState, eState) {
   if (!politicalEventWeb || !politicalEventWeb.events) return null;
 
-  // Decide polarity based on general mood
-  const isNegative = eState.inflation_cpi > 4.2 || eState.unemployment_rate > 5.2 || pState.district_approval < 48 || Math.random() < 0.45;
+  // Rapidity of events (volatility) threshold
+  const rapidity = pState.volatility || eState.volatility || 'normal';
+  const rapidityChances = {
+    low: 0.20,
+    normal: 0.40,
+    high: 0.65,
+    extreme: 0.85
+  };
+  const eventChance = rapidityChances[rapidity] ?? 0.40;
+  if (Math.random() > eventChance) {
+    return null;
+  }
+
+  // Starting condition / Political climate affects negative vs positive polarity
+  const condition = pState.starting_condition || eState.starting_condition || 'normal';
+  let baseNegativeChance = 0.45;
+  if (condition === 'easy') baseNegativeChance = 0.30;
+  if (condition === 'hard') baseNegativeChance = 0.60;
+
+  // Decide polarity based on general mood and economic stress
+  const isHighStress = (Number(eState.inflation_cpi || 0) > 4.2) || (Number(eState.unemployment_rate || 0) > 5.2) || (Number(pState.district_approval || 50) < 48);
+  const isNegative = isHighStress ? (Math.random() < 0.75) : (Math.random() < baseNegativeChance);
   const candidates = politicalEventWeb.events.filter(e => isNegative ? e.polarity === 'Negative' : e.polarity === 'Positive');
 
   if (candidates.length === 0) return null;

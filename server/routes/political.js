@@ -38,22 +38,50 @@ router.post('/new', async (req, res) => {
       selected_track, 
       party_name, 
       district_name,
-      linked_cbs_session_id 
+      linked_cbs_session_id,
+      economy_type,
+      starting_condition,
+      volatility
     } = req.body;
 
     if (!user_id || !politician_name) {
       return res.status(400).json({ error: 'user_id and politician_name are required' });
     }
 
+    // Enforce user registration guardrail - simulations require a registered account
+    const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(user_id);
+    if (!user || user.username === 'guest') {
+      return res.status(403).json({ 
+        error: 'Registration required. You must create an account or sign in to run a political simulation.' 
+      });
+    }
+
     const effectiveSystem = system_type || 'parliamentary';
     const effectiveParty = party_name || (effectiveSystem === 'parliamentary' ? 'Democratic Alliance' : 'Conservative Union');
     const effectiveDistrict = district_name || (effectiveSystem === 'parliamentary' ? 'Highland Greenshire' : 'Industrial 4th Congressional District');
+    const effectiveEconomyType = economy_type || 'large_hegemon';
+    const effectiveCondition = starting_condition || 'normal';
+    const effectiveVolatility = volatility || 'normal';
 
     const sessionId = 'ps_' + uuidv4().substring(0, 8);
     
     // Initialize Political State
     const politicalState = getInitialPoliticalState(effectiveSystem, selected_track, effectiveParty, effectiveDistrict);
     politicalState.politician_name = politician_name;
+    politicalState.economy_type = effectiveEconomyType;
+    politicalState.starting_condition = effectiveCondition;
+    politicalState.volatility = effectiveVolatility;
+
+    // Starting climate adjustments
+    if (effectiveCondition === 'easy') {
+      politicalState.district_approval = Math.min(100, (politicalState.district_approval || 55) + 10);
+      politicalState.national_approval = Math.min(100, (politicalState.national_approval || 52) + 10);
+      politicalState.whip_reputation = Math.min(100, (politicalState.whip_reputation || 50) + 8);
+    } else if (effectiveCondition === 'hard') {
+      politicalState.district_approval = Math.max(25, (politicalState.district_approval || 55) - 10);
+      politicalState.national_approval = Math.max(25, (politicalState.national_approval || 52) - 10);
+      politicalState.whip_reputation = Math.max(25, (politicalState.whip_reputation || 50) - 8);
+    }
 
     // Initialize Shared Economic State (or link from CBS session if provided)
     let economicState;
@@ -64,7 +92,7 @@ router.post('/new', async (req, res) => {
       }
     }
     if (!economicState) {
-      economicState = getInitialEconomicState('normal', 'large_hegemon', 'normal', 'normal');
+      economicState = getInitialEconomicState(effectiveCondition, effectiveEconomyType, effectiveCondition, effectiveVolatility);
     }
 
     // Initial starter bill
@@ -84,8 +112,9 @@ router.post('/new', async (req, res) => {
         INSERT INTO political_sessions (
           id, user_id, politician_name, system_type, political_track, party_name, party_ideology, district_name,
           status, current_year, current_month, total_months_elapsed, months_to_election, linked_cbs_session_id,
+          economy_type, starting_condition, volatility,
           political_state, economic_state, active_events
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         sessionId,
         user_id,
@@ -97,6 +126,9 @@ router.post('/new', async (req, res) => {
         effectiveDistrict,
         politicalState.months_to_election,
         linked_cbs_session_id || null,
+        effectiveEconomyType,
+        effectiveCondition,
+        effectiveVolatility,
         JSON.stringify(politicalState),
         JSON.stringify(economicState),
         JSON.stringify([])
@@ -235,6 +267,25 @@ router.get('/sessions', (req, res) => {
       active_events: JSON.parse(r.active_events || '[]')
     }));
     res.json({ sessions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a political simulation session
+router.delete('/session/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM political_sessions WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/:sessionId', (req, res) => {
+  try {
+    db.prepare('DELETE FROM political_sessions WHERE id = ?').run(req.params.sessionId);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

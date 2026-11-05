@@ -1,4 +1,5 @@
 const db = require('./db');
+const { generateRandomPrepromptEntropy, enforceWordCount } = require('./promptEntropy');
 
 /**
  * Classifies the objective macroeconomic regime from live indicators so both
@@ -605,12 +606,17 @@ async function generateMonthlyNews(economicState, difficulty, year, month, conte
   });
 
   const results = await Promise.allSettled(articlePromises);
-  return results.map((res, idx) => {
+  const finalArticles = results.map((res, idx) => {
     if (res.status === 'fulfilled' && res.value) {
       return res.value;
     }
     return generateWithLocalMacroEngine(publishers[idx], economicState, year, month, context);
   });
+
+  return finalArticles.map(art => ({
+    ...art,
+    body: enforceWordCount(art.body, 100, 120)
+  }));
 }
 
 // DeepSeek API integration with strict reality guardrails, varied styles, and anti-repetition
@@ -633,16 +639,20 @@ async function generateWithDeepSeek(publisherKey, state, year, month, apiKey, co
     ? `\nRECENT HEADLINES FROM THIS PAPER (DO NOT REPEAT THESE ANGLES, PHRASES, OR CHARACTERS):\n- ${pubRecentHeadlines.join('\n- ')}`
     : '';
 
+  const prepromptEntropy = generateRandomPrepromptEntropy('macro_finance');
+
   const systemPrompt = `${profile.editorialGuidance}
-You write rigorous, varied, non-formulaic financial journalism between 230 and 380 words.
+${prepromptEntropy}
+You write rigorous, varied, non-formulaic financial journalism strictly capped between 100 and 120 words.
 CRITICAL EDITORIAL STANDARDS:
 1. NEVER reproduce formulaic boilerplate or robotic opening sentences.
 2. Focus on the selected primary economic driver AND strictly obey every item in MANDATORY FACTUAL GUARDRAILS. Your article's mood, ire, optimism, or calm MUST match the actual numbers!
 3. NEVER cite internal event codes (e.g. do not write "POS-12" or "NEG-05"); refer to events only by their natural real-world names.
 4. Provide authentic stakeholder voices and fresh, non-recycled character names.
-5. Format your output strictly as a JSON object with keys:
+5. In your internal reasoning (<think>...</think>), think step-by-step about the headline, key metrics, and narrative flow before emitting the JSON output.
+6. Format your output strictly as a JSON object with keys:
   - "headline": string (punchy, accurate headline reflecting actual indicator reality)
-  - "body": string (multi-paragraph news story separated by \\n\\n)
+  - "body": string (news story strictly between 100 and 120 words)
   - "tone": ("hawkish"|"dovish"|"alarmist"|"bullish"|"critical"|"neutral") — suggested for current data: "${primaryDriver.suggestedTone || 'neutral'}"
   - "urgency": ("low"|"medium"|"high"|"critical") — suggested for current data: "${primaryDriver.urgency || 'low'}"
   - "featured_variable": string
@@ -718,7 +728,7 @@ Write an engaging, accurate story for ${profile.name} whose tone and urgency hon
   return {
     publisher: publisherKey,
     headline: parsed.headline || 'Economic Horizon Shifts',
-    body: parsed.body || 'Financial markets digest incoming economic data.',
+    body: enforceWordCount(parsed.body || 'Financial markets digest incoming economic data.', 100, 120),
     tone: parsed.tone || primaryDriver.suggestedTone || 'neutral',
     urgency: safeUrgency,
     featured_variable: parsed.featured_variable || primaryDriver.metric,
@@ -1058,7 +1068,7 @@ With ${state.months_to_election} months on the electoral clock, party whips from
   return {
     publisher: publisherKey,
     headline,
-    body,
+    body: enforceWordCount(body, 100, 120),
     tone,
     urgency,
     featured_variable: featuredVar,

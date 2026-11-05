@@ -37,6 +37,14 @@ router.post('/new', async (req, res) => {
       return res.status(400).json({ error: 'user_id and play_mode are required' });
     }
 
+    // Enforce user registration guardrail - simulations require a registered account
+    const user = db.prepare('SELECT id, username, role FROM users WHERE id = ?').get(user_id);
+    if (!user || user.username === 'guest') {
+      return res.status(403).json({ 
+        error: 'Registration required. You must create an account or sign in to run a central bank simulation.' 
+      });
+    }
+
     const sessionId = 'ses_' + uuidv4().substring(0, 8);
     const economicState = getInitialEconomicState(effectiveDifficulty, effectiveEconomyType, effectiveCondition, effectiveVolatility);
     const chairState = getInitialChairState(play_mode, chair_name);

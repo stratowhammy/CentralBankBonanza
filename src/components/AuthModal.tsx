@@ -76,10 +76,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <UserCircle className="w-6 h-6" />
           </div>
           <h2 className="font-prestige text-xl font-bold text-slate-100">
-            {tab === 'login' ? 'Governor Sign-In' : 'Register New Governor'}
+            {tab === 'login' ? 'Sign In' : 'Create an Account'}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Access your saved simulation tenures and career achievements.
+            Registration required to run simulations and track career achievements across CBS & Statecraft.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Chair Helena Vance"
+                placeholder="e.g. Chair Helena Vance or Rep. Marcus Sterling"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -165,20 +165,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             disabled={loading}
             className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-amber-950/30"
           >
-            {loading ? 'Processing...' : (tab === 'login' ? 'Confirm Credentials' : 'Create Account')}
+            {loading ? 'Processing...' : (tab === 'login' ? 'Confirm Credentials' : 'Create Registered Account')}
           </button>
         </form>
 
-        <div className="mt-6 pt-5 border-t border-slate-800/80">
-          <button
-            type="button"
-            onClick={handleGuestLogin}
-            disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-300 hover:text-slate-100 text-xs font-semibold border border-slate-700/80 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Continue as Guest Governor</span>
-          </button>
+        <div className="mt-5 pt-4 border-t border-slate-800/80 text-center">
+          <p className="text-[11px] text-slate-400">
+            Account registration is required to start and advance simulations.
+          </p>
         </div>
 
       </div>

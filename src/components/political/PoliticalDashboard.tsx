@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { PoliticalSession, PoliticalBill, PoliticalEventChoice } from '../../types';
+import { PoliticalSession, PoliticalBill, PoliticalEventChoice, User } from '../../types';
 import { api } from '../../api';
 import { 
   Landmark, Award, Scale, Users, TrendingUp, TrendingDown, 
   FileText, Vote, Sparkles, Building2, Calendar, Shield, 
   DollarSign, ArrowRight, CheckCircle2, AlertTriangle, Plus,
-  Megaphone, MessageSquare, Briefcase, Star, Clock
+  Megaphone, MessageSquare, Briefcase, Star, Clock, FolderOpen,
+  UserCircle, LogOut
 } from 'lucide-react';
 import { PoliticalAdvisorDrawer } from './PoliticalAdvisorDrawer';
 import { PoliticalBillModal } from './PoliticalBillModal';
@@ -18,16 +19,22 @@ import { AudioPlayButton } from '../AudioPlayButton';
 
 interface Props {
   session: PoliticalSession;
+  user?: User | null;
   onRefreshSession: () => void;
   onSwitchToCbs: () => void;
   onNewCareer: () => void;
+  onOpenAuth?: () => void;
+  onLogout?: () => void;
 }
 
 export const PoliticalDashboard: React.FC<Props> = ({
   session,
+  user,
   onRefreshSession,
   onSwitchToCbs,
-  onNewCareer
+  onNewCareer,
+  onOpenAuth,
+  onLogout
 }) => {
   const pState = session.political_state;
   const eState = session.economic_state;
@@ -199,6 +206,45 @@ export const PoliticalDashboard: React.FC<Props> = ({
                 : 'Run for Higher Office'}
             </span>
           </button>
+
+          {/* Exit Career / Return to Careers Hub */}
+          <button
+            onClick={onNewCareer}
+            className="px-3 py-1.5 rounded-xl border border-stone-700 bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-stone-100 font-bold uppercase text-[11px] transition-colors flex items-center space-x-1.5 shadow-sm"
+            title="Exit this simulation and return to the Careers Hub"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+            <span>Exit Career</span>
+          </button>
+
+          {/* User Auth Profile / Sign In */}
+          {user && user.username !== 'guest' ? (
+            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-stone-950 border border-stone-800 text-xs">
+              <div className="w-5 h-5 rounded-full bg-amber-950 border border-amber-600/50 flex items-center justify-center font-bold text-amber-400 text-[10px]">
+                {user.display_name.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-stone-300 font-medium max-w-[90px] truncate">{user.display_name}</span>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1 text-stone-500 hover:text-stone-300 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ) : (
+            onOpenAuth && (
+              <button
+                onClick={onOpenAuth}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold uppercase text-[11px] transition-colors flex items-center space-x-1 shadow-sm"
+              >
+                <UserCircle className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+            )
+          )}
 
           <button
             onClick={onSwitchToCbs}
