@@ -53,6 +53,8 @@ export const PoliticalDashboard: React.FC<Props> = ({
   const [isCaucusModalOpen, setIsCaucusModalOpen] = useState(false);
   const [isLobbyingModalOpen, setIsLobbyingModalOpen] = useState(false);
   const [isIssuesModalOpen, setIsIssuesModalOpen] = useState(false);
+  const [advisorInitialTab, setAdvisorInitialTab] = useState<'advisor' | 'dms'>('advisor');
+  const [advisorInitialCaucusId, setAdvisorInitialCaucusId] = useState<string | null>(null);
   
   // Active event & election results
   const [activeEvent, setActiveEvent] = useState<any | null>(() => {
@@ -810,14 +812,34 @@ export const PoliticalDashboard: React.FC<Props> = ({
 
       </main>
 
-      {/* Floating Chief of Staff Advisor Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      {/* Floating Chief of Staff Advisor & Cloakroom DMs Button */}
+      <div className="fixed bottom-6 right-6 z-40 flex items-center space-x-2">
         <button
-          onClick={() => setIsAdvisorOpen(true)}
-          className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold font-sans text-xs uppercase tracking-wider shadow-2xl transition-all duration-300 hover:scale-105 flex items-center space-x-2.5 border border-amber-400/40"
+          onClick={() => {
+            setAdvisorInitialTab('dms');
+            setIsAdvisorOpen(true);
+          }}
+          className="px-4 py-3 rounded-2xl bg-stone-900 hover:bg-stone-800 text-cyan-300 font-bold font-sans text-xs uppercase tracking-wider shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2 border border-cyan-700/50 relative cursor-pointer"
+          title="Cloakroom DMs: Direct message AI Caucus Leaders"
+        >
+          <div className="w-6 h-6 rounded-lg bg-cyan-950 flex items-center justify-center text-cyan-400">
+            <MessageSquare className="w-3.5 h-3.5" />
+          </div>
+          <span>Cloakroom DMs</span>
+          {session.caucuses?.some(c => c.pending_personal_demand) && (
+            <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping absolute -top-1 -right-1" />
+          )}
+        </button>
+
+        <button
+          onClick={() => {
+            setAdvisorInitialTab('advisor');
+            setIsAdvisorOpen(true);
+          }}
+          className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold font-sans text-xs uppercase tracking-wider shadow-2xl transition-all duration-300 hover:scale-105 flex items-center space-x-2.5 border border-amber-400/40 cursor-pointer"
         >
           <div className="w-6 h-6 rounded-lg bg-stone-950/80 flex items-center justify-center text-amber-400">
-            <MessageSquare className="w-3.5 h-3.5" />
+            <Users className="w-3.5 h-3.5" />
           </div>
           <span>Chief of Staff (Thinking v4-pro)</span>
         </button>
@@ -829,6 +851,8 @@ export const PoliticalDashboard: React.FC<Props> = ({
         onClose={() => setIsAdvisorOpen(false)}
         session={session}
         onRefreshSession={onRefreshSession}
+        initialTab={advisorInitialTab}
+        initialCaucusId={advisorInitialCaucusId}
       />
 
       <PoliticalBillModal
@@ -893,6 +917,11 @@ export const PoliticalDashboard: React.FC<Props> = ({
         onClose={() => setIsCaucusModalOpen(false)}
         session={session}
         onRefreshSession={onRefreshSession}
+        onOpenDmWithCaucus={(caucusId) => {
+          setAdvisorInitialTab('dms');
+          setAdvisorInitialCaucusId(caucusId);
+          setIsAdvisorOpen(true);
+        }}
       />
 
       <PoliticalLobbyingModal

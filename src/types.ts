@@ -411,12 +411,32 @@ export interface PoliticalCaucus {
   ideology: string;
   priorities: string[];
   is_player_led?: boolean;
+  is_ai?: boolean;
+  pending_personal_demand?: boolean;
+  personal_prompt?: string | null;
   docket_bills?: Array<{
     title: string;
     summary: string;
     category: string;
     fiscal_impact: number;
   }>;
+}
+
+export interface CaucusDirectMessage {
+  id: string;
+  session_id: string;
+  caucus_id: string;
+  caucus_leader_name: string;
+  sender: 'user' | 'advisor' | 'caucus_leader' | 'system';
+  channel: 'direct_dm' | 'aide_channel';
+  content: string;
+  requires_personal_response?: number | boolean;
+  personal_prompt?: string | null;
+  personal_response_submitted?: number | boolean;
+  deal_offered_json?: string | null;
+  created_year?: number;
+  created_month?: number;
+  created_at: string;
 }
 
 export type PoliticalTrackId = 
@@ -772,6 +792,7 @@ export interface PoliticalSession {
   lobbying_contracts?: LobbyingContract[];
   major_issues?: MajorNationalIssue[];
   caucuses?: PoliticalCaucus[];
+  caucus_dms?: CaucusDirectMessage[];
   player_caucus?: PoliticalCaucus | null;
   player_caucus_id?: string | null;
   player_caucus_name?: string | null;

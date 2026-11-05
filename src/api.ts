@@ -547,5 +547,31 @@ export const api = {
     });
     if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to respond to lobbying offer'));
     return res.json();
+  },
+
+  async getCaucusDms(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/caucus-dms`);
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to fetch caucus DMs'));
+    return res.json();
+  },
+
+  async sendCaucusDm(
+    sessionId: string,
+    caucusId: string,
+    message: string,
+    isPersonalResponse: boolean = false,
+    activePersonalPrompt?: string | null
+  ) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/caucus-dms/${caucusId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        is_personal_response: isPersonalResponse,
+        active_personal_prompt: activePersonalPrompt
+      })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to send caucus direct message'));
+    return res.json();
   }
 };

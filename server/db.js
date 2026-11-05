@@ -377,6 +377,26 @@ db.exec(`
     FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_lobbying_contracts_session ON political_lobbying_contracts(session_id);
+
+  CREATE TABLE IF NOT EXISTS political_caucus_dms (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    caucus_id TEXT NOT NULL,
+    caucus_leader_name TEXT NOT NULL,
+    sender TEXT NOT NULL, -- 'user', 'advisor', 'caucus_leader', 'system'
+    channel TEXT NOT NULL, -- 'direct_dm', 'aide_channel'
+    content TEXT NOT NULL,
+    requires_personal_response INTEGER DEFAULT 0,
+    personal_prompt TEXT,
+    personal_response_submitted INTEGER DEFAULT 0,
+    deal_offered_json TEXT,
+    created_year INTEGER DEFAULT 1,
+    created_month INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_caucus_dms_session ON political_caucus_dms(session_id);
+  CREATE INDEX IF NOT EXISTS idx_caucus_dms_caucus ON political_caucus_dms(session_id, caucus_id);
 `);
 
 // Seed default admin and guest users if they don't exist

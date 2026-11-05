@@ -29,6 +29,7 @@ const {
 } = require('../politicalEngine');
 const { getInitialEconomicState, evolveEconomy } = require('../simulationEngine');
 const { handlePoliticalAdvisorChat, draftStatutoryBill } = require('../politicalAdvisorEngine');
+const { generateCaucusLeaderAIResponse, CAUCUS_LEADER_PROFILES } = require('../caucusLeaderEngine');
 
 // Get 7-question political alignment quiz
 router.get('/quiz', (req, res) => {
@@ -384,23 +385,34 @@ async function getSessionFull(sessionId) {
   const caucusDeals = db.prepare('SELECT * FROM political_caucus_deals WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
   const donorPromises = db.prepare('SELECT * FROM political_donor_promises WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
   const lobbyingContracts = db.prepare('SELECT * FROM political_lobbying_contracts WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
+  const caucusDms = db.prepare('SELECT * FROM political_caucus_dms WHERE session_id = ? ORDER BY created_at ASC').all(sessionId);
 
   const isUnicameral = isUnicameralSystem(sessionRow.system_type);
   const baseCaucuses = isUnicameral ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
   const pState = JSON.parse(sessionRow.political_state);
 
-  // Mark player's caucus and ensure each caucus has its defined leader
+  // Mark player's caucus and ensure each caucus has its defined leader (AI vs Human Player)
   const caucuses = baseCaucuses.map(c => {
-    if (c.id === pState.player_caucus_id) {
+    const isPlayer = c.id === pState.player_caucus_id;
+    const leaderMessages = caucusDms.filter(d => d.caucus_id === c.id);
+    const lastMsg = leaderMessages[leaderMessages.length - 1];
+    const pendingDemand = lastMsg && lastMsg.requires_personal_response === 1 && !lastMsg.personal_response_submitted;
+
+    if (isPlayer) {
       return {
         ...c,
         leader: `${pState.politician_title} ${sessionRow.politician_name}`,
-        is_player_led: true
+        is_player_led: true,
+        is_ai: false,
+        pending_personal_demand: false
       };
     }
     return {
       ...c,
-      is_player_led: false
+      is_player_led: false,
+      is_ai: true, // Default other caucus leaders as AIs using v4-pro thinking
+      pending_personal_demand: !!pendingDemand,
+      personal_prompt: pendingDemand ? lastMsg.personal_prompt : null
     };
   });
 
@@ -417,6 +429,7 @@ async function getSessionFull(sessionId) {
     donor_promises: donorPromises,
     lobbying_contracts: lobbyingContracts,
     caucuses,
+    caucus_dms: caucusDms,
     player_caucus: caucuses.find(c => c.is_player_led) || null,
     major_issues: pState.major_issues || MAJOR_NATIONAL_ISSUES
   };
@@ -1627,7 +1640,8 @@ router.post('/session/:id/advisor/chat', async (req, res) => {
       session.political_state,
       session.economic_state,
       session.messages || [],
-      session.bills || []
+      session.bills || [],
+      session
     );
 
     // Save advisor response
@@ -1637,6 +1651,40 @@ router.post('/session/:id/advisor/chat', async (req, res) => {
       'advisor',
       advice.content
     );
+
+    // If an outreach to another caucus leader was conducted by the advisor on behalf of the office
+    if (advice.caucusOutreach) {
+      const co = advice.caucusOutreach;
+      db.prepare(`
+        INSERT INTO political_caucus_dms (
+          id, session_id, caucus_id, caucus_leader_name, sender, channel, content, created_year, created_month
+        ) VALUES (?, ?, ?, ?, 'advisor', 'aide_channel', ?, ?, ?)
+      `).run(
+        'cdm_' + uuidv4().substring(0, 8),
+        session.id,
+        co.targetCaucus.id,
+        co.targetCaucus.leader,
+        `[Office Dispatch from Chief of Staff]: ${message}`,
+        session.current_year,
+        session.current_month
+      );
+
+      db.prepare(`
+        INSERT INTO political_caucus_dms (
+          id, session_id, caucus_id, caucus_leader_name, sender, channel, content, requires_personal_response, personal_prompt, created_year, created_month
+        ) VALUES (?, ?, ?, ?, 'caucus_leader', 'aide_channel', ?, ?, ?, ?, ?)
+      `).run(
+        'cdm_' + uuidv4().substring(0, 8),
+        session.id,
+        co.targetCaucus.id,
+        co.targetCaucus.leader,
+        co.leaderResponseText,
+        co.requiresPersonalResponse ? 1 : 0,
+        co.personalPrompt || null,
+        session.current_year,
+        session.current_month
+      );
+    }
 
     // If a bill was drafted via Chief of Staff directive, insert into DB
     let newBillId = null;
@@ -1675,6 +1723,167 @@ router.post('/session/:id/advisor/chat', async (req, res) => {
     });
   } catch (err) {
     console.error('Error in political advisor chat:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Caucus DMs
+router.get('/session/:id/caucus-dms', async (req, res) => {
+  try {
+    const dms = db.prepare('SELECT * FROM political_caucus_dms WHERE session_id = ? ORDER BY created_at ASC').all(req.params.id);
+    res.json({ dms });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Post a Direct Message to an AI Caucus Leader (User direct or personal prompt response)
+router.post('/session/:id/caucus-dms/:caucusId', async (req, res) => {
+  try {
+    const { message, is_personal_response, active_personal_prompt } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+
+    const session = await getSessionFull(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const targetCaucus = session.caucuses.find(c => c.id === req.params.caucusId);
+    if (!targetCaucus) {
+      return res.status(404).json({ error: 'Caucus not found' });
+    }
+
+    const pState = session.political_state;
+    const eState = session.economic_state;
+    const dmHistory = session.caucus_dms?.filter(d => d.caucus_id === targetCaucus.id) || [];
+
+    // If answering a personal challenge, mark previous demand as submitted
+    if (is_personal_response) {
+      db.prepare(`
+        UPDATE political_caucus_dms 
+        SET personal_response_submitted = 1 
+        WHERE session_id = ? AND caucus_id = ? AND requires_personal_response = 1
+      `).run(session.id, targetCaucus.id);
+    }
+
+    // Save user's direct personal message
+    const userMsgId = 'cdm_' + uuidv4().substring(0, 8);
+    db.prepare(`
+      INSERT INTO political_caucus_dms (
+        id, session_id, caucus_id, caucus_leader_name, sender, channel, content, personal_response_submitted, created_year, created_month
+      ) VALUES (?, ?, ?, ?, 'user', 'direct_dm', ?, ?, ?, ?)
+    `).run(
+      userMsgId,
+      session.id,
+      targetCaucus.id,
+      targetCaucus.leader,
+      message.trim(),
+      is_personal_response ? 1 : 0,
+      session.current_year,
+      session.current_month
+    );
+
+    // Generate Caucus Leader AI Response using v4-pro thinking
+    const aiRes = await generateCaucusLeaderAIResponse({
+      caucusId: targetCaucus.id,
+      senderType: 'user',
+      incomingMessage: message.trim(),
+      isRespondingToPersonalPrompt: !!is_personal_response,
+      activePersonalPrompt: active_personal_prompt || null,
+      pState,
+      eState,
+      bills: session.bills || [],
+      dmHistory,
+      session
+    });
+
+    // Save Caucus Leader's reply
+    const leaderMsgId = 'cdm_' + uuidv4().substring(0, 8);
+    db.prepare(`
+      INSERT INTO political_caucus_dms (
+        id, session_id, caucus_id, caucus_leader_name, sender, channel, content, requires_personal_response, personal_prompt, created_year, created_month
+      ) VALUES (?, ?, ?, ?, 'caucus_leader', 'direct_dm', ?, ?, ?, ?, ?)
+    `).run(
+      leaderMsgId,
+      session.id,
+      targetCaucus.id,
+      targetCaucus.leader,
+      aiRes.content,
+      aiRes.requiresPersonalResponse ? 1 : 0,
+      aiRes.personalPrompt || null,
+      session.current_year,
+      session.current_month
+    );
+
+    let dealNotification = null;
+
+    // If deal was struck and votes pledged
+    if (aiRes.dealAgreed && aiRes.pledgedVotes > 0) {
+      // Find active bill to pledge votes to
+      const targetBill = session.bills?.find(b => b.status === 'in_committee' || b.status === 'floor_debate') || session.bills?.[0];
+      const targetBillId = targetBill ? targetBill.id : null;
+      const targetBillTitle = targetBill ? targetBill.title : 'Active Statutory Docket';
+
+      const dealId = 'cd_' + uuidv4().substring(0, 8);
+      db.prepare(`
+        INSERT INTO political_caucus_deals (
+          id, session_id, caucus_id, caucus_name, caucus_leader, member_count, ideology, docket_bill_title, docket_bill_summary, docket_bill_category, docket_bill_impact, user_target_bill_id, user_target_bill_title, pledged_votes, demands_description, status, year_proposed, month_proposed
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'bipartisan', 0, ?, ?, ?, ?, 'accepted', ?, ?)
+      `).run(
+        dealId,
+        session.id,
+        targetCaucus.id,
+        targetCaucus.name,
+        targetCaucus.leader,
+        targetCaucus.member_count,
+        targetCaucus.ideology,
+        `${targetCaucus.name} Policy Accord`,
+        `Formal legislative agreement personally negotiated between ${pState.politician_name} and ${targetCaucus.leader}.`,
+        targetBillId,
+        targetBillTitle,
+        aiRes.pledgedVotes,
+        `Direct Cloakroom Compact: ${targetCaucus.leader} pledged ${aiRes.pledgedVotes} locked votes.`,
+        session.current_year,
+        session.current_month
+      );
+
+      // Add pledged votes to the bill if exists
+      if (targetBill) {
+        const newPledged = (targetBill.pledged_caucus_votes || 0) + aiRes.pledgedVotes;
+        db.prepare('UPDATE political_bills SET pledged_caucus_votes = ? WHERE id = ?').run(newPledged, targetBill.id);
+      }
+
+      // Boost political capital and party loyalty
+      pState.political_capital = Math.min(100, (pState.political_capital || 0) + 8);
+      pState.party_loyalty = Math.min(100, (pState.party_loyalty || 50) + 4);
+      db.prepare('UPDATE political_sessions SET political_state = ? WHERE id = ?').run(JSON.stringify(pState), session.id);
+
+      // Publish dispatch
+      db.prepare(`
+        INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+        VALUES (?, ?, ?, ?, 'capital_gazette', ?, ?, 'bullish', 'high', 'Cloakroom Diplomacy')
+      `).run(
+        'pn_' + uuidv4().substring(0, 8),
+        session.id,
+        session.current_year,
+        session.current_month,
+        `HISTORIC ACCORD: ${pState.politician_name} & ${targetCaucus.leader} Seal Floor Alliance`,
+        `Following intense personal cloakroom negotiations without staff intermediaries, ${targetCaucus.leader} announced that the ${targetCaucus.name} has pledged ${aiRes.pledgedVotes} locked votes in support of ${pState.politician_name}'s legislative priorities, dramatically shifting the chamber's balance of power.`
+      );
+
+      dealNotification = `🎉 COMPACT SEALED: ${targetCaucus.leader} has pledged ${aiRes.pledgedVotes} locked caucus votes for your legislation! (+8 Political Capital)`;
+    }
+
+    const updated = await getSessionFull(session.id);
+    res.json({
+      leader_response: aiRes.content,
+      deal_notification: dealNotification,
+      requires_personal_response: aiRes.requiresPersonalResponse,
+      personal_prompt: aiRes.personalPrompt,
+      session: updated
+    });
+  } catch (err) {
+    console.error('Error in caucus DM:', err);
     res.status(500).json({ error: err.message });
   }
 });

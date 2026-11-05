@@ -1,6 +1,7 @@
 const db = require('./db');
 const { calculateWhipVoteCount } = require('./politicalEngine');
 const { generateRandomPrepromptEntropy } = require('./promptEntropy');
+const { detectCaucusOutreachDirective, generateCaucusLeaderAIResponse } = require('./caucusLeaderEngine');
 
 // Detect legislative bill drafting directive
 function detectBillDraftDirective(text) {
@@ -340,7 +341,77 @@ Boss, here is where we stand on the Hill / in Westminster this month:
 }
 
 // Main handler connecting to deepseek-v4-pro or local engine
-async function handlePoliticalAdvisorChat(userMessage, pState, eState, chatHistory = [], bills = []) {
+async function handlePoliticalAdvisorChat(userMessage, pState, eState, chatHistory = [], bills = [], session = null) {
+  // Check if user is asking the Chief of Staff to reach out to another caucus leader
+  const availableCaucuses = session?.caucuses || [];
+  const outreach = detectCaucusOutreachDirective(userMessage, availableCaucuses);
+
+  if (outreach.isOutreach && outreach.targetCaucus) {
+    const targetCaucus = outreach.targetCaucus;
+    const caucusRes = await generateCaucusLeaderAIResponse({
+      caucusId: targetCaucus.id,
+      senderType: 'advisor',
+      incomingMessage: userMessage,
+      pState,
+      eState,
+      bills,
+      session
+    });
+
+    let thinking = '';
+    let responseText = '';
+
+    if (caucusRes.requiresPersonalResponse) {
+      thinking = `[CHIEF OF STAFF CAUCUS DIPLOMACY REPORT — v4-pro]
+- Directive: Dispatched diplomatic inquiry to ${targetCaucus.leader} (${targetCaucus.name}) on behalf of our office.
+- Diplomatic Resistance: ${targetCaucus.leader} firmly rejects staff intermediaries.
+- Personal Demand Issued: "${caucusRes.personalPrompt}".
+- Assessment: To secure ${targetCaucus.member_count} floor votes, the Boss must personally speak to them in the Cloakroom DMs.`;
+
+      responseText = `### ⚠️ Cloakroom Dispatch: ${targetCaucus.leader} Demands a Personal Audience!
+
+Boss, I dispatched a formal diplomatic inquiry to **${targetCaucus.leader}** (${targetCaucus.name}) on behalf of our office.
+
+${targetCaucus.leader} flatly refused to negotiate through staff intermediaries, stating:
+
+> *"I don't barter away the **${targetCaucus.member_count} votes** of my caucus through junior aides and staff memos. If ${pState.politician_name} wants our support, they need to answer me directly."*
+
+---
+
+#### 🗣️ Personal Challenge Posed by ${targetCaucus.leader}:
+> **"${caucusRes.personalPrompt}"**
+
+---
+
+👉 **Next Step:** Switch to the **Cloakroom DMs** tab above, select **${targetCaucus.leader}**, and respond to their challenge **in your own words**. They will not move an inch until they hear directly from you without an aide acting as intermediary!`;
+    } else {
+      thinking = `[CHIEF OF STAFF CAUCUS DIPLOMACY REPORT — v4-pro]
+- Directive: Reached out to ${targetCaucus.leader} (${targetCaucus.name}).
+- Leader Stance: Responded via aide channel.
+- Core Requirements: Wants focus on ${targetCaucus.priorities?.join(', ')}.`;
+
+      responseText = `### 🏛️ Chief of Staff Diplomatic Report: Contact with ${targetCaucus.leader}
+
+Boss, I conferred with the office of **${targetCaucus.leader}** (${targetCaucus.name}, commanding **${targetCaucus.member_count} seats**).
+
+Here is the feedback their leadership relayed:
+
+> ${caucusRes.content.replace(/<think>[\s\S]*?<\/think>/, '').trim()}
+
+I have logged this exchange into your **Cloakroom DMs** thread with ${targetCaucus.leader}. You can jump in and direct message them anytime!`;
+    }
+
+    return {
+      content: `<think>\n${thinking}\n</think>\n\n${responseText}`,
+      caucusOutreach: {
+        targetCaucus,
+        leaderResponseText: caucusRes.content,
+        requiresPersonalResponse: caucusRes.requiresPersonalResponse,
+        personalPrompt: caucusRes.personalPrompt
+      }
+    };
+  }
+
   // Check if DeepSeek API key exists in system settings
   let apiKey = null;
   try {
