@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PoliticalSession, PoliticalAdvisorMessage } from '../../types';
 import { api } from '../../api';
-import { X, Send, Brain, ChevronDown, ChevronUp, Sparkles, FileText, Vote, Megaphone, Users, Award, Handshake } from 'lucide-react';
+import { X, Send, Brain, ChevronDown, ChevronUp, Sparkles, FileText, Vote, Megaphone, Users, Award, Handshake, DollarSign } from 'lucide-react';
 import { AudioPlayButton } from '../AudioPlayButton';
 
 interface Props {
@@ -226,6 +226,14 @@ export const PoliticalAdvisorDrawer: React.FC<Props> = ({
         >
           <Handshake className="w-3 h-3 text-amber-400" />
           <span>Caucus Logroll Deals</span>
+        </button>
+
+        <button
+          onClick={() => handleSendMessage("Review our pending donor commitments list and advise on which statutes we should draft to maximize our war chest")}
+          className="shrink-0 px-3 py-1.5 rounded-full bg-stone-800 hover:bg-amber-950/40 hover:border-amber-700/50 border border-stone-700 text-stone-300 hover:text-amber-200 text-[11px] flex items-center space-x-1.5 transition-all"
+        >
+          <DollarSign className="w-3 h-3 text-emerald-400" />
+          <span>Donor Promises & War Chest</span>
         </button>
 
         <button

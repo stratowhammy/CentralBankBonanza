@@ -266,6 +266,7 @@ async function getSessionFull(sessionId) {
   const history = db.prepare('SELECT * FROM political_turn_history WHERE session_id = ? ORDER BY year ASC, month ASC').all(sessionId);
   const messages = db.prepare('SELECT * FROM political_advisor_messages WHERE session_id = ? ORDER BY created_at ASC').all(sessionId);
   const caucusDeals = db.prepare('SELECT * FROM political_caucus_deals WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
+  const donorPromises = db.prepare('SELECT * FROM political_donor_promises WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
 
   return {
     ...sessionRow,
@@ -276,7 +277,8 @@ async function getSessionFull(sessionId) {
     news,
     history,
     messages,
-    caucus_deals: caucusDeals
+    caucus_deals: caucusDeals,
+    donor_promises: donorPromises
   };
 }
 
@@ -417,10 +419,18 @@ router.post('/session/:id/action', async (req, res) => {
         pState.declared_campaign = null; // Reset campaign
       } else {
         if (isHigherOfficeBid) {
+          const wasSenatorRunningForPres = pState.declared_campaign?.is_senator_running_for_president;
+          const prevSenateClock = pState.declared_campaign?.previous_senate_months_to_election;
           pState.declared_campaign = null;
           pState.political_capital = Math.max(5, pState.political_capital - 20);
           pState.polling_margin = Number((pState.polling_margin - 3.5).toFixed(1));
-          pState.months_to_election = 12; // Snap or midterm realignment
+          
+          if (wasSenatorRunningForPres && prevSenateClock) {
+            // Sitting Senator returns to Senate seat with remaining tenure clock
+            pState.months_to_election = Math.max(12, prevSenateClock - 12);
+          } else {
+            pState.months_to_election = 12; // Snap or midterm realignment
+          }
         } else {
           session.status = 'defeated';
         }
@@ -531,9 +541,17 @@ router.post('/session/:id/action', async (req, res) => {
 // Draft new bill manually
 router.post('/session/:id/bill/draft', async (req, res) => {
   try {
-    const { title, category, fiscal_impact_billions, summary } = req.body;
+    const { title, category, fiscal_impact_billions, summary, donor_promise_id } = req.body;
     const session = await getSessionFull(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    let publicSupport = 60;
+    if (donor_promise_id) {
+      const promiseRow = db.prepare('SELECT * FROM political_donor_promises WHERE id = ?').get(donor_promise_id);
+      if (promiseRow && promiseRow.public_support) {
+        publicSupport = promiseRow.public_support;
+      }
+    }
 
     const billId = 'pb_' + uuidv4().substring(0, 8);
     const statutoryText = draftStatutoryBill(title, category || 'general', fiscal_impact_billions || 15, session.political_state);
@@ -541,13 +559,13 @@ router.post('/session/:id/bill/draft', async (req, res) => {
     const achievementScore = calculateBillAchievementScore({
       category: category || 'general',
       fiscal_impact_billions: fiscal_impact_billions || 15,
-      public_support: 60
+      public_support: publicSupport
     });
 
     db.prepare(`
       INSERT INTO political_bills (
-        id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced, achievement_score
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, 60, ?, ?, ?)
+        id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced, achievement_score, donor_promise_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, ?, ?, ?, ?, ?)
     `).run(
       billId,
       session.id,
@@ -557,9 +575,11 @@ router.post('/session/:id/bill/draft', async (req, res) => {
       category || 'general',
       fiscal_impact_billions || 15,
       session.political_state.committee_name || 'Standing Committee',
+      publicSupport,
       session.current_year,
       session.current_month,
-      achievementScore
+      achievementScore,
+      donor_promise_id || null
     );
 
     // Generate caucus trade offers for this newly drafted bill
@@ -835,6 +855,9 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
     const eState = session.economic_state;
 
     let finalAchievement = Number(bill.achievement_score) || 5;
+    let donorPromiseMsg = '';
+    let fulfilledPromise = null;
+
     if (passed) {
       finalAchievement = calculateBillAchievementScore({
         ...bill,
@@ -847,6 +870,54 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
       pState.national_approval = Math.min(99, pState.national_approval + 5);
       pState.political_capital = Math.max(0, pState.political_capital - capitalSpent + 15);
       pState.polling_margin = Number((pState.polling_margin + 2.5).toFixed(1));
+
+      // Check if this legislated statute fulfills a pending donor promise
+      if (bill.donor_promise_id) {
+        fulfilledPromise = db.prepare("SELECT * FROM political_donor_promises WHERE id = ? AND status = 'pending'").get(bill.donor_promise_id);
+      }
+      if (!fulfilledPromise) {
+        fulfilledPromise = db.prepare(`
+          SELECT * FROM political_donor_promises 
+          WHERE session_id = ? AND status = 'pending' AND (suggested_bill_title = ? OR statutory_category = ?)
+          ORDER BY (suggested_bill_title = ?) DESC
+          LIMIT 1
+        `).get(session.id, bill.title, bill.category, bill.title);
+      }
+
+      if (fulfilledPromise) {
+        const bounty = Number(fulfilledPromise.war_chest_reward_millions) || 2.0;
+        pState.war_chest_millions = Number(((pState.war_chest_millions || 0) + bounty).toFixed(2));
+
+        db.prepare(`
+          UPDATE political_donor_promises SET
+            status = 'legislated',
+            legislated_bill_id = ?,
+            legislated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(bill.id, fulfilledPromise.id);
+
+        if (fulfilledPromise.is_controversial) {
+          pState.ethics_scrutiny = Math.min(100, (pState.ethics_scrutiny || 10) + 8);
+          pState.polling_margin = Number(((pState.polling_margin || 0) - 1.4).toFixed(1));
+          donorPromiseMsg = ` 💰 DONOR PLEDGE FULFILLED! ${fulfilledPromise.donor_group} delivered +$${bounty}M to your campaign war chest for enacting their priority! (Controversial special-interest measure sparked +8 ethics scrutiny).`;
+        } else {
+          pState.national_approval = Math.min(99, (pState.national_approval || 50) + 3);
+          pState.polling_margin = Number(((pState.polling_margin || 0) + 1.2).toFixed(1));
+          donorPromiseMsg = ` 💰 DONOR ACCORD FULFILLED! ${fulfilledPromise.donor_group} rewarded your campaign with +$${bounty}M in bundled contributions for enacting '${bill.title}'!`;
+        }
+
+        db.prepare(`
+          INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+          VALUES (?, ?, ?, ?, 'beltway_insider', ?, ?, 'bullish', 'high', 'Campaign Finance')
+        `).run(
+          'pn_' + uuidv4().substring(0, 8),
+          session.id,
+          session.current_year,
+          session.current_month,
+          `DONOR PAYOUT: ${fulfilledPromise.donor_group} Rewards Passage of '${bill.title}' with +$${bounty}M`,
+          `Following the landmark floor passage of '${bill.title}', ${fulfilledPromise.donor_group} has delivered on its fundraising commitment, bundling $${bounty}M into ${pState.politician_name}'s campaign accounts.`
+        );
+      }
 
       // Fiscal consequence on economic state
       if (bill.fiscal_impact_billions) {
@@ -894,8 +965,9 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
       total_nays: whip.total_nays,
       achievement_score: finalAchievement,
       aggregate_achievement_score: pState.aggregate_achievement_score,
+      donor_promise_fulfilled: fulfilledPromise,
       message: passed 
-        ? `🎉 THE BILL PASSES! Enacted into law with ${whip.total_ayes} Ayes to ${whip.total_nays} Nays. (Legislative Achievement Score: +${finalAchievement}/20 pts)` 
+        ? `🎉 THE BILL PASSES! Enacted into law with ${whip.total_ayes} Ayes to ${whip.total_nays} Nays. (Legislative Achievement Score: +${finalAchievement}/20 pts).${donorPromiseMsg}` 
         : `BILL DEFEATED on the floor (${whip.total_ayes} Ayes to ${whip.total_nays} Nays).` 
     });
   } catch (err) {
@@ -976,12 +1048,32 @@ router.post('/session/:id/campaign/start', async (req, res) => {
       donor_log: []
     };
 
+    // If a sitting Senator is running for President, synchronize the election countdown to the next Presidential election!
+    let electionAdjustmentNews = '';
+    if (pState.current_stage_id === 'senator' && target_office_id === 'president') {
+      const totalMonthsElapsed = (session.current_year - 1) * 12 + session.current_month;
+      const presidentialCycle = 48; // 4 years (48 months)
+      const cycleRemainder = totalMonthsElapsed % presidentialCycle;
+      let monthsUntilPresElection = presidentialCycle - cycleRemainder;
+      if (monthsUntilPresElection === 0) {
+        monthsUntilPresElection = presidentialCycle;
+      }
+
+      // Preserve previous Senate clock so sitting Senator resumes seat if defeated
+      pState.declared_campaign.previous_senate_months_to_election = pState.months_to_election;
+      pState.declared_campaign.is_senator_running_for_president = true;
+      pState.months_to_election = monthsUntilPresElection;
+
+      electionAdjustmentNews = ` As a sitting Senator entering the presidential race, ${pState.politician_name}'s election countdown has been aligned with the national Presidential Election Day (in ${monthsUntilPresElection} months).`;
+    }
+
     db.prepare(`
       UPDATE political_sessions SET
+        months_to_election = ?,
         political_state = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(JSON.stringify(pState), session.id);
+    `).run(pState.months_to_election, JSON.stringify(pState), session.id);
 
     // Headline news dispatch
     db.prepare(`
@@ -993,7 +1085,7 @@ router.post('/session/:id/campaign/start', async (req, res) => {
       session.current_year,
       session.current_month,
       `CAMPAIGN ANNOUNCEMENT: ${pState.politician_name} Enters Race for ${targetOffice.title}`,
-      `${pState.politician_name} has officially filed declaration papers to run for ${targetOffice.title}. High-dollar donor salons and finance committee vetting interrogations are now underway to amass the necessary war chest.`
+      `${pState.politician_name} has officially filed declaration papers to run for ${targetOffice.title}. High-dollar donor salons and finance committee vetting interrogations are now underway to amass the necessary war chest.${electionAdjustmentNews}`
     );
 
     const updated = await getSessionFull(session.id);
@@ -1043,12 +1135,58 @@ router.post('/session/:id/campaign/answer-question', async (req, res) => {
     pState.ethics_scrutiny = Math.max(0, Math.min(100, (pState.ethics_scrutiny || 10) + (eff.ethics_scrutiny || 0)));
     pState.national_approval = Math.max(10, Math.min(99, (pState.national_approval || 50) + (eff.national_approval || 0)));
 
+    // When a promise has been made to a donor, put it on the persistent donor promises list!
+    let loggedPromise = null;
+    if (choice.donor_promise) {
+      const promiseId = 'pdp_' + uuidv4().substring(0, 8);
+      const dp = choice.donor_promise;
+      db.prepare(`
+        INSERT INTO political_donor_promises (
+          id, session_id, promise_key, donor_group, donor_category,
+          promise_title, promise_description, statutory_category,
+          suggested_bill_title, suggested_summary, suggested_fiscal_impact,
+          public_support, war_chest_reward_millions, initial_funds_raised,
+          controversy_level, is_controversial, status,
+          created_year, created_month
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      `).run(
+        promiseId,
+        session.id,
+        dp.promise_key || question.id,
+        dp.donor_group || question.donor_group,
+        dp.donor_category || question.donor_category,
+        dp.promise_title,
+        dp.promise_description || choice.description,
+        dp.statutory_category || 'general',
+        dp.suggested_bill_title || dp.promise_title,
+        dp.suggested_summary || choice.description,
+        dp.suggested_fiscal_impact || 0,
+        dp.public_support || 50,
+        dp.war_chest_reward_millions || 2.0,
+        fundsRaised,
+        dp.controversy_level || 'moderate',
+        dp.is_controversial ? 1 : 0,
+        session.current_year,
+        session.current_month
+      );
+
+      loggedPromise = {
+        id: promiseId,
+        promise_title: dp.promise_title,
+        donor_group: dp.donor_group || question.donor_group,
+        war_chest_reward_millions: dp.war_chest_reward_millions || 2.0,
+        controversy_level: dp.controversy_level || 'moderate',
+        is_controversial: dp.is_controversial
+      };
+    }
+
     campaign.donor_log.push({
       question_id: question.id,
       donor_group: question.donor_group,
       choice_id: option_id,
       choice_label: choice.label,
       funds_raised: fundsRaised,
+      logged_promise: loggedPromise,
       effects: eff
     });
 
@@ -1084,6 +1222,7 @@ router.post('/session/:id/campaign/answer-question', async (req, res) => {
       session: updated,
       campaign,
       funds_raised_this_round: fundsRaised,
+      logged_promise: loggedPromise,
       completed: campaign.completed,
       next_question: nextQ
     });

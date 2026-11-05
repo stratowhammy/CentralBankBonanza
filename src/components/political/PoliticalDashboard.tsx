@@ -589,6 +589,22 @@ export const PoliticalDashboard: React.FC<Props> = ({
 
             <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
               <button
+                onClick={() => {
+                  setSelectedBillForModal(null);
+                  setIsBillModalOpen(true);
+                }}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl border border-emerald-600/40 bg-emerald-950/40 hover:bg-emerald-950/70 text-emerald-300 transition-colors flex items-center space-x-1.5"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Donor Pledges</span>
+                {session.donor_promises && session.donor_promises.filter(p => p.status === 'pending').length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-500 text-stone-950 text-[10px] font-mono font-bold">
+                    {session.donor_promises.filter(p => p.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={() => setIsCaucusModalOpen(true)}
                 className="px-3.5 py-2 text-xs font-bold rounded-xl border border-amber-600/40 bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 transition-colors flex items-center space-x-1.5"
               >
@@ -650,6 +666,21 @@ export const PoliticalDashboard: React.FC<Props> = ({
                             🏛️ +{bill.pledged_caucus_votes} Caucus Votes
                           </span>
                         )}
+                        {(() => {
+                          const promise = bill.donor_promise_id 
+                            ? session.donor_promises?.find(p => p.id === bill.donor_promise_id)
+                            : session.donor_promises?.find(p => p.legislated_bill_id === bill.id || p.suggested_bill_title === bill.title);
+                          if (!promise) return null;
+                          return (
+                            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                              promise.status === 'legislated'
+                                ? 'bg-emerald-950/70 border-emerald-800/40 text-emerald-300'
+                                : 'bg-amber-950/70 border-amber-800/40 text-amber-300'
+                            }`}>
+                              {promise.status === 'legislated' ? `💰 +$${promise.war_chest_reward_millions}M War Chest Paid` : `🤝 Donor Pledge: +$${promise.war_chest_reward_millions}M`}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
                         bill.status === 'passed'

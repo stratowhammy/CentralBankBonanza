@@ -392,11 +392,28 @@ export interface PoliticalState {
   declared_campaign?: DeclaredCampaign | null;
 }
 
+export interface DonorQuestionPromiseMetadata {
+  promise_key?: string;
+  promise_title: string;
+  promise_description?: string;
+  donor_group: string;
+  donor_category?: string;
+  statutory_category: string;
+  suggested_bill_title: string;
+  suggested_summary: string;
+  suggested_fiscal_impact: number;
+  public_support: number;
+  war_chest_reward_millions: number;
+  is_controversial: boolean;
+  controversy_level: 'ethical' | 'moderate' | 'divisive' | 'corrupt';
+}
+
 export interface DonorQuestionChoice {
   option_id: 'A' | 'B' | 'C';
   label: string;
   description: string;
   funds_raised_millions: number;
+  donor_promise?: DonorQuestionPromiseMetadata | null;
   political_effects: {
     polling_margin?: number;
     party_loyalty?: number;
@@ -485,6 +502,7 @@ export interface PoliticalBill {
   fiscal_impact_billions: number;
   achievement_score?: number; // Magnitude 1-20
   status: 'drafting' | 'in_committee' | 'floor_debate' | 'passed' | 'failed' | 'vetoed';
+  donor_promise_id?: string | null;
   committee_name?: string;
   committee_vote_aye?: number;
   committee_vote_nay?: number;
@@ -503,6 +521,31 @@ export interface PoliticalBill {
   year_resolved?: number;
   month_resolved?: number;
   created_at?: string;
+}
+
+export interface PoliticalDonorPromise {
+  id: string;
+  session_id: string;
+  promise_key?: string;
+  donor_group: string;
+  donor_category?: string;
+  promise_title: string;
+  promise_description: string;
+  statutory_category: string;
+  suggested_bill_title: string;
+  suggested_summary: string;
+  suggested_fiscal_impact: number;
+  public_support: number;
+  war_chest_reward_millions: number;
+  initial_funds_raised: number;
+  controversy_level: 'ethical' | 'moderate' | 'divisive' | 'corrupt';
+  is_controversial: boolean;
+  status: 'pending' | 'legislated' | 'broken';
+  legislated_bill_id?: string | null;
+  created_year: number;
+  created_month: number;
+  created_at?: string;
+  legislated_at?: string | null;
 }
 
 export interface WhipCountResult {
@@ -631,6 +674,7 @@ export interface PoliticalSession {
   history?: PoliticalTurnHistoryItem[];
   messages?: PoliticalAdvisorMessage[];
   caucus_deals?: CaucusDeal[];
+  donor_promises?: PoliticalDonorPromise[];
   created_at: string;
   updated_at: string;
 }

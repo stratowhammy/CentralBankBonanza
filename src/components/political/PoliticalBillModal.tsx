@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { PoliticalBill, PoliticalSession } from '../../types';
+import { PoliticalBill, PoliticalSession, PoliticalDonorPromise } from '../../types';
 import { api } from '../../api';
 import { 
   X, FileText, CheckCircle2, AlertCircle, Plus, Sparkles, Building2, 
-  Users, Award, Shield, Vote, ArrowRight 
+  Users, Award, Shield, Vote, ArrowRight, DollarSign, Handshake, Zap, Star 
 } from 'lucide-react';
 
 interface Props {
@@ -30,9 +30,23 @@ export const PoliticalBillModal: React.FC<Props> = ({
   const [newCategory, setNewCategory] = useState('infrastructure');
   const [newFiscalImpact, setNewFiscalImpact] = useState(20);
   const [newSummary, setNewSummary] = useState('');
+  const [selectedDonorPromiseId, setSelectedDonorPromiseId] = useState<string | null>(null);
+  const [createSubTab, setCreateSubTab] = useState<'donor_promises' | 'manual'>('donor_promises');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
+
+  const pendingPromises = session.donor_promises?.filter(p => p.status === 'pending') || [];
+  const selectedPromise = session.donor_promises?.find(p => p.id === selectedDonorPromiseId);
+
+  const handleSelectDonorPromise = (p: PoliticalDonorPromise) => {
+    setNewTitle(p.suggested_bill_title || p.promise_title);
+    setNewCategory(p.statutory_category || 'general');
+    setNewFiscalImpact(p.suggested_fiscal_impact || 15);
+    setNewSummary(p.suggested_summary || p.promise_description);
+    setSelectedDonorPromiseId(p.id);
+    setCreateSubTab('manual');
+  };
 
   const currentCapital = session.political_state.political_capital || 0;
   const floorMomentum = Math.round(((bill?.committee_sway_level || 0) * 3.5) + ((bill?.committee_amendments_count || 0) * 6));
@@ -83,7 +97,8 @@ export const PoliticalBillModal: React.FC<Props> = ({
         title: newTitle.trim(),
         category: newCategory,
         fiscal_impact_billions: Number(newFiscalImpact),
-        summary: newSummary.trim()
+        summary: newSummary.trim(),
+        donor_promise_id: selectedDonorPromiseId || undefined
       });
       alert(`Legislation '${newTitle}' drafted and submitted to committee!`);
       onRefreshSession();
@@ -173,6 +188,40 @@ export const PoliticalBillModal: React.FC<Props> = ({
                   <div className="font-bold text-cyan-300 capitalize">{bill.status.replace('_', ' ')}</div>
                 </div>
               </div>
+
+              {/* Linked Donor Promise Banner */}
+              {(() => {
+                const linkedPromise = bill.donor_promise_id 
+                  ? session.donor_promises?.find(p => p.id === bill.donor_promise_id)
+                  : session.donor_promises?.find(p => p.legislated_bill_id === bill.id || p.suggested_bill_title === bill.title);
+                if (!linkedPromise) return null;
+                return (
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between text-xs ${
+                    linkedPromise.status === 'legislated'
+                      ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                      : 'bg-amber-950/60 border-amber-500/40 text-amber-200'
+                  }`}>
+                    <div className="flex items-center space-x-2.5">
+                      <Handshake className="w-4 h-4 text-amber-400 shrink-0" />
+                      <div>
+                        <span className="font-bold">Donor Compact: {linkedPromise.donor_group}</span>
+                        <p className="text-[11px] opacity-80 mt-0.5">"{linkedPromise.promise_title}"</p>
+                      </div>
+                    </div>
+                    <div className="text-right font-mono font-bold shrink-0">
+                      {linkedPromise.status === 'legislated' ? (
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-900/60 border border-emerald-600/40 text-emerald-300">
+                          ✅ +${linkedPromise.war_chest_reward_millions}M Paid
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-900/60 border border-amber-600/40 text-amber-300">
+                          💰 +${linkedPromise.war_chest_reward_millions}M on Passage
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Statutory Parchment Reader */}
               <div>
@@ -317,90 +366,237 @@ export const PoliticalBillModal: React.FC<Props> = ({
           )}
 
           {activeTab === 'create' && (
-            <form onSubmit={handleCreateBill} className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
-                  Bill Title
-                </label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  placeholder="e.g. National High-Speed Rail & Port Modernization Act"
-                  className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
-                    Policy Category
-                  </label>
-                  <select
-                    value={newCategory}
-                    onChange={e => setNewCategory(e.target.value)}
-                    className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="infrastructure">Infrastructure & Transportation</option>
-                    <option value="energy">Clean Energy & Grid Resilience</option>
-                    <option value="healthcare">Healthcare & Drug Affordability</option>
-                    <option value="housing">Housing Construction & Mortgages</option>
-                    <option value="technology">Semiconductors, AI & Telecommunications</option>
-                    <option value="trade">Trade, Tariffs & Manufacturing</option>
-                    <option value="fiscal">Taxation & Deficit Reduction</option>
-                    <option value="defense">National Security & Defense</option>
-                    <option value="justice">Public Safety & Criminal Justice</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
-                    Appropriation Impact ($ Billions)
-                  </label>
-                  <input
-                    type="number"
-                    value={newFiscalImpact}
-                    onChange={e => setNewFiscalImpact(Number(e.target.value))}
-                    step="1"
-                    placeholder="e.g. 25 (positive for spending, negative for deficit reduction)"
-                    className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500 font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
-                  Executive Summary / Legislative Intent
-                </label>
-                <textarea
-                  value={newSummary}
-                  onChange={e => setNewSummary(e.target.value)}
-                  placeholder="Outline the core provisions, targeted economic sectors, and regional impacts of this statute..."
-                  rows={4}
-                  className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500 resize-none"
-                  required
-                />
-              </div>
-
-              <div className="pt-4 border-t border-stone-800 flex justify-end space-x-3">
+            <div className="space-y-5">
+              
+              {/* Sub-tab Navigation */}
+              <div className="flex items-center space-x-2 border-b border-stone-800 pb-3">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold uppercase tracking-wider"
+                  onClick={() => setCreateSubTab('donor_promises')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    createSubTab === 'donor_promises'
+                      ? 'bg-amber-950/80 border border-amber-600/50 text-amber-300 shadow'
+                      : 'bg-stone-950 border border-stone-800 text-stone-400 hover:text-stone-200'
+                  }`}
                 >
-                  Cancel
+                  <Handshake className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Donor Commitments & Pledges</span>
+                  {pendingPromises.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-stone-950 text-[10px] font-mono font-bold">
+                      {pendingPromises.length}
+                    </span>
+                  )}
                 </button>
+
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold text-xs uppercase tracking-wider shadow-lg disabled:opacity-50"
+                  type="button"
+                  onClick={() => setCreateSubTab('manual')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    createSubTab === 'manual'
+                      ? 'bg-amber-950/80 border border-amber-600/50 text-amber-300 shadow'
+                      : 'bg-stone-950 border border-stone-800 text-stone-400 hover:text-stone-200'
+                  }`}
                 >
-                  {isSubmitting ? 'Drafting Statute...' : 'Submit to Committee'}
+                  <Plus className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Custom Bill Drafting</span>
                 </button>
               </div>
-            </form>
+
+              {/* Sub-tab 1: Pending Donor Promises List */}
+              {createSubTab === 'donor_promises' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
+                    <h4 className="text-sm font-bold text-stone-200 font-serif mb-1">
+                      Draft Legislation From Campaign Donor Commitments
+                    </h4>
+                    <p className="text-xs text-stone-400">
+                      Select a donor pledge below to automatically draft and refer its statutory language to committee. When the statute passes the floor, your campaign war chest receives the agreed payout!
+                    </p>
+                  </div>
+
+                  {pendingPromises.length > 0 ? (
+                    <div className="space-y-3">
+                      {pendingPromises.map((p) => (
+                        <div
+                          key={p.id}
+                          className="p-4 rounded-xl bg-stone-950 border border-stone-800 hover:border-amber-600/50 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+                        >
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-300">
+                                {p.donor_group}
+                              </span>
+                              <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
+                                {p.statutory_category}
+                              </span>
+                              {p.is_controversial ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-950/80 border border-red-800/40 text-red-300 flex items-center gap-1">
+                                  <Zap className="w-3 h-3 text-red-400" />
+                                  <span>⚡ Divisive Special Interest</span>
+                                </span>
+                              ) : p.controversy_level === 'ethical' ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/40 text-emerald-300 flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-emerald-400" />
+                                  <span>✨ Clean Public Interest</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950/80 border border-amber-800/40 text-amber-300 flex items-center gap-1">
+                                  <Award className="w-3 h-3 text-amber-400" />
+                                  <span>⚖️ Bipartisan Accord</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <h5 className="font-bold text-sm text-stone-100 font-serif group-hover:text-amber-200">
+                              {p.promise_title}
+                            </h5>
+                            <p className="text-xs text-stone-400 line-clamp-2">
+                              {p.promise_description}
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono text-stone-400">
+                              <span className="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded">
+                                💰 +${p.war_chest_reward_millions}M War Chest on Enactment
+                              </span>
+                              <span>Support: <strong className="text-stone-300">{p.public_support}%</strong></span>
+                              <span>Fiscal: <strong className="text-stone-300">{p.suggested_fiscal_impact > 0 ? `+$${p.suggested_fiscal_impact}B` : `-$${Math.abs(p.suggested_fiscal_impact)}B`}</strong></span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectDonorPromise(p)}
+                            className="shrink-0 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center space-x-1.5 shadow-md cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Draft Statute</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-stone-950 rounded-xl border border-stone-800 text-xs text-stone-500 space-y-3">
+                      <p>No pending donor commitments logged on your ledger.</p>
+                      <button
+                        type="button"
+                        onClick={() => setCreateSubTab('manual')}
+                        className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-xs"
+                      >
+                        Proceed to Custom Bill Drafting
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-tab 2: Bill Drafting Form */}
+              {createSubTab === 'manual' && (
+                <form onSubmit={handleCreateBill} className="space-y-5">
+                  {selectedPromise && (
+                    <div className="p-3.5 rounded-xl bg-amber-950/50 border border-amber-600/40 flex items-center justify-between text-xs text-amber-200">
+                      <div className="flex items-center space-x-2">
+                        <Handshake className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>
+                          Fulfilling Promise to <strong>{selectedPromise.donor_group}</strong>: "{selectedPromise.promise_title}" 
+                          <span className="ml-1 text-emerald-400 font-mono font-bold">(+${selectedPromise.war_chest_reward_millions}M on passage)</span>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDonorPromiseId(null)}
+                        className="px-2 py-1 rounded bg-stone-900 hover:bg-stone-800 text-stone-400 text-[10px] font-bold"
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+                      Bill Title
+                    </label>
+                    <input
+                      type="text"
+                      value={newTitle}
+                      onChange={e => setNewTitle(e.target.value)}
+                      placeholder="e.g. National High-Speed Rail & Port Modernization Act"
+                      className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+                        Policy Category
+                      </label>
+                      <select
+                        value={newCategory}
+                        onChange={e => setNewCategory(e.target.value)}
+                        className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="infrastructure">Infrastructure & Transportation</option>
+                        <option value="energy">Clean Energy & Grid Resilience</option>
+                        <option value="healthcare">Healthcare & Drug Affordability</option>
+                        <option value="housing">Housing Construction & Mortgages</option>
+                        <option value="technology">Semiconductors, AI & Telecommunications</option>
+                        <option value="trade">Trade, Tariffs & Manufacturing</option>
+                        <option value="fiscal">Taxation & Deficit Reduction</option>
+                        <option value="defense">National Security & Defense</option>
+                        <option value="justice">Public Safety & Criminal Justice</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+                        Appropriation Impact ($ Billions)
+                      </label>
+                      <input
+                        type="number"
+                        value={newFiscalImpact}
+                        onChange={e => setNewFiscalImpact(Number(e.target.value))}
+                        step="1"
+                        placeholder="e.g. 25 (positive for spending, negative for deficit reduction)"
+                        className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500 font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+                      Executive Summary / Legislative Intent
+                    </label>
+                    <textarea
+                      value={newSummary}
+                      onChange={e => setNewSummary(e.target.value)}
+                      placeholder="Outline the core provisions, targeted economic sectors, and regional impacts of this statute..."
+                      rows={4}
+                      className="w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm focus:outline-none focus:border-amber-500 resize-none"
+                      required
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-stone-800 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-5 py-2.5 rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold uppercase tracking-wider"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold text-xs uppercase tracking-wider shadow-lg disabled:opacity-50"
+                    >
+                      {isSubmitting ? 'Drafting Statute...' : 'Submit to Committee'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+            </div>
           )}
 
         </div>

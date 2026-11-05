@@ -998,7 +998,7 @@ function calculateElectionOdds(targetOfficeId, pState, eState) {
   };
 }
 
-// Comprehensive Donor Interrogation Question Bank (24 Special Interest Dilemmas)
+// Comprehensive Donor Interrogation Question Bank (16 Special Interest Dilemmas with Divisive vs Ethical Payouts)
 const DONOR_QUESTION_BANK = [
   {
     id: 'wall_street_capital_gains',
@@ -1011,22 +1011,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Pledge Capital Market Protection',
         description: 'Assure the partners that capital formation is the lifeblood of economic liquidity and oppose capital gains tax hikes.',
-        base_funds_multiplier: 1.35,
-        political_effects: { polling_margin: -1.2, party_loyalty: -3, ethics_scrutiny: 4, national_approval: -1 }
+        base_funds_multiplier: 4.20,
+        political_effects: { polling_margin: -2.8, party_loyalty: -3, ethics_scrutiny: 10, national_approval: -2 },
+        donor_promise: {
+          promise_key: 'wall_street_carried_interest',
+          promise_title: 'Protect Private Equity Carried Interest Exemption & Cap Capital Gains',
+          donor_group: 'Wall Street Investment Banks PAC',
+          donor_category: 'Financial Services',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Capital Formation & Investment Liquidity Safeguard Act',
+          suggested_summary: 'Enacts permanent statutory protections for carried interest and caps long-term capital gains tax rates to foster private market liquidity.',
+          suggested_fiscal_impact: -18,
+          public_support: 31,
+          war_chest_reward_millions: 8.5,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Stand with Working Families & Fair Taxation',
         description: 'Vow to close tax loopholes that favor Wall Street over payroll workers, accepting an icy response from the dinner.',
-        base_funds_multiplier: 0.45,
-        political_effects: { polling_margin: 2.1, party_loyalty: 6, ethics_scrutiny: -2, national_approval: 2 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.8, party_loyalty: 6, ethics_scrutiny: -4, national_approval: 3 },
+        donor_promise: {
+          promise_key: 'close_carried_interest_loophole',
+          promise_title: 'Close Wall Street Carried Interest Tax Loophole',
+          donor_group: 'Working Families & Fair Tax Coalition',
+          donor_category: 'Taxpayer Advocacy & Labor',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Fair Payroll Investment & Corporate Loophole Repeal Act',
+          suggested_summary: 'Closes offshore private equity exemptions and applies standard payroll taxes to multi-million-dollar fund manager bonuses, redirecting revenue to trade apprenticeships.',
+          suggested_fiscal_impact: -32,
+          public_support: 76,
+          war_chest_reward_millions: 1.8,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Propose Targeted Venture Reinvestment Exemption',
         description: 'Offer a compromise: preserve preferential rates strictly for long-term domestic manufacturing and high-tech startups.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.5, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.15,
+        political_effects: { polling_margin: 0.8, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'venture_reinvestment_exemption',
+          promise_title: 'Domestic High-Tech Startup R&D Reinvestment Safe Harbor',
+          donor_group: 'Venture Capital & Innovation Council',
+          donor_category: 'Technology & Finance',
+          statutory_category: 'technology',
+          suggested_bill_title: 'High-Tech Startup & Domestic Advanced Manufacturing R&D Act',
+          suggested_summary: 'Preserves preferential capital gains rates specifically for venture investments poured into domestic clean energy, robotics, and semiconductor manufacturing.',
+          suggested_fiscal_impact: 14,
+          public_support: 62,
+          war_chest_reward_millions: 3.5,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1041,22 +1083,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Sign the Aggressive Climate Compact',
         description: 'Fully endorse the 8-year zero-emission mandate and moratorium, unleashing maximum climate bundling.',
-        base_funds_multiplier: 1.30,
-        political_effects: { polling_margin: -1.0, party_loyalty: 4, ethics_scrutiny: 2, national_approval: 0 }
+        base_funds_multiplier: 3.80,
+        political_effects: { polling_margin: -2.0, party_loyalty: 5, ethics_scrutiny: 6, national_approval: 0 },
+        donor_promise: {
+          promise_key: 'zero_emission_fossil_moratorium',
+          promise_title: 'Enact Mandatory 8-Year Zero-Emission Grid & Ban Export Pipelines',
+          donor_group: 'National Clean Energy & Climate Super-PAC',
+          donor_category: 'Renewable Energy & Climate',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Emergency Climate Mobilization & Clean Grid Transition Act',
+          suggested_summary: 'Imposes binding federal deadlines phasing out unabated fossil electricity generation by Year 8 and halts all federal approvals for cross-border petroleum pipelines.',
+          suggested_fiscal_impact: 48,
+          public_support: 39,
+          war_chest_reward_millions: 7.5,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Emphasize Grid Reliability & Consumer Energy Costs',
         description: 'Refuse arbitrary deadlines, insisting that working-class utility bills and baseload natural gas must be safeguarded.',
-        base_funds_multiplier: 0.40,
-        political_effects: { polling_margin: 1.8, party_loyalty: -4, ethics_scrutiny: -1, national_approval: 1 }
+        base_funds_multiplier: 0.30,
+        political_effects: { polling_margin: 2.2, party_loyalty: -4, ethics_scrutiny: -2, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'utility_ratepayer_protection',
+          promise_title: 'Protect Working-Class Household Electric Utility Affordability',
+          donor_group: 'Consumer Energy Affordability Watchdog',
+          donor_category: 'Consumer Protection',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Household Electric Utility Reliability & Ratepayer Protection Act',
+          suggested_summary: 'Caps retail electricity rate hikes and guarantees federal backup capacity payments for dispatchable baseload natural gas generators during peak winter freezes.',
+          suggested_fiscal_impact: 18,
+          public_support: 72,
+          war_chest_reward_millions: 1.6,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Back Technology-Neutral Clean Energy Tax Credits',
         description: 'Promote an all-of-the-above transition encompassing nuclear, hydrogen, and carbon-capture alongside wind and solar.',
-        base_funds_multiplier: 0.90,
-        political_effects: { polling_margin: 0.8, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 1.1, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'tech_neutral_clean_incentives',
+          promise_title: 'Bipartisan All-of-the-Above Clean Energy Investment Incentives',
+          donor_group: 'Bipartisan Energy Security Coalition',
+          donor_category: 'Energy Infrastructure',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Advanced Clean Baseload & Hydrogen Infrastructure Act',
+          suggested_summary: 'Provides technology-neutral investment tax credits for next-generation nuclear, green hydrogen, and carbon-capture retrofits to ensure zero-emission grid reliability.',
+          suggested_fiscal_impact: 28,
+          public_support: 65,
+          war_chest_reward_millions: 3.8,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1071,22 +1155,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Sign the Complete Industrial Labor Charter',
         description: 'Promise 25% protective tariffs and total support for card-check, winning full union treasury backing.',
-        base_funds_multiplier: 1.25,
-        political_effects: { polling_margin: 1.6, party_loyalty: 5, ethics_scrutiny: 1, national_approval: 1 }
+        base_funds_multiplier: 3.90,
+        political_effects: { polling_margin: 1.2, party_loyalty: 6, ethics_scrutiny: 6, national_approval: 0 },
+        donor_promise: {
+          promise_key: 'industrial_tariffs_card_check',
+          promise_title: 'Mandate 25% Steel Import Tariffs & Statutory Card-Check Rights',
+          donor_group: 'United Industrial & Manufacturing Labor Federation',
+          donor_category: 'Labor Unions & Trade',
+          statutory_category: 'justice',
+          suggested_bill_title: 'National Manufacturing Renaissance & Worker Organizing Rights Act',
+          suggested_summary: 'Establishes a mandatory 25% ad valorem tariff on imported steel and aluminum while recognizing union bargaining units through majority card-check certification.',
+          suggested_fiscal_impact: -8,
+          public_support: 44,
+          war_chest_reward_millions: 7.8,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Defend Global Supply Chains & Low Consumer Prices',
         description: 'Explain that broad tariffs trigger retaliatory export bans and drive up consumer inflation across households.',
-        base_funds_multiplier: 0.45,
-        political_effects: { polling_margin: -1.5, party_loyalty: -6, ethics_scrutiny: 0, national_approval: 0 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 1.8, party_loyalty: -6, ethics_scrutiny: -2, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'fair_trade_consumer_pricing',
+          promise_title: 'Safeguard Consumer Affordability Against Inflated Import Duties',
+          donor_group: 'Consumer Alliance for Open Trade',
+          donor_category: 'Consumer Advocacy',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Consumer Cost of Living & Open Supply Chain Protection Act',
+          suggested_summary: 'Exempts consumer household goods from retaliatory tariff schedules and establishes an independent commission to audit tariff-driven retail price inflation.',
+          suggested_fiscal_impact: -12,
+          public_support: 70,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Propose Domestic Content Subsidies Over Tariffs',
         description: 'Offer direct tax credits for manufacturing goods built with domestic union labor while avoiding retaliatory trade wars.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.7, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.15,
+        political_effects: { polling_margin: 1.0, party_loyalty: 3, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'domestic_content_tax_credits',
+          promise_title: 'Domestic Union Manufacturing Production Tax Incentives',
+          donor_group: 'Bipartisan Industrial Competitiveness Alliance',
+          donor_category: 'Commerce & Industry',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: 'Domestic Supply Chain & Union Apprenticeship Incentive Act',
+          suggested_summary: 'Creates direct bonus tax credits for equipment assembled with domestic components and registered union apprentices without imposing retaliatory import duties.',
+          suggested_fiscal_impact: 22,
+          public_support: 64,
+          war_chest_reward_millions: 3.6,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1101,22 +1227,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Pledge Preemption of Restrictive AI Regulations',
         description: 'Guarantee that national competitiveness and AI model innovation will not be stifled by burdensome safety audits.',
-        base_funds_multiplier: 1.40,
-        political_effects: { polling_margin: -1.4, party_loyalty: -2, ethics_scrutiny: 4, national_approval: -1 }
+        base_funds_multiplier: 4.50,
+        political_effects: { polling_margin: -3.2, party_loyalty: -3, ethics_scrutiny: 12, national_approval: -2 },
+        donor_promise: {
+          promise_key: 'ai_liability_preemption',
+          promise_title: 'Preempt State AI Safety Audits & Shield Frontier Model Training',
+          donor_group: 'Silicon Valley Tech & AI Venture Coalition',
+          donor_category: 'Technology & AI',
+          statutory_category: 'technology',
+          suggested_bill_title: 'Frontier AI Innovation & Global Technology Leadership Act',
+          suggested_summary: 'Federally preempts state-level AI safety auditing laws, provides liability protection for open-source model releases, and bans mandatory kill-switch regulations.',
+          suggested_fiscal_impact: 10,
+          public_support: 28,
+          war_chest_reward_millions: 9.5,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Demand Strict AI Safety Standards & Labor Protections',
         description: 'Assert that algorithmic bias, job displacement, and catastrophic safety risks require independent federal audits.',
-        base_funds_multiplier: 0.40,
-        political_effects: { polling_margin: 2.2, party_loyalty: 4, ethics_scrutiny: -2, national_approval: 2 }
+        base_funds_multiplier: 0.20,
+        political_effects: { polling_margin: 3.2, party_loyalty: 4, ethics_scrutiny: -4, national_approval: 3 },
+        donor_promise: {
+          promise_key: 'ai_safety_worker_protection',
+          promise_title: 'Mandate Independent Frontier AI Safety Audits & Worker Retraining',
+          donor_group: 'Citizens for Ethical AI & Worker Rights',
+          donor_category: 'Consumer & Digital Rights',
+          statutory_category: 'technology',
+          suggested_bill_title: 'Artificial Intelligence Transparency, Safety & Worker Protection Act',
+          suggested_summary: 'Mandates third-party pre-deployment safety evaluations for frontier models, bans algorithmic employment discrimination, and creates an automated displacement transition fund.',
+          suggested_fiscal_impact: 16,
+          public_support: 78,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Propose National AI Infrastructure & Public Compute',
         description: 'Create a federal open compute cloud for universities while establishing clear liability for malicious misuse.',
-        base_funds_multiplier: 0.90,
-        political_effects: { polling_margin: 0.9, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.25,
+        political_effects: { polling_margin: 1.2, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'national_ai_research_cloud',
+          promise_title: 'National AI Research Cloud for Public Universities & Sovereign Datacenters',
+          donor_group: 'National Science & Academic Supercomputing Consortium',
+          donor_category: 'Education & Science',
+          statutory_category: 'technology',
+          suggested_bill_title: 'National Sovereign AI Research Infrastructure & Public Compute Act',
+          suggested_summary: 'Establishes a federally operated high-performance GPU compute cluster for academic researchers and sets clear criminal liability strictly for malicious cyber exploits.',
+          suggested_fiscal_impact: 24,
+          public_support: 66,
+          war_chest_reward_millions: 3.9,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1131,22 +1299,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Pledge Ironclad Defense Budget Expansion',
         description: 'Assure defense contractors that deterrence requires uninterrupted funding for next-generation systems.',
-        base_funds_multiplier: 1.30,
-        political_effects: { polling_margin: -0.8, party_loyalty: 1, ethics_scrutiny: 3, national_approval: 1 }
+        base_funds_multiplier: 4.10,
+        political_effects: { polling_margin: -1.8, party_loyalty: 2, ethics_scrutiny: 9, national_approval: 0 },
+        donor_promise: {
+          promise_key: 'defense_sole_source_expansion',
+          promise_title: 'Guarantee Multi-Year Sole-Source Procurement for Naval & Aerospace Systems',
+          donor_group: 'Defense Aerospace & National Security Roundtable',
+          donor_category: 'Military & Defense',
+          statutory_category: 'defense',
+          suggested_bill_title: 'Sovereign Deterrence & Fleet Modernization Appropriations Act',
+          suggested_summary: 'Locks in multi-year block-buy contracts for next-generation attack submarines, sixth-generation fighters, and satellite constellations with guaranteed profit margins.',
+          suggested_fiscal_impact: 65,
+          public_support: 34,
+          war_chest_reward_millions: 9.0,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Demand Pentagon Financial Audits & Procurement Caps',
         description: 'Insist that defense spending cannot rise until the Pentagon passes a clean financial audit and reins in cost overruns.',
-        base_funds_multiplier: 0.50,
-        political_effects: { polling_margin: 1.5, party_loyalty: -2, ethics_scrutiny: -2, national_approval: 1 }
+        base_funds_multiplier: 0.30,
+        political_effects: { polling_margin: 2.6, party_loyalty: -2, ethics_scrutiny: -4, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'pentagon_clean_audit_mandate',
+          promise_title: 'Condition Defense Appropriations on Clean Financial Audits',
+          donor_group: 'Taxpayers for Government Accountability & Defense Oversight',
+          donor_category: 'Government Integrity',
+          statutory_category: 'defense',
+          suggested_bill_title: 'Pentagon Financial Accountability & Sole-Source Procurement Reform Act',
+          suggested_summary: 'Penalizes military service branches that fail independent financial audits and caps executive compensation at contractors experiencing cost overruns.',
+          suggested_fiscal_impact: -20,
+          public_support: 82,
+          war_chest_reward_millions: 1.4,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Reallocate Legacy Weapons to Drone & Cyber Capabilities',
         description: 'Shift appropriations from legacy heavy armor to autonomous uncrewed drones, space resilience, and cyber defense.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.6, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 1.0, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'autonomous_drone_cyber_pivot',
+          promise_title: 'Procurement Shift Toward Low-Cost Autonomous Uncrewed Systems',
+          donor_group: 'Defense Tech Startups & Uncrewed Systems Alliance',
+          donor_category: 'Military Technology',
+          statutory_category: 'defense',
+          suggested_bill_title: 'Asymmetric Autonomous Defense & Sovereign Cyber Shield Act',
+          suggested_summary: 'Decommissions outdated heavy mechanized formations and reallocates $25B directly into attritable autonomous maritime drones, swarm munitions, and cyber hardening.',
+          suggested_fiscal_impact: 20,
+          public_support: 63,
+          war_chest_reward_millions: 3.7,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1161,22 +1371,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Defend Biopharmaceutical Patents & Market Pricing',
         description: 'Argue that price controls destroy capital investment in breakthrough rare disease and oncology cures.',
-        base_funds_multiplier: 1.35,
-        political_effects: { polling_margin: -1.8, party_loyalty: -3, ethics_scrutiny: 4, national_approval: -2 }
+        base_funds_multiplier: 4.60,
+        political_effects: { polling_margin: -3.8, party_loyalty: -4, ethics_scrutiny: 14, national_approval: -3 },
+        donor_promise: {
+          promise_key: 'pharma_patent_evergreening_shield',
+          promise_title: 'Block Medicare Price Negotiations & Extend Biologic Patent Exclusivity',
+          donor_group: 'Pharmaceutical Research & Biotech Consortium',
+          donor_category: 'Healthcare & Biotech',
+          statutory_category: 'healthcare',
+          suggested_bill_title: 'Biopharmaceutical Innovation & Intellectual Property Protection Act',
+          suggested_summary: 'Prohibits federal government drug price setting and extends market exclusivity for biologic therapies by an additional 5 years against generic biosimilars.',
+          suggested_fiscal_impact: 35,
+          public_support: 24,
+          war_chest_reward_millions: 11.0,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Champion Direct Price Negotiations for All Prescriptions',
         description: 'Vow that no constituent will ever be forced to ration insulin or lifesaving medications due to corporate profiteering.',
-        base_funds_multiplier: 0.40,
-        political_effects: { polling_margin: 2.8, party_loyalty: 6, ethics_scrutiny: -2, national_approval: 2 }
+        base_funds_multiplier: 0.20,
+        political_effects: { polling_margin: 3.6, party_loyalty: 7, ethics_scrutiny: -5, national_approval: 4 },
+        donor_promise: {
+          promise_key: 'universal_drug_price_negotiation',
+          promise_title: 'Mandate Direct Federal Price Negotiation for All Top 250 Prescriptions',
+          donor_group: 'Affordable Medication for All Citizens Coalition',
+          donor_category: 'Healthcare & Senior Advocacy',
+          statutory_category: 'healthcare',
+          suggested_bill_title: 'Universal Prescription Drug Price Negotiation & Insulin Cap Act',
+          suggested_summary: 'Empowers public health agencies to negotiate manufacturer prices on all major patented medications and caps out-of-pocket insulin at $25/month for all citizens.',
+          suggested_fiscal_impact: -42,
+          public_support: 86,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Cap Out-of-Pocket Co-Pays While Subsidizing R&D',
         description: 'Cap patient prescription co-pays at $35/month while offering research tax credits to sustain biotech pipelines.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 1.0, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.15,
+        political_effects: { polling_margin: 1.4, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'copay_cap_biotech_tax_credit',
+          promise_title: 'Cap Monthly Patient Co-Pays with Targeted Rare Disease Tax Credits',
+          donor_group: 'Patient Access & Biotech Innovation Bridge',
+          donor_category: 'Healthcare Reform',
+          statutory_category: 'healthcare',
+          suggested_bill_title: 'Patient Co-Pay Ceiling & Rare Disease Research Credit Act',
+          suggested_summary: 'Caps commercial insurance patient prescription co-pays at $35 per 30-day supply while reimbursing domestic biotech labs through clinical trial R&D tax credits.',
+          suggested_fiscal_impact: 18,
+          public_support: 68,
+          war_chest_reward_millions: 3.6,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1191,22 +1443,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Preempt Rent Control & Deregulate Construction',
         description: 'Condemn rent caps as supply-destroying and tie federal transit grants to aggressive local zoning deregulation.',
-        base_funds_multiplier: 1.25,
-        political_effects: { polling_margin: -0.9, party_loyalty: -1, ethics_scrutiny: 2, national_approval: 0 }
+        base_funds_multiplier: 3.75,
+        political_effects: { polling_margin: -2.2, party_loyalty: -2, ethics_scrutiny: 7, national_approval: -1 },
+        donor_promise: {
+          promise_key: 'preempt_rent_control_zoning',
+          promise_title: 'Federally Preempt Municipal Rent Control & Environmental Building Reviews',
+          donor_group: 'National Association of Homebuilders & Realtors',
+          donor_category: 'Housing & Real Estate',
+          statutory_category: 'housing',
+          suggested_bill_title: 'National Housing Construction & Local Rent Control Preemption Act',
+          suggested_summary: 'Withholds federal infrastructure grants from any municipality that enacts rent caps or restrictive historic preservation ordinances blocking private multi-family construction.',
+          suggested_fiscal_impact: 15,
+          public_support: 33,
+          war_chest_reward_millions: 7.6,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Enact National Tenant Protections & Eviction Limits',
         description: 'Stand with tenant advocacy groups against predatory corporate landlords and back emergency rent caps.',
-        base_funds_multiplier: 0.45,
-        political_effects: { polling_margin: 2.0, party_loyalty: 5, ethics_scrutiny: -1, national_approval: 1 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.6, party_loyalty: 5, ethics_scrutiny: -3, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'tenant_bill_of_rights',
+          promise_title: 'Enact National Tenant Bill of Rights & Corporate Landlord Tax Penalty',
+          donor_group: 'National Tenants Union & Housing Equity Alliance',
+          donor_category: 'Tenant Advocacy',
+          statutory_category: 'housing',
+          suggested_bill_title: 'National Tenant Bill of Rights & Anti-Price-Gouging Housing Act',
+          suggested_summary: 'Bans institutional private equity algorithmic rent price-fixing, caps annual rent increases at inflation + 3%, and establishes federal legal aid for unlawful evictions.',
+          suggested_fiscal_impact: 8,
+          public_support: 79,
+          war_chest_reward_millions: 1.4,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Low-Income Housing Tax Credit Expansion with Density Incentives',
         description: 'Double the federal affordable housing tax credit while offering bonuses for transit-oriented high-density building.',
-        base_funds_multiplier: 0.90,
-        political_effects: { polling_margin: 0.9, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 1.2, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'lihtc_transit_density_expansion',
+          promise_title: 'Double Low-Income Housing Tax Credits for Transit-Oriented Density',
+          donor_group: 'Affordable Housing Coalition & Smart Growth Alliance',
+          donor_category: 'Urban Planning & Housing',
+          statutory_category: 'housing',
+          suggested_bill_title: 'Transit-Oriented Affordable Housing & LIHTC Expansion Act',
+          suggested_summary: 'Doubles the annual allocation of Low-Income Housing Tax Credits with targeted 30% basis boosts for projects built within half a mile of passenger rail stations.',
+          suggested_fiscal_impact: 26,
+          public_support: 67,
+          war_chest_reward_millions: 3.8,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1221,22 +1515,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Reject Corporate PACs & Back the Wealth Surtax',
         description: 'Ignite grassroots fundraising excitement and small-dollar recurring contributions across the nation.',
-        base_funds_multiplier: 0.90,
-        political_effects: { polling_margin: 2.5, party_loyalty: 7, ethics_scrutiny: -4, national_approval: 2 }
+        base_funds_multiplier: 1.80,
+        political_effects: { polling_margin: 3.2, party_loyalty: 7, ethics_scrutiny: -5, national_approval: 3 },
+        donor_promise: {
+          promise_key: 'ultra_millionaire_wealth_tax',
+          promise_title: 'Enact 2% Annual Surtax on Net Worth Exceeding $50 Million',
+          donor_group: 'Independent Small-Dollar Grassroots Alliance',
+          donor_category: 'Populist Grassroots',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Ultra-Millionaire Wealth Tax & Clean Election Financing Act',
+          suggested_summary: 'Imposes an annual 2% tax on worldwide wealth over $50 million (3% over $1 billion) and uses revenue to provide small-dollar 6-to-1 public matching funds for clean campaigns.',
+          suggested_fiscal_impact: -55,
+          public_support: 71,
+          war_chest_reward_millions: 2.8,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'B',
         label: 'Reject Unconstitutional Wealth Asset Levies',
         description: 'Argue that taxing unrealized paper net worth causes capital flight and violates foundational property rights.',
-        base_funds_multiplier: 0.40,
-        political_effects: { polling_margin: -1.6, party_loyalty: -5, ethics_scrutiny: 2, national_approval: -1 }
+        base_funds_multiplier: 3.90,
+        political_effects: { polling_margin: -2.4, party_loyalty: -6, ethics_scrutiny: 8, national_approval: -2 },
+        donor_promise: {
+          promise_key: 'wealth_tax_statutory_ban',
+          promise_title: 'Statutory Prohibition on Federal Unrealized Wealth & Asset Levies',
+          donor_group: 'Patriots for Sovereign Property Rights & Family Foundations',
+          donor_category: 'Wealth Management & Foundations',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Constitutional Property Rights & Unrealized Asset Protection Act',
+          suggested_summary: 'Statutorily prohibits the Treasury Department from assessing or collecting direct federal taxes on unrealized capital gains or cumulative net wealth assets.',
+          suggested_fiscal_impact: 0,
+          public_support: 36,
+          war_chest_reward_millions: 8.2,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'C',
         label: 'Close Stepped-Up Basis & Strengthen Corporate Minimum Taxes',
         description: 'Focus on taxing realized capital gains at death and ensuring profitable multinational conglomerates pay at least 15%.',
-        base_funds_multiplier: 0.75,
-        political_effects: { polling_margin: 1.1, party_loyalty: 3, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.10,
+        political_effects: { polling_margin: 1.2, party_loyalty: 3, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'stepped_up_basis_repeal',
+          promise_title: 'Repeal Stepped-Up Basis on Inherited Capital Assets Over $5 Million',
+          donor_group: 'Fiscal Responsibility & Tax Reform Caucus',
+          donor_category: 'Tax Policy',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Inherited Capital Gains Fairness & Corporate Minimum Tax Act',
+          suggested_summary: 'Eliminates the stepped-up basis loophole for inherited investment portfolios exceeding $5 million and imposes a strict 15% domestic book income corporate minimum tax.',
+          suggested_fiscal_impact: -25,
+          public_support: 62,
+          war_chest_reward_millions: 3.4,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1251,22 +1587,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Guarantee Farm Bill Subsidies & Biofuel Quotas',
         description: 'Solidify rural agricultural backing by pledging that farm supports and ethanol mandates will remain untouched.',
-        base_funds_multiplier: 1.25,
-        political_effects: { polling_margin: 1.2, party_loyalty: 1, ethics_scrutiny: 1, national_approval: 1 }
+        base_funds_multiplier: 3.70,
+        political_effects: { polling_margin: 1.0, party_loyalty: 2, ethics_scrutiny: 6, national_approval: 0 },
+        donor_promise: {
+          promise_key: 'permanent_crop_insurance_subsidy',
+          promise_title: 'Shield 100% Federal Crop Insurance Premium Subsidies for Mega-Farms',
+          donor_group: 'American Farm Bureau & Agricultural Co-ops',
+          donor_category: 'Agriculture & Biofuels',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: 'Heartland Farm Safety Net & Biofuel Blending Mandate Act',
+          suggested_summary: 'Permanently reauthorizes uncapped federal crop insurance premium subsidies without means-testing and mandates a 15% commercial ethanol fuel blend standard.',
+          suggested_fiscal_impact: 38,
+          public_support: 38,
+          war_chest_reward_millions: 7.2,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Cap Subsidies for Mega-Farms & Prioritize Soil Conservation',
         description: 'Redirect crop insurance subsidies away from billionaire agribusiness conglomerates toward small organic family farmers.',
-        base_funds_multiplier: 0.50,
-        political_effects: { polling_margin: 0.5, party_loyalty: 2, ethics_scrutiny: -1, national_approval: 1 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.2, party_loyalty: 2, ethics_scrutiny: -3, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'cap_mega_farm_subsidies',
+          promise_title: 'Means-Test Farm Subsidies at $250k & Expand Regenerative Soil Grants',
+          donor_group: 'Family Farmers Alliance for Conservation',
+          donor_category: 'Sustainable Agriculture',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: 'Family Farm Soil Conservation & Agribusiness Means-Testing Act',
+          suggested_summary: 'Caps annual taxpayer crop insurance subsidies at $250,000 per farming operation and redirects $8B into regenerative cover-crop soil conservation grants.',
+          suggested_fiscal_impact: -14,
+          public_support: 81,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Expand Precision Agriculture & Drought Resilience Grants',
         description: 'Modernize the farm safety net with high-tech water conservation grants and climate-smart insurance discounts.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.8, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 0.9, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'precision_ag_drought_resilience',
+          promise_title: 'Precision Agriculture Satellite Technology & Water Conservation Grants',
+          donor_group: 'AgTech & Precision Farming Coalition',
+          donor_category: 'Agricultural Technology',
+          statutory_category: 'technology',
+          suggested_bill_title: 'Drought Resilience & High-Tech Precision Farming Act',
+          suggested_summary: 'Provides low-interest equipment loans for automated drip irrigation and precision GPS fertilizer mapping to cut agricultural runoff by 40%.',
+          suggested_fiscal_impact: 16,
+          public_support: 65,
+          war_chest_reward_millions: 3.5,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1281,22 +1659,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Guarantee No Corporate Tax Increases',
         description: 'Pledge competitive tax certainty to unleash capital expenditure and corporate treasury bundling.',
-        base_funds_multiplier: 1.30,
-        political_effects: { polling_margin: -1.2, party_loyalty: -2, ethics_scrutiny: 3, national_approval: -1 }
+        base_funds_multiplier: 4.10,
+        political_effects: { polling_margin: -2.6, party_loyalty: -3, ethics_scrutiny: 8, national_approval: -2 },
+        donor_promise: {
+          promise_key: 'cap_corporate_tax_21',
+          promise_title: 'Statutory Ceiling Capping Corporate Income Tax at 21%',
+          donor_group: 'National Retailers & Commercial Chamber of Commerce',
+          donor_category: 'Commerce & Retail',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Commercial Competitiveness & Corporate Tax Certainty Act',
+          suggested_summary: 'Statutorily locks the federal corporate income tax rate at 21% and creates an expedited arbitration mechanism against state corporate franchise taxes.',
+          suggested_fiscal_impact: -22,
+          public_support: 30,
+          war_chest_reward_millions: 8.8,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Raise the Corporate Rate to 28% for Social Investments',
         description: 'Insist that highly profitable corporations must fund public infrastructure, childcare, and healthcare.',
-        base_funds_multiplier: 0.45,
-        political_effects: { polling_margin: 1.9, party_loyalty: 5, ethics_scrutiny: -2, national_approval: 1 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.8, party_loyalty: 6, ethics_scrutiny: -3, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'corporate_tax_28_childcare',
+          promise_title: 'Raise Corporate Tax Rate to 28% to Fund Universal Childcare',
+          donor_group: 'Fair Share for Working Families Coalition',
+          donor_category: 'Labor & Social Advocacy',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Corporate Fair Share & Universal Early Childcare Act',
+          suggested_summary: 'Adjusts the statutory corporate tax rate to 28% on profits over $100M and dedicates proceeds directly to universal pre-K childcare subsidies for working parents.',
+          suggested_fiscal_impact: -45,
+          public_support: 75,
+          war_chest_reward_millions: 1.6,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Maintain Current Rate While Permitting 100% Capital Expensing',
         description: 'Keep the headline rate stable but allow immediate write-offs for companies building domestic factories.',
-        base_funds_multiplier: 0.90,
-        political_effects: { polling_margin: 0.7, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 0.8, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'permanent_100_percent_expensing',
+          promise_title: 'Permanent 100% Full Capital Expensing for Domestic Factory Machinery',
+          donor_group: 'Domestic Manufacturers Council',
+          donor_category: 'Manufacturing & Commerce',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: 'Domestic Factory Modernization & Accelerated Expensing Act',
+          suggested_summary: 'Allows commercial enterprises to immediately deduct the full cost of domestic industrial machinery and semiconductor fabrication equipment in the year acquired.',
+          suggested_fiscal_impact: -15,
+          public_support: 61,
+          war_chest_reward_millions: 3.6,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1311,22 +1731,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Embrace Digital Assets as Financial Frontier',
         description: 'Champion the crypto industry, pledge light-touch rules, and stop regulatory crackdowns.',
-        base_funds_multiplier: 1.40,
-        political_effects: { polling_margin: -1.5, party_loyalty: -2, ethics_scrutiny: 5, national_approval: -1 }
+        base_funds_multiplier: 4.80,
+        political_effects: { polling_margin: -3.0, party_loyalty: -3, ethics_scrutiny: 12, national_approval: -2 },
+        donor_promise: {
+          promise_key: 'crypto_sec_enforcement_shield',
+          promise_title: 'Preempt SEC Jurisdiction Over Digital Assets & Classify as Commodities',
+          donor_group: 'Digital Asset & Blockchain Innovation Fund',
+          donor_category: 'Fintech & Cryptocurrency',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Digital Asset Market Structure & Blockchain Innovation Act',
+          suggested_summary: 'Transfers primary federal regulatory authority over cryptocurrency exchanges from the SEC to the CFTC and shields decentralized protocols from securities registration.',
+          suggested_fiscal_impact: 5,
+          public_support: 27,
+          war_chest_reward_millions: 10.5,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Demand Strict Bank-Like Capital Reserves & Consumer Audits',
         description: 'Warn that unregulated crypto exposes retail consumers to predatory scams and systemic contagion.',
-        base_funds_multiplier: 0.40,
-        political_effects: { polling_margin: 1.4, party_loyalty: 3, ethics_scrutiny: -3, national_approval: 1 }
+        base_funds_multiplier: 0.20,
+        political_effects: { polling_margin: 2.4, party_loyalty: 4, ethics_scrutiny: -4, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'crypto_consumer_protection_reserve',
+          promise_title: 'Mandate 1-to-1 Federal Cash Reserves for All Stablecoin Issuers',
+          donor_group: 'Americans Against Financial Predation & Fraud',
+          donor_category: 'Consumer Protection',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Stablecoin Consumer Solvency & Exchange Fraud Prevention Act',
+          suggested_summary: 'Requires digital token issuers to maintain 100% liquid cash reserves at insured commercial banks and subjects offshore crypto executives to domestic anti-fraud jurisdiction.',
+          suggested_fiscal_impact: -5,
+          public_support: 80,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Enact Statutory Stablecoin Guardrails Under Treasury Oversight',
         description: 'Permit stablecoin innovation provided tokens are 100% backed by short-term sovereign treasuries with audited reserves.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.4, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.25,
+        political_effects: { polling_margin: 0.8, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'statutory_stablecoin_treasury_framework',
+          promise_title: 'Regulated Sovereign Treasury-Backed Stablecoin Framework',
+          donor_group: 'Fintech Regulatory Compliance Council',
+          donor_category: 'Fintech & Banking',
+          statutory_category: 'fiscal',
+          suggested_bill_title: 'Sovereign Digital Asset Modernization & Payment Reserve Act',
+          suggested_summary: 'Authorizes licensed financial institutions to issue programmable dollar stablecoins backed exclusively by short-term sovereign Treasury bills with monthly public audit attestations.',
+          suggested_fiscal_impact: 10,
+          public_support: 59,
+          war_chest_reward_millions: 3.8,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1341,22 +1803,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Fully Fund Automated Port Terminals',
         description: 'Prioritize automated cranes and terminal optimization to reduce supply chain bottlenecks and shipping costs.',
-        base_funds_multiplier: 1.20,
-        political_effects: { polling_margin: -0.5, party_loyalty: 0, ethics_scrutiny: 1, national_approval: 1 }
+        base_funds_multiplier: 3.60,
+        political_effects: { polling_margin: -1.5, party_loyalty: 0, ethics_scrutiny: 5, national_approval: 0 },
+        donor_promise: {
+          promise_key: 'fully_automate_container_ports',
+          promise_title: 'Subsidize Rapid Port Automation Cranes & AI Terminal Logistics',
+          donor_group: 'Maritime Shipping & Port Logistics Guild',
+          donor_category: 'Transportation & Logistics',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: 'Port Logistics Modernization & Automated Crane Subsidies Act',
+          suggested_summary: 'Provides $18B in federal matching grants for major maritime container ports to deploy uncrewed automated gantry cranes and AI logistics systems to expedite freight offloading.',
+          suggested_fiscal_impact: 22,
+          public_support: 36,
+          war_chest_reward_millions: 7.2,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Protect Longshore Worker Jobs Against Rapid Automation',
         description: 'Condition federal port grants on longshore worker job guarantees and worker retraining agreements.',
-        base_funds_multiplier: 0.50,
-        political_effects: { polling_margin: 1.2, party_loyalty: 4, ethics_scrutiny: -1, national_approval: 1 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.0, party_loyalty: 5, ethics_scrutiny: -2, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'longshore_worker_job_guarantee',
+          promise_title: 'Condition Federal Port Grants on Union Longshore Worker Job Guarantees',
+          donor_group: 'International Longshore & Dockworkers Solidarity Union',
+          donor_category: 'Labor & Maritime Transport',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: 'Dockworker Livelihood & Maritime Port Infrastructure Protection Act',
+          suggested_summary: 'Prohibits the deployment of automated container machinery that displaces dockworkers without prior collective bargaining agreement ratification and lifetime wage security.',
+          suggested_fiscal_impact: 12,
+          public_support: 73,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Hybrid Workforce Transition with Automated Night Shifts',
         description: 'Phase in automation during off-peak hours while providing union pension protection guarantees.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.6, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 0.8, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'hybrid_port_automation_pension',
+          promise_title: 'Hybrid Port Automation Transition with Guaranteed Worker Pension Solvency',
+          donor_group: 'Maritime Logistics & Labor Accord Council',
+          donor_category: 'Infrastructure & Labor',
+          statutory_category: 'infrastructure',
+          suggested_bill_title: '24-Hour Port Operations & Dockworker Pension Security Act',
+          suggested_summary: 'Expands 24-hour freight terminal operations with off-peak automated staging while funding dockworker union pension funds through a dedicated automated container tariff.',
+          suggested_fiscal_impact: 15,
+          public_support: 64,
+          war_chest_reward_millions: 3.5,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1371,22 +1875,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Exempt Endowments & Maximize Scientific Grants',
         description: 'Protect elite university research funds from federal taxation to maintain sovereign technological preeminence.',
-        base_funds_multiplier: 1.25,
-        political_effects: { polling_margin: -0.6, party_loyalty: 2, ethics_scrutiny: 1, national_approval: 0 }
+        base_funds_multiplier: 3.50,
+        political_effects: { polling_margin: -1.4, party_loyalty: 2, ethics_scrutiny: 6, national_approval: 0 },
+        donor_promise: {
+          promise_key: 'exempt_university_endowments',
+          promise_title: 'Permanently Repeal Federal Excise Taxes on University Endowments',
+          donor_group: 'Higher Education & Academic Research Endowment Alliance',
+          donor_category: 'Education & Science',
+          statutory_category: 'technology',
+          suggested_bill_title: 'Academic Research Endowment Freedom & Science Preeminence Act',
+          suggested_summary: 'Repeals the federal net investment income tax on private university endowments and increases National Science Foundation quantum research grants by $10B.',
+          suggested_fiscal_impact: 14,
+          public_support: 35,
+          war_chest_reward_millions: 6.8,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Tax Billion-Dollar Endowments to Fund Community Colleges',
         description: 'Demand that wealthy private university endowments pay taxes to eliminate tuition at community colleges and trade apprenticeships.',
-        base_funds_multiplier: 0.45,
-        political_effects: { polling_margin: 1.7, party_loyalty: 4, ethics_scrutiny: -1, national_approval: 1 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.6, party_loyalty: 5, ethics_scrutiny: -3, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'tax_endowments_free_community_college',
+          promise_title: 'Tax Endowments Over $2B to Provide Tuition-Free Community College',
+          donor_group: 'Working Students & Vocational Apprenticeship Coalition',
+          donor_category: 'Education & Labor',
+          statutory_category: 'justice',
+          suggested_bill_title: 'Endowment Equity & Tuition-Free Community College Act',
+          suggested_summary: 'Levies a 3% annual tax on private university endowments exceeding $2 billion and reallocates the proceeds to guarantee tuition-free public vocational and community college.',
+          suggested_fiscal_impact: -18,
+          public_support: 80,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Condition Endowment Exemptions on Tuition Freezes',
         description: 'Permit tax-free endowment growth only for universities that freeze undergraduate tuition and expand debt-free financial aid.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.8, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.15,
+        political_effects: { polling_margin: 1.1, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'tuition_freeze_endowment_accord',
+          promise_title: 'Tie Tax-Free Endowment Status to Guaranteed Undergraduate Tuition Freezes',
+          donor_group: 'College Affordability & Higher Education Bridge',
+          donor_category: 'Education Policy',
+          statutory_category: 'justice',
+          suggested_bill_title: 'Higher Education Tuition Stabilization & Endowment Accountability Act',
+          suggested_summary: 'Maintains federal tax exemptions for university endowments strictly on the condition that institutions freeze undergraduate tuition for 5 years and spend at least 5% on need-based aid.',
+          suggested_fiscal_impact: 8,
+          public_support: 69,
+          war_chest_reward_millions: 3.5,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1401,22 +1947,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Establish Emergency Fast-Track Mining Approvals',
         description: 'Designate critical minerals as vital national security assets and streamline environmental reviews to 90 days.',
-        base_funds_multiplier: 1.30,
-        political_effects: { polling_margin: -1.0, party_loyalty: -2, ethics_scrutiny: 3, national_approval: 0 }
+        base_funds_multiplier: 4.20,
+        political_effects: { polling_margin: -2.4, party_loyalty: -3, ethics_scrutiny: 9, national_approval: -1 },
+        donor_promise: {
+          promise_key: 'bypass_environmental_reviews_mining',
+          promise_title: '90-Day Permitting Shot-Clock for Domestic Lithium & Copper Mines',
+          donor_group: 'Domestic Critical Minerals & Rare Earths Syndicate',
+          donor_category: 'Mining & Strategic Materials',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Sovereign Critical Minerals Emergency Extraction & Fast-Track Act',
+          suggested_summary: 'Designates lithium, nickel, cobalt, and rare earth deposits as emergency defense assets, limiting NEPA judicial injunctions and mandating permit issuance within 90 days.',
+          suggested_fiscal_impact: 18,
+          public_support: 30,
+          war_chest_reward_millions: 8.4,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Strict Tribal Consultation & Ecological Protections',
         description: 'Refuse to compromise groundwater standards or indigenous sovereignty for corporate mining extraction.',
-        base_funds_multiplier: 0.40,
-        political_effects: { polling_margin: 1.5, party_loyalty: 4, ethics_scrutiny: -2, national_approval: 1 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 2.5, party_loyalty: 4, ethics_scrutiny: -3, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'tribal_consent_groundwater_protection',
+          promise_title: 'Mandate Informed Tribal Consent & Strict Groundwater Baseline Testing',
+          donor_group: 'Indigenous Environmental Sovereignty Coalition',
+          donor_category: 'Environmental & Civil Rights',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Clean Water & Indigenous Sacred Lands Protection Act',
+          suggested_summary: 'Requires free, prior, and informed consent from sovereign tribal nations before any federal mining lease is granted and enforces strict criminal penalties for aquifer contamination.',
+          suggested_fiscal_impact: 6,
+          public_support: 78,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Prioritize Battery Recycling & Brownfield Site Redevelopment',
         description: 'Provide generous tax credits for recycling e-waste minerals while permitting new extraction strictly on disturbed industrial lands.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.7, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.25,
+        political_effects: { polling_margin: 1.0, party_loyalty: 1, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'battery_recycling_brownfield_mining',
+          promise_title: 'National Battery Mineral Recycling Mandate & Brownfield Mine Subsidies',
+          donor_group: 'Circular Economy & Battery Materials Council',
+          donor_category: 'Clean Technology',
+          statutory_category: 'technology',
+          suggested_bill_title: 'Circular Battery Materials Recycling & Brownfield Extraction Act',
+          suggested_summary: 'Mandates 80% recycling recovery for retired EV lithium-ion batteries by Year 5 and grants accelerated depreciation for mineral recovery on abandoned historical industrial sites.',
+          suggested_fiscal_impact: 22,
+          public_support: 66,
+          war_chest_reward_millions: 3.7,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1431,22 +2019,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Protect Hospital Reimbursements & Outpatient Facility Fees',
         description: 'Pledge that federal health payments will keep pace with inflation to safeguard healthcare provider solvency.',
-        base_funds_multiplier: 1.25,
-        political_effects: { polling_margin: -0.7, party_loyalty: 0, ethics_scrutiny: 2, national_approval: 0 }
+        base_funds_multiplier: 3.90,
+        political_effects: { polling_margin: -2.0, party_loyalty: 0, ethics_scrutiny: 8, national_approval: -1 },
+        donor_promise: {
+          promise_key: 'protect_hospital_facility_fees',
+          promise_title: 'Lock In Outpatient Hospital Facility Fees & Ban Site-Neutral Billing Cuts',
+          donor_group: 'Hospital Systems & Emergency Healthcare Network',
+          donor_category: 'Hospital Healthcare',
+          statutory_category: 'healthcare',
+          suggested_bill_title: 'Healthcare System Solvency & Outpatient Billing Safeguard Act',
+          suggested_summary: 'Bars the Department of Health and Human Services from enacting site-neutral payment reductions for hospital-owned outpatient clinics and locks in annual inflation reimbursement adjustments.',
+          suggested_fiscal_impact: 32,
+          public_support: 31,
+          war_chest_reward_millions: 8.0,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Ban Surprise Facility Fees & Enforce Site-Neutral Pricing',
         description: 'Insist that patients must not be gouged with separate facility fees for routine doctor visits and imaging tests.',
-        base_funds_multiplier: 0.50,
-        political_effects: { polling_margin: 2.1, party_loyalty: 4, ethics_scrutiny: -1, national_approval: 2 }
+        base_funds_multiplier: 0.25,
+        political_effects: { polling_margin: 3.2, party_loyalty: 5, ethics_scrutiny: -4, national_approval: 3 },
+        donor_promise: {
+          promise_key: 'ban_surprise_hospital_facility_fees',
+          promise_title: 'Ban Outpatient Facility Fees & Enforce Transparent Site-Neutral Billing',
+          donor_group: 'Patients Against Medical Debt & Surprise Bills',
+          donor_category: 'Patient Advocacy',
+          statutory_category: 'healthcare',
+          suggested_bill_title: 'Medical Billing Transparency & Surprise Facility Fee Ban Act',
+          suggested_summary: 'Outlaws hospital outpatient facility fees for routine clinical evaluations and enforces equal Medicare reimbursement rates regardless of whether care is delivered in an office or hospital.',
+          suggested_fiscal_impact: -28,
+          public_support: 84,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Direct Subsidies Solely for Rural Trauma & Safety-Net Centers',
         description: 'Eliminate fees at wealthy urban health conglomerates while establishing dedicated emergency grants for underserved rural clinics.',
-        base_funds_multiplier: 0.85,
-        political_effects: { polling_margin: 0.9, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.20,
+        political_effects: { polling_margin: 1.2, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'rural_emergency_clinic_grant',
+          promise_title: 'Targeted Federal Operating Grants for Vulnerable Rural Emergency Rooms',
+          donor_group: 'Rural Health Association & Critical Access Hospitals',
+          donor_category: 'Rural Healthcare',
+          statutory_category: 'healthcare',
+          suggested_bill_title: 'Rural Healthcare Solvency & Critical Access Emergency Clinic Act',
+          suggested_summary: 'Eliminates facility billing abuses at urban mega-systems while establishing an emergency $12B federal stabilization fund directly for rural non-profit critical access hospitals.',
+          suggested_fiscal_impact: 16,
+          public_support: 70,
+          war_chest_reward_millions: 3.6,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   },
@@ -1461,22 +2091,64 @@ const DONOR_QUESTION_BANK = [
         option_id: 'A',
         label: 'Champion Commercial Nuclear Renaissance',
         description: 'Back major loan guarantees and streamlined nuclear commissioning to power domestic data centers and industry.',
-        base_funds_multiplier: 1.30,
-        political_effects: { polling_margin: 0.4, party_loyalty: 1, ethics_scrutiny: 1, national_approval: 1 }
+        base_funds_multiplier: 3.80,
+        political_effects: { polling_margin: 0.5, party_loyalty: 1, ethics_scrutiny: 5, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'smr_loan_guarantees_expedited_nrc',
+          promise_title: '$25B Federal Loan Guarantees & Expedited 1-Year NRC SMR Licensing',
+          donor_group: 'Advanced Nuclear & Baseload Energy Council',
+          donor_category: 'Nuclear Energy',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Advanced Nuclear Energy Renaissance & SMR Deployment Act',
+          suggested_summary: 'Authorizes $25B in federal clean energy loan guarantees for Gen-IV small modular nuclear reactors and establishes an expedited one-year design certification pathway at the NRC.',
+          suggested_fiscal_impact: 30,
+          public_support: 48,
+          war_chest_reward_millions: 7.5,
+          is_controversial: true,
+          controversy_level: 'divisive'
+        }
       },
       {
         option_id: 'B',
         label: 'Focus Resources Purely on Solar, Wind & Storage',
         description: 'Argue that nuclear reactors are too expensive, suffer massive delays, and present unresolved radioactive waste challenges.',
-        base_funds_multiplier: 0.45,
-        political_effects: { polling_margin: 0.2, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 0 }
+        base_funds_multiplier: 0.30,
+        political_effects: { polling_margin: 1.4, party_loyalty: 3, ethics_scrutiny: -2, national_approval: 1 },
+        donor_promise: {
+          promise_key: 'solar_wind_storage_priority',
+          promise_title: 'Direct 100% of Clean Tech Loan Guarantees to Grid Batteries & Solar',
+          donor_group: 'Renewable Power & Battery Storage Alliance',
+          donor_category: 'Renewables',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Renewable Storage Acceleration & Clean Battery Deployment Act',
+          suggested_summary: 'Directs all federal clean energy loan funding into utility-scale lithium-iron-phosphate battery storage installations, rooftop community solar, and offshore wind arrays.',
+          suggested_fiscal_impact: 22,
+          public_support: 74,
+          war_chest_reward_millions: 1.5,
+          is_controversial: false,
+          controversy_level: 'ethical'
+        }
       },
       {
         option_id: 'C',
         label: 'Public-Private Demonstration Sites at Retired Coal Plants',
         description: 'Deploy advanced modular reactors specifically at retiring coal power plants to utilize existing electrical switchyards and transition coal workers.',
-        base_funds_multiplier: 0.90,
-        political_effects: { polling_margin: 1.1, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 1 }
+        base_funds_multiplier: 1.25,
+        political_effects: { polling_margin: 1.3, party_loyalty: 2, ethics_scrutiny: 0, national_approval: 2 },
+        donor_promise: {
+          promise_key: 'coal_to_nuclear_transition_demonstration',
+          promise_title: 'Deploy Advanced Modular SMR Reactors at Retired Coal Plant Switchyards',
+          donor_group: 'Coal Community Economic Transition & Nuclear Coalition',
+          donor_category: 'Energy & Regional Development',
+          statutory_category: 'energy',
+          suggested_bill_title: 'Coal Community Repurposing & Advanced SMR Nuclear Transition Act',
+          suggested_summary: 'Funds public-private pilot projects repurposing retiring coal power plant electrical interconnections with molten-salt small modular reactors, guaranteeing jobs for former coal plant staff.',
+          suggested_fiscal_impact: 25,
+          public_support: 68,
+          war_chest_reward_millions: 3.8,
+          is_controversial: false,
+          controversy_level: 'moderate'
+        }
       }
     ]
   }
@@ -1492,12 +2164,13 @@ function generateDonorQuestions(targetOfficeId, currentWarChest = 0) {
   // Min 3 questions, max 16 questions
   const questionCount = Math.max(3, Math.min(16, Math.round(deficit / 7.0) + 2));
 
+  // Office tier scale for bounties & funding scale
+  const officeMultiplier = targetOfficeId === 'president' ? 8.0 : (targetOfficeId === 'senator' ? 3.0 : 1.0);
+  const baseDollarPerQuestion = Math.max(0.60, (deficit / questionCount) * 0.95);
+
   // Shuffle and pick questions
   const shuffled = [...DONOR_QUESTION_BANK].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, questionCount);
-
-  // Dollar scale factor so answering allows closing the gap
-  const baseDollarPerQuestion = Math.max(0.75, (deficit / questionCount) * 1.12);
 
   return selected.map((q, idx) => {
     return {
@@ -1505,10 +2178,23 @@ function generateDonorQuestions(targetOfficeId, currentWarChest = 0) {
       question_number: idx + 1,
       total_questions: questionCount,
       choices: q.choices.map(c => {
-        const scaledFunds = Number((c.base_funds_multiplier * baseDollarPerQuestion).toFixed(2));
+        // High variance jitter (0.85 to 1.30) to create wide, non-uniform donation amounts
+        const jitter = 0.85 + Math.random() * 0.45;
+        const scaledFunds = Number((c.base_funds_multiplier * baseDollarPerQuestion * jitter).toFixed(2));
+        
+        let scaledPromise = null;
+        if (c.donor_promise) {
+          const rewardBase = c.donor_promise.war_chest_reward_millions || 2.0;
+          scaledPromise = {
+            ...c.donor_promise,
+            war_chest_reward_millions: Number((rewardBase * officeMultiplier * (c.donor_promise.is_controversial ? 2.0 : 1.0)).toFixed(2))
+          };
+        }
+
         return {
           ...c,
-          funds_raised_millions: scaledFunds
+          funds_raised_millions: scaledFunds,
+          donor_promise: scaledPromise
         };
       })
     };

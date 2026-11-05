@@ -189,6 +189,39 @@ Governor / Representative, I have drafted the formal statutory language for the 
     };
   }
 
+  // 1b. Donor Commitments & War Chest Strategy
+  const isDonorQuery = /donor|promise|pledge|war\s*chest/i.test(userMessage);
+  if (isDonorQuery) {
+    thinking = `[CHIEF OF STAFF CAMPAIGN FINANCE & DONOR MEMORANDUM]
+- Principal inquired regarding donor promises, campaign fundraising, and war chest accumulation ($${pState.war_chest_millions}M).
+- Legislative Hook: Affirmative pledges made during donor interrogation salons are logged onto the persistent Donor Commitments Ledger.
+- Risk/Reward Dynamics: Divisive corporate/special interest pledges deliver massive war chest bounties (+$7M-$15M+) at the cost of ethics scrutiny (+8 to +12), whereas ethical clean accords provide modest funding (+$1.5M-$3M) but bolster public approval and polling margins.
+- Execution: Direct principal to 'Donor Pledges' on the legislative chamber board to draft fulfilling statutes.`;
+
+    responseText = `### 💰 Chief of Staff Briefing: Donor Commitments & Campaign War Chest
+
+Boss, our campaign war chest currently holds **$${pState.war_chest_millions} Million** in cash-on-hand.
+
+Here is our strategic playbook for leveraging donor promises to fuel our political machine:
+
+#### 1. The Donor Commitments Ledger
+Whenever we answer policy questions during our campaign fundraising gauntlets, affirmative commitments made to donor groups are automatically logged on our persistent **Donor Commitments List**.
+
+#### 2. Drafting Statutes from Pledges
+You can open the **Author Bill** panel and click **Donor Commitments & Pledges**. This allows us to draft statutory language specifically targeted to fulfill the donor group's priority with pre-configured fiscal scores and categories.
+
+#### 3. Cashing In on Enactment
+When the bill is successfully whipped and passed into law on the floor:
+* **⚡ Divisive Special Interest Compacts:** Unleash massive campaign bounties (**+$7M to +$15M+** in bundled cash), though watchdogs may launch ethics scrutiny inquiries.
+* **✨ Clean Public Interest Accords:** Yield modest grassroots contributions (**+$1.5M to +$3M**) alongside significant gains in voter favorability and polling margin (+2% to +4%).
+
+*Click the **'Donor Pledges'** button on your Legislative Chamber board anytime to review all pending commitments and draft fulfilling legislation!*`;
+
+    return {
+      content: `<think>\n${thinking}\n</think>\n\n${responseText}`
+    };
+  }
+
   // 2. Whip Count Calculation Request
   if (isWhipRequest) {
     const targetBill = bills.length > 0 ? bills[0] : {

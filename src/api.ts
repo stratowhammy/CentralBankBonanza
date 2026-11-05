@@ -398,6 +398,7 @@ export const api = {
     category: string;
     fiscal_impact_billions: number;
     summary?: string;
+    donor_promise_id?: string;
   }) {
     const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/draft`, {
       method: 'POST',

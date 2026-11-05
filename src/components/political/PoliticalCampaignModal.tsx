@@ -26,7 +26,13 @@ export const PoliticalCampaignModal: React.FC<Props> = ({
   const [startingCampaign, setStartingCampaign] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState<DonorQuestion | null>(null);
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
-  const [roundFeedback, setRoundFeedback] = useState<{ funds: number; label: string } | null>(null);
+  const [roundFeedback, setRoundFeedback] = useState<{
+    funds: number;
+    label: string;
+    promise_title?: string;
+    bounty?: number;
+    is_controversial?: boolean;
+  } | null>(null);
 
   const pState = session.political_state;
   const declared = pState.declared_campaign;
@@ -86,7 +92,10 @@ export const PoliticalCampaignModal: React.FC<Props> = ({
       const choice = activeQuestion.choices.find(c => c.option_id === optionId);
       setRoundFeedback({
         funds: res.funds_raised_this_round,
-        label: choice?.label || 'Strategic Commitment'
+        label: choice?.label || 'Strategic Commitment',
+        promise_title: res.logged_promise?.promise_title,
+        bounty: res.logged_promise?.war_chest_reward_millions,
+        is_controversial: res.logged_promise?.is_controversial
       });
       setActiveQuestion(res.next_question || null);
       onRefreshSession();
@@ -161,9 +170,20 @@ export const PoliticalCampaignModal: React.FC<Props> = ({
 
             {/* Raised Feedback Alert */}
             {roundFeedback && (
-              <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between animate-fade-in">
-                <span>Raised <strong>+${roundFeedback.funds}M</strong> from commitments on "{roundFeedback.label}"</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div className="p-4 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-fade-in shadow-lg">
+                <div>
+                  <div>
+                    Raised <strong className="text-emerald-300 font-mono text-sm">+${roundFeedback.funds}M</strong> from position: "{roundFeedback.label}"
+                  </div>
+                  {roundFeedback.promise_title && (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-amber-300 text-[11px] font-sans">
+                      <span>🤝 Logged Donor Compact:</span>
+                      <strong className="underline">"{roundFeedback.promise_title}"</strong>
+                      <span className="font-mono font-bold text-emerald-400">(+${roundFeedback.bounty}M added to War Chest when legislated!)</span>
+                    </div>
+                  )}
+                </div>
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               </div>
             )}
 
@@ -222,6 +242,42 @@ export const PoliticalCampaignModal: React.FC<Props> = ({
                     <p className="text-xs text-stone-400 leading-relaxed pl-8 mb-2">
                       {choice.description}
                     </p>
+
+                    {choice.donor_promise && (
+                      <div className="pl-8 mb-2.5">
+                        {choice.donor_promise.is_controversial ? (
+                          <div className="p-2.5 rounded-lg bg-red-950/60 border border-red-800/40 text-red-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-red-400 font-bold">⚡ Logs Divisive Promise:</span>
+                              <span className="font-serif">"{choice.donor_promise.promise_title}"</span>
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/40 px-2 py-0.5 rounded text-[11px]">
+                              +${choice.donor_promise.war_chest_reward_millions}M on passage
+                            </span>
+                          </div>
+                        ) : choice.donor_promise.controversy_level === 'ethical' ? (
+                          <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-800/40 text-emerald-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-emerald-400 font-bold">✨ Logs Clean Accord:</span>
+                              <span className="font-serif">"{choice.donor_promise.promise_title}"</span>
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/40 px-2 py-0.5 rounded text-[11px]">
+                              +${choice.donor_promise.war_chest_reward_millions}M on passage
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 rounded-lg bg-amber-950/60 border border-amber-800/40 text-amber-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-amber-400 font-bold">⚖️ Logs Bipartisan Accord:</span>
+                              <span className="font-serif">"{choice.donor_promise.promise_title}"</span>
+                            </span>
+                            <span className="font-mono font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/40 px-2 py-0.5 rounded text-[11px]">
+                              +${choice.donor_promise.war_chest_reward_millions}M on passage
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="pl-8 flex flex-wrap gap-2 text-[10px] font-mono">
                       {choice.political_effects?.polling_margin !== undefined && (

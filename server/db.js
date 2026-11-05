@@ -284,6 +284,10 @@ try {
   db.exec('ALTER TABLE political_sessions ADD COLUMN volatility TEXT DEFAULT \'normal\'');
 } catch (e) {}
 
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN donor_promise_id TEXT');
+} catch (e) {}
+
 // Create table for backroom caucus dealings and logrolling
 db.exec(`
   CREATE TABLE IF NOT EXISTS political_caucus_deals (
@@ -309,6 +313,33 @@ db.exec(`
     FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_caucus_deals_session ON political_caucus_deals(session_id);
+
+  CREATE TABLE IF NOT EXISTS political_donor_promises (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    promise_key TEXT,
+    donor_group TEXT NOT NULL,
+    donor_category TEXT,
+    promise_title TEXT NOT NULL,
+    promise_description TEXT,
+    statutory_category TEXT DEFAULT 'general',
+    suggested_bill_title TEXT,
+    suggested_summary TEXT,
+    suggested_fiscal_impact REAL DEFAULT 0,
+    public_support REAL DEFAULT 50,
+    war_chest_reward_millions REAL DEFAULT 1.0,
+    initial_funds_raised REAL DEFAULT 0,
+    controversy_level TEXT DEFAULT 'moderate', -- 'ethical', 'moderate', 'divisive', 'corrupt'
+    is_controversial INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending', -- 'pending', 'legislated', 'broken'
+    legislated_bill_id TEXT,
+    created_year INTEGER DEFAULT 1,
+    created_month INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    legislated_at DATETIME,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_donor_promises_session ON political_donor_promises(session_id);
 `);
 
 // Seed default admin and guest users if they don't exist
