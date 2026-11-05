@@ -5,7 +5,7 @@ import {
   Landmark, Award, Scale, Users, TrendingUp, TrendingDown, 
   FileText, Vote, Sparkles, Building2, Calendar, Shield, 
   DollarSign, ArrowRight, CheckCircle2, AlertTriangle, Plus,
-  Megaphone, MessageSquare, Briefcase
+  Megaphone, MessageSquare, Briefcase, Star, Clock
 } from 'lucide-react';
 import { PoliticalAdvisorDrawer } from './PoliticalAdvisorDrawer';
 import { PoliticalBillModal } from './PoliticalBillModal';
@@ -13,6 +13,7 @@ import { PoliticalWhipModal } from './PoliticalWhipModal';
 import { PoliticalEventModal } from './PoliticalEventModal';
 import { PoliticalElectionModal } from './PoliticalElectionModal';
 import { PoliticalEventWebModal } from './PoliticalEventWebModal';
+import { PoliticalCampaignModal } from './PoliticalCampaignModal';
 import { AudioPlayButton } from '../AudioPlayButton';
 
 interface Props {
@@ -38,6 +39,7 @@ export const PoliticalDashboard: React.FC<Props> = ({
   const [isWhipModalOpen, setIsWhipModalOpen] = useState(false);
   const [selectedBillForWhip, setSelectedBillForWhip] = useState<PoliticalBill | null>(null);
   const [isEventWebOpen, setIsEventWebOpen] = useState(false);
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   
   // Active event & election results
   const [activeEvent, setActiveEvent] = useState<any | null>(() => {
@@ -167,6 +169,36 @@ export const PoliticalDashboard: React.FC<Props> = ({
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
             <span className="font-mono font-bold">${pState.war_chest_millions}M War Chest</span>
           </div>
+
+          <div className="px-3.5 py-1.5 rounded-xl bg-amber-950/40 border border-amber-600/40 flex items-center space-x-1.5 text-amber-300">
+            <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+            <span className="font-mono font-bold">{pState.aggregate_achievement_score || 0} Bill Pts</span>
+          </div>
+
+          <div className="px-3.5 py-1.5 rounded-xl bg-stone-950 border border-stone-800 flex items-center space-x-1.5 text-stone-300">
+            <Clock className="w-3.5 h-3.5 text-stone-400" />
+            <span className="font-mono">{pState.terms_in_office || 1} Term(s)</span>
+          </div>
+
+          <button
+            onClick={() => setIsCampaignModalOpen(true)}
+            className={`px-3.5 py-1.5 rounded-xl border font-bold uppercase text-[11px] transition-all flex items-center space-x-1.5 shadow-md cursor-pointer ${
+              pState.declared_campaign 
+                ? (pState.declared_campaign.completed 
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-stone-950 border-emerald-400 ring-2 ring-emerald-400/40'
+                    : 'bg-amber-500 hover:bg-amber-400 text-stone-950 border-amber-400 ring-2 ring-amber-400/40 animate-pulse')
+                : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 border-amber-400/60'
+            }`}
+          >
+            <Vote className="w-3.5 h-3.5" />
+            <span>
+              {pState.declared_campaign 
+                ? (pState.declared_campaign.completed 
+                    ? `Ballot Ready: ${pState.declared_campaign.target_title}` 
+                    : `Donor Gauntlet (${pState.declared_campaign.questions_answered}/${pState.declared_campaign.questions_total})`) 
+                : 'Run for Higher Office'}
+            </span>
+          </button>
 
           <button
             onClick={onSwitchToCbs}
@@ -317,8 +349,8 @@ export const PoliticalDashboard: React.FC<Props> = ({
             </div>
 
             <div className="mt-4 pt-3 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-stone-400">
-              <span>Legislative Seniority: {pState.legislative_seniority} terms</span>
-              <span>Bills Passed into Law: {pState.bills_passed}</span>
+              <span>Seniority & Tenure: {pState.terms_in_office || 1} term(s) ({pState.legislative_seniority} yrs)</span>
+              <span>Bills Passed: {pState.bills_passed} (Achievement: <strong className="text-amber-400 font-mono">{pState.aggregate_achievement_score || 0} pts</strong>)</span>
             </div>
           </section>
 
@@ -539,9 +571,15 @@ export const PoliticalDashboard: React.FC<Props> = ({
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
-                        {bill.category}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
+                          {bill.category}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-950/60 border border-amber-600/40 text-amber-300 flex items-center gap-1">
+                          <Star className="w-3 h-3 text-amber-400 fill-current" />
+                          <span>Achievement: {bill.achievement_score || 5}/20 pts</span>
+                        </span>
+                      </div>
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
                         bill.status === 'passed'
                           ? 'bg-emerald-950 border-emerald-800 text-emerald-400'
@@ -706,6 +744,13 @@ export const PoliticalDashboard: React.FC<Props> = ({
       <PoliticalEventWebModal
         isOpen={isEventWebOpen}
         onClose={() => setIsEventWebOpen(false)}
+      />
+
+      <PoliticalCampaignModal
+        isOpen={isCampaignModalOpen}
+        onClose={() => setIsCampaignModalOpen(false)}
+        session={session}
+        onRefreshSession={onRefreshSession}
       />
 
     </div>

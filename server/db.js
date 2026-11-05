@@ -169,6 +169,7 @@ db.exec(`
     month_introduced INTEGER,
     year_resolved INTEGER,
     month_resolved INTEGER,
+    achievement_score INTEGER DEFAULT 5, -- Score 1-20 based on magnitude of achievement
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
   );
@@ -251,6 +252,12 @@ try {
 } catch (e) {}
 try {
   db.exec('ALTER TABLE media_blitzes ADD COLUMN month INTEGER');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN achievement_score INTEGER DEFAULT 5');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_sessions ADD COLUMN declared_campaign TEXT');
 } catch (e) {}
 
 // Seed default admin and guest users if they don't exist

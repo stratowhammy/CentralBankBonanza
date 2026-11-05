@@ -441,5 +441,31 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to send message to Chief of Staff');
     return res.json();
+  },
+
+  async getCampaignOptions(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/campaign/options`);
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to fetch campaign options'));
+    return res.json();
+  },
+
+  async startCampaign(sessionId: string, target_office_id: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/campaign/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_office_id })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to start campaign'));
+    return res.json();
+  },
+
+  async answerCampaignQuestion(sessionId: string, question_id: string, option_id: 'A' | 'B' | 'C') {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/campaign/answer-question`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_id, option_id })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to submit donor answer'));
+    return res.json();
   }
 };

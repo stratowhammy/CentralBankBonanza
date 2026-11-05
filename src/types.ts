@@ -375,6 +375,9 @@ export interface PoliticalState {
   
   // Stats
   legislative_seniority: number;
+  terms_in_office?: number;
+  aggregate_achievement_score?: number;
+  last_election_vote_share?: number;
   bills_sponsored: number;
   bills_passed: number;
   hearings_held: number;
@@ -386,6 +389,90 @@ export interface PoliticalState {
   next_stage_id: PoliticalTrackId | null;
   months_to_election: number;
   election_year_span: number;
+  declared_campaign?: DeclaredCampaign | null;
+}
+
+export interface DonorQuestionChoice {
+  option_id: 'A' | 'B' | 'C';
+  label: string;
+  description: string;
+  funds_raised_millions: number;
+  political_effects: {
+    polling_margin?: number;
+    party_loyalty?: number;
+    ethics_scrutiny?: number;
+    national_approval?: number;
+  };
+}
+
+export interface DonorQuestion {
+  id: string;
+  donor_group: string;
+  donor_category: string;
+  title: string;
+  prompt: string;
+  question_number: number;
+  total_questions: number;
+  choices: DonorQuestionChoice[];
+}
+
+export interface DeclaredCampaign {
+  target_office_id: PoliticalTrackId;
+  target_title: string;
+  chamber: string;
+  target_war_chest: number;
+  starting_war_chest: number;
+  war_chest_raised: number;
+  questions_total: number;
+  questions_answered: number;
+  completed: boolean;
+  questions?: DonorQuestion[];
+  donor_log?: Array<{
+    question_id: string;
+    donor_group: string;
+    choice_id: string;
+    choice_label: string;
+    funds_raised: number;
+    effects: any;
+  }>;
+}
+
+export interface CampaignOption {
+  target_office: {
+    id: PoliticalTrackId;
+    title: string;
+    chamber: string;
+    system_type: PoliticalSystemType;
+    target_war_chest: number;
+    target_achievement: number;
+    min_terms: number;
+    term_months: number;
+    description: string;
+    powers_summary: string;
+  };
+  expected_vote_share: number;
+  win_probability: number;
+  questions_required: number;
+  is_current_office: boolean;
+  breakdown: {
+    polling_score: number;
+    last_election_score: number;
+    approval_score: number;
+    terms_score: number;
+    achievement_score: number;
+    fund_score: number;
+    macro_score: number;
+    ethics_score: number;
+  };
+  metrics: {
+    terms_served: number;
+    min_terms_recommended: number;
+    aggregate_achievement_score: number;
+    target_achievement_score: number;
+    war_chest_millions: number;
+    target_war_chest: number;
+    deficit: number;
+  };
 }
 
 export interface PoliticalBill {
@@ -396,6 +483,7 @@ export interface PoliticalBill {
   statutory_text: string;
   category: string;
   fiscal_impact_billions: number;
+  achievement_score?: number; // Magnitude 1-20
   status: 'drafting' | 'in_committee' | 'floor_debate' | 'passed' | 'failed' | 'vetoed';
   committee_name?: string;
   committee_vote_aye?: number;

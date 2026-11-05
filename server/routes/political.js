@@ -8,6 +8,10 @@ const {
   generatePoliticalNews, 
   checkForPoliticalEvent,
   calculateWhipVoteCount,
+  calculateBillAchievementScore,
+  CAMPAIGN_OFFICE_DEFINITIONS,
+  calculateElectionOdds,
+  generateDonorQuestions,
   PARLIAMENTARY_TRACKS,
   CONGRESSIONAL_TRACKS
 } = require('../politicalEngine');
@@ -99,10 +103,16 @@ router.post('/new', async (req, res) => {
       );
 
       // Insert starter bill
+      const starterScore = calculateBillAchievementScore({
+        category: 'infrastructure',
+        fiscal_impact_billions: 22,
+        public_support: 64
+      });
+
       db.prepare(`
         INSERT INTO political_bills (
-          id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, 64, 1, 1)
+          id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced, achievement_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, 64, 1, 1, ?)
       `).run(
         initialBillId,
         sessionId,
@@ -111,7 +121,8 @@ router.post('/new', async (req, res) => {
         starterStatute,
         'infrastructure',
         22,
-        politicalState.committee_name
+        politicalState.committee_name,
+        starterScore
       );
 
       // Insert initial news dispatches
@@ -268,29 +279,64 @@ router.post('/session/:id/action', async (req, res) => {
     // Check for Election Day resolution
     let electionResult = null;
     if (pState.months_to_election === 0) {
-      // Election Day!
-      const voterBase = pState.district_approval;
-      const campaignBonus = Math.min(10, (pState.war_chest_millions || 1) * 0.8);
-      const econPenalty = eState.inflation_cpi > 4.5 ? -6 : (eState.gdp_growth > 2.0 ? 4 : 0);
-      const finalVotePct = Number((voterBase * 0.85 + campaignBonus + econPenalty + (Math.random() * 6 - 3)).toFixed(1));
-      
+      // Determine what office is being contested (declared higher office campaign vs standard re-election)
+      const isHigherOfficeBid = !!(pState.declared_campaign && pState.declared_campaign.target_office_id && pState.declared_campaign.completed);
+      const targetOfficeId = isHigherOfficeBid ? pState.declared_campaign.target_office_id : pState.current_stage_id;
+      const targetOffice = CAMPAIGN_OFFICE_DEFINITIONS[targetOfficeId] || CAMPAIGN_OFFICE_DEFINITIONS.representative;
+
+      const odds = calculateElectionOdds(targetOfficeId, pState, eState);
+      const randomJitter = Number(((Math.random() * 5.0) - 2.5).toFixed(1));
+      const finalVotePct = Math.min(88.0, Math.max(12.0, Number((odds.expected_vote_share + randomJitter).toFixed(1))));
       const won = finalVotePct >= 50.0;
+
       electionResult = {
         is_election_turn: true,
         won,
         vote_share_pct: finalVotePct,
         opponent_vote_share: Number((100 - finalVotePct).toFixed(1)),
+        target_office_id: targetOfficeId,
+        target_title: targetOffice.title,
+        is_higher_office: isHigherOfficeBid && targetOfficeId !== pState.current_stage_id,
+        breakdown: odds.breakdown,
+        metrics: odds.metrics,
         message: won 
-          ? `VICTORY! You have won re-election with ${finalVotePct}% of the vote in ${pState.district_name}. Your mandate is renewed!` 
-          : `DEFEAT. You received ${finalVotePct}% of the vote and have lost your seat to the challenger.`
+          ? (isHigherOfficeBid && targetOfficeId !== pState.current_stage_id
+              ? `LANDSLIDE VICTORY! You have won election to the office of ${targetOffice.title} with ${finalVotePct}% of the vote! A historic elevation in your political career.`
+              : `VICTORY! You have won re-election with ${finalVotePct}% of the vote in ${pState.district_name}. Your mandate is renewed!`)
+          : (isHigherOfficeBid && targetOfficeId !== pState.current_stage_id
+              ? `ELECTION NIGHT LOSS. Your bid for ${targetOffice.title} garnered ${finalVotePct}% of the vote, falling short of victory.`
+              : `DEFEAT. You received ${finalVotePct}% of the vote and have lost your seat to the challenger.`)
       };
 
+      pState.last_election_vote_share = finalVotePct;
+
       if (won) {
-        pState.months_to_election = pState.system_type === 'parliamentary' ? 36 : 24;
-        pState.legislative_seniority = (pState.legislative_seniority || 1) + 1;
-        pState.political_capital = Math.min(100, pState.political_capital + 20);
+        if (isHigherOfficeBid && targetOfficeId !== pState.current_stage_id) {
+          // Elevate to higher office!
+          pState.current_stage_id = targetOffice.id;
+          pState.politician_title = targetOffice.title;
+          pState.chamber = targetOffice.chamber;
+          pState.terms_in_office = (pState.terms_in_office || 1) + 1;
+          pState.months_to_election = targetOffice.term_months || (pState.system_type === 'parliamentary' ? 36 : 24);
+          pState.political_capital = Math.min(100, pState.political_capital + 35);
+          pState.national_approval = Math.min(99, pState.national_approval + 10);
+        } else {
+          // Standard re-election
+          pState.terms_in_office = (pState.terms_in_office || 1) + 1;
+          pState.legislative_seniority = (pState.legislative_seniority || 1) + 1;
+          pState.months_to_election = targetOffice.term_months || (pState.system_type === 'parliamentary' ? 36 : 24);
+          pState.political_capital = Math.min(100, pState.political_capital + 20);
+        }
+        pState.declared_campaign = null; // Reset campaign
       } else {
-        session.status = 'defeated';
+        if (isHigherOfficeBid) {
+          pState.declared_campaign = null;
+          pState.political_capital = Math.max(5, pState.political_capital - 20);
+          pState.polling_margin = Number((pState.polling_margin - 3.5).toFixed(1));
+          pState.months_to_election = 12; // Snap or midterm realignment
+        } else {
+          session.status = 'defeated';
+        }
       }
     }
 
@@ -405,10 +451,16 @@ router.post('/session/:id/bill/draft', async (req, res) => {
     const billId = 'pb_' + uuidv4().substring(0, 8);
     const statutoryText = draftStatutoryBill(title, category || 'general', fiscal_impact_billions || 15, session.political_state);
 
+    const achievementScore = calculateBillAchievementScore({
+      category: category || 'general',
+      fiscal_impact_billions: fiscal_impact_billions || 15,
+      public_support: 60
+    });
+
     db.prepare(`
       INSERT INTO political_bills (
-        id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, 60, ?, ?)
+        id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced, achievement_score
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, 60, ?, ?, ?)
     `).run(
       billId,
       session.id,
@@ -419,7 +471,8 @@ router.post('/session/:id/bill/draft', async (req, res) => {
       fiscal_impact_billions || 15,
       session.political_state.committee_name || 'Standing Committee',
       session.current_year,
-      session.current_month
+      session.current_month,
+      achievementScore
     );
 
     const updated = await getSessionFull(session.id);
@@ -496,7 +549,14 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
     const pState = session.political_state;
     const eState = session.economic_state;
 
+    let finalAchievement = Number(bill.achievement_score) || 5;
     if (passed) {
+      finalAchievement = calculateBillAchievementScore({
+        ...bill,
+        floor_vote_aye: whip.total_ayes,
+        floor_vote_nay: whip.total_nays
+      });
+      pState.aggregate_achievement_score = (pState.aggregate_achievement_score || 0) + finalAchievement;
       pState.bills_passed = (pState.bills_passed || 0) + 1;
       pState.district_approval = Math.min(99, pState.district_approval + 6);
       pState.national_approval = Math.min(99, pState.national_approval + 5);
@@ -519,7 +579,8 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
           floor_vote_aye = ?,
           floor_vote_nay = ?,
           year_resolved = ?,
-          month_resolved = ?
+          month_resolved = ?,
+          achievement_score = ?
         WHERE id = ?
       `).run(
         passed ? 'passed' : 'failed',
@@ -527,6 +588,7 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
         whip.total_nays,
         session.current_year,
         session.current_month,
+        finalAchievement,
         bill.id
       );
 
@@ -545,7 +607,200 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
       passed, 
       total_ayes: whip.total_ayes, 
       total_nays: whip.total_nays,
-      message: passed ? `🎉 THE BILL PASSES! Enacted into law with ${whip.total_ayes} Ayes to ${whip.total_nays} Nays.` : `BILL DEFEATED on the floor (${whip.total_ayes} Ayes to ${whip.total_nays} Nays).` 
+      achievement_score: finalAchievement,
+      aggregate_achievement_score: pState.aggregate_achievement_score,
+      message: passed 
+        ? `🎉 THE BILL PASSES! Enacted into law with ${whip.total_ayes} Ayes to ${whip.total_nays} Nays. (Legislative Achievement Score: +${finalAchievement}/20 pts)` 
+        : `BILL DEFEATED on the floor (${whip.total_ayes} Ayes to ${whip.total_nays} Nays).` 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Campaign & Higher Office Options
+router.get('/session/:id/campaign/options', async (req, res) => {
+  try {
+    const session = await getSessionFull(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const pState = session.political_state;
+    const eState = session.economic_state;
+    const isCongressional = pState.system_type === 'congressional';
+
+    const officeKeys = isCongressional 
+      ? ['representative', 'senator', 'president']
+      : ['backbencher', 'committee_chair', 'cabinet_minister', 'prime_minister'];
+
+    const options = officeKeys.map(k => {
+      const odds = calculateElectionOdds(k, pState, eState);
+      const office = CAMPAIGN_OFFICE_DEFINITIONS[k];
+      const deficit = Math.max(0, Number((office.target_war_chest - (pState.war_chest_millions || 0)).toFixed(2)));
+      const questionsCount = Math.max(3, Math.min(16, Math.round(deficit / 7.0) + 2));
+
+      return {
+        ...odds,
+        questions_required: questionsCount,
+        is_current_office: k === pState.current_stage_id
+      };
+    });
+
+    res.json({
+      current_office: pState.current_stage_id,
+      current_title: pState.politician_title,
+      system_type: pState.system_type,
+      declared_campaign: pState.declared_campaign || null,
+      aggregate_achievement_score: pState.aggregate_achievement_score || 0,
+      terms_in_office: pState.terms_in_office || 1,
+      war_chest_millions: pState.war_chest_millions || 0,
+      polling_margin: pState.polling_margin || 0,
+      options
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Launch Campaign for Target Office & Initiate Donor Vetting Gauntlet
+router.post('/session/:id/campaign/start', async (req, res) => {
+  try {
+    const { target_office_id } = req.body;
+    const session = await getSessionFull(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const pState = session.political_state;
+    const targetOffice = CAMPAIGN_OFFICE_DEFINITIONS[target_office_id];
+    if (!targetOffice) {
+      return res.status(400).json({ error: 'Invalid target office selected' });
+    }
+
+    const currentWarChest = pState.war_chest_millions || 0;
+    const questions = generateDonorQuestions(target_office_id, currentWarChest);
+
+    pState.declared_campaign = {
+      target_office_id,
+      target_title: targetOffice.title,
+      chamber: targetOffice.chamber,
+      target_war_chest: targetOffice.target_war_chest,
+      starting_war_chest: currentWarChest,
+      war_chest_raised: 0,
+      questions_total: questions.length,
+      questions_answered: 0,
+      completed: false,
+      questions,
+      donor_log: []
+    };
+
+    db.prepare(`
+      UPDATE political_sessions SET
+        political_state = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(pState), session.id);
+
+    // Headline news dispatch
+    db.prepare(`
+      INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+      VALUES (?, ?, ?, ?, 'capital_gazette', ?, ?, 'bullish', 'high', 'Electoral Campaign')
+    `).run(
+      'pn_' + uuidv4().substring(0, 8),
+      session.id,
+      session.current_year,
+      session.current_month,
+      `CAMPAIGN ANNOUNCEMENT: ${pState.politician_name} Enters Race for ${targetOffice.title}`,
+      `${pState.politician_name} has officially filed declaration papers to run for ${targetOffice.title}. High-dollar donor salons and finance committee vetting interrogations are now underway to amass the necessary war chest.`
+    );
+
+    const updated = await getSessionFull(session.id);
+    res.json({
+      session: updated,
+      campaign: pState.declared_campaign,
+      active_question: questions[0]
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Answer a Question in the Donor Fundraising Gauntlet
+router.post('/session/:id/campaign/answer-question', async (req, res) => {
+  try {
+    const { question_id, option_id } = req.body;
+    const session = await getSessionFull(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const pState = session.political_state;
+    const campaign = pState.declared_campaign;
+    if (!campaign || !campaign.questions) {
+      return res.status(400).json({ error: 'No active campaign donor gauntlet found' });
+    }
+
+    const currentQIdx = campaign.questions_answered || 0;
+    const question = campaign.questions[currentQIdx];
+    if (!question || question.id !== question_id) {
+      return res.status(400).json({ error: 'Question out of sync or already answered' });
+    }
+
+    const choice = question.choices.find(c => c.option_id === option_id);
+    if (!choice) {
+      return res.status(400).json({ error: 'Invalid choice option' });
+    }
+
+    // Apply funds raised to war chest
+    const fundsRaised = Number(choice.funds_raised_millions) || 0;
+    pState.war_chest_millions = Number(((pState.war_chest_millions || 0) + fundsRaised).toFixed(2));
+    campaign.war_chest_raised = Number(((campaign.war_chest_raised || 0) + fundsRaised).toFixed(2));
+
+    // Apply political side-effects
+    const eff = choice.political_effects || {};
+    pState.polling_margin = Number(((pState.polling_margin || 0) + (eff.polling_margin || 0)).toFixed(1));
+    pState.party_loyalty = Math.max(10, Math.min(100, (pState.party_loyalty || 70) + (eff.party_loyalty || 0)));
+    pState.ethics_scrutiny = Math.max(0, Math.min(100, (pState.ethics_scrutiny || 10) + (eff.ethics_scrutiny || 0)));
+    pState.national_approval = Math.max(10, Math.min(99, (pState.national_approval || 50) + (eff.national_approval || 0)));
+
+    campaign.donor_log.push({
+      question_id: question.id,
+      donor_group: question.donor_group,
+      choice_id: option_id,
+      choice_label: choice.label,
+      funds_raised: fundsRaised,
+      effects: eff
+    });
+
+    campaign.questions_answered = currentQIdx + 1;
+    if (campaign.questions_answered >= campaign.questions_total) {
+      campaign.completed = true;
+
+      // Celebrate full qualification
+      db.prepare(`
+        INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+        VALUES (?, ?, ?, ?, 'beltway_insider', ?, ?, 'favorable', 'medium', 'Campaign Fundraising')
+      `).run(
+        'pn_' + uuidv4().substring(0, 8),
+        session.id,
+        session.current_year,
+        session.current_month,
+        `FINANCIAL QUALIFICATION: ${pState.politician_name} Clears War Chest Goal for ${campaign.target_title}`,
+        `Following ${campaign.questions_total} rounds of intense donor interrogation and grassroots outreach, ${pState.politician_name} has raised a total of $${campaign.war_chest_raised}M, positioning the campaign on strong financial footing ahead of the vote.`
+      );
+    }
+
+    db.prepare(`
+      UPDATE political_sessions SET
+        political_state = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(JSON.stringify(pState), session.id);
+
+    const nextQ = campaign.completed ? null : campaign.questions[campaign.questions_answered];
+    const updated = await getSessionFull(session.id);
+
+    res.json({
+      session: updated,
+      campaign,
+      funds_raised_this_round: fundsRaised,
+      completed: campaign.completed,
+      next_question: nextQ
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

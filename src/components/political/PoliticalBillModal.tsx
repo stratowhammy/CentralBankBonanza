@@ -122,7 +122,7 @@ export const PoliticalBillModal: React.FC<Props> = ({
             <div className="space-y-6">
               
               {/* Metadata Banner */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
                 <div className="p-3 rounded-xl bg-stone-950 border border-stone-800">
                   <div className="text-stone-500 font-sans">Category</div>
                   <div className="font-bold text-amber-300 capitalize">{bill.category}</div>
@@ -134,11 +134,15 @@ export const PoliticalBillModal: React.FC<Props> = ({
                   </div>
                 </div>
                 <div className="p-3 rounded-xl bg-stone-950 border border-stone-800">
+                  <div className="text-stone-500 font-sans">Achievement Value</div>
+                  <div className="font-bold font-mono text-amber-400">⭐️ {bill.achievement_score || 5} / 20 pts</div>
+                </div>
+                <div className="p-3 rounded-xl bg-stone-950 border border-stone-800">
                   <div className="text-stone-500 font-sans">Public Favorable</div>
                   <div className="font-bold text-stone-200">{bill.public_support || 60}%</div>
                 </div>
                 <div className="p-3 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="text-stone-500 font-sans">Committee Standing</div>
+                  <div className="text-stone-500 font-sans">Status</div>
                   <div className="font-bold text-cyan-300 capitalize">{bill.status.replace('_', ' ')}</div>
                 </div>
               </div>
