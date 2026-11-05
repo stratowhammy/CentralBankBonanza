@@ -13,7 +13,8 @@ const {
   calculateElectionOdds,
   generateDonorQuestions,
   PARLIAMENTARY_TRACKS,
-  CONGRESSIONAL_TRACKS
+  CONGRESSIONAL_TRACKS,
+  generateCaucusDealOffers
 } = require('../politicalEngine');
 const { getInitialEconomicState, evolveEconomy } = require('../simulationEngine');
 const { handlePoliticalAdvisorChat, draftStatutoryBill } = require('../politicalAdvisorEngine');
@@ -210,6 +211,39 @@ Let us make your tenure a landmark success. What are your immediate directives f
         JSON.stringify(politicalState),
         JSON.stringify(economicState)
       );
+
+      // Seed initial caucus delegation trade offers for the starter bill
+      const initialDeals = generateCaucusDealOffers(
+        { id: sessionId, system_type: effectiveSystem, current_year: 1, current_month: 1 },
+        { id: initialBillId, title: starterBillTitle }
+      );
+      const insertDeal = db.prepare(`
+        INSERT INTO political_caucus_deals (
+          id, session_id, caucus_id, caucus_name, caucus_leader, member_count, ideology,
+          docket_bill_title, docket_bill_summary, docket_bill_category, docket_bill_impact,
+          user_target_bill_id, user_target_bill_title, pledged_votes, demands_description, status,
+          year_proposed, month_proposed
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 1, 1)
+      `);
+      for (const d of initialDeals) {
+        insertDeal.run(
+          d.id,
+          sessionId,
+          d.caucus_id,
+          d.caucus_name,
+          d.caucus_leader,
+          d.member_count,
+          d.ideology,
+          d.docket_bill_title,
+          d.docket_bill_summary,
+          d.docket_bill_category,
+          d.docket_bill_impact,
+          d.user_target_bill_id,
+          d.user_target_bill_title,
+          d.pledged_votes,
+          d.demands_description
+        );
+      }
     });
 
     createTx();
@@ -231,6 +265,7 @@ async function getSessionFull(sessionId) {
   const news = db.prepare('SELECT * FROM political_news_dispatches WHERE session_id = ? ORDER BY year DESC, month DESC LIMIT 15').all(sessionId);
   const history = db.prepare('SELECT * FROM political_turn_history WHERE session_id = ? ORDER BY year ASC, month ASC').all(sessionId);
   const messages = db.prepare('SELECT * FROM political_advisor_messages WHERE session_id = ? ORDER BY created_at ASC').all(sessionId);
+  const caucusDeals = db.prepare('SELECT * FROM political_caucus_deals WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
 
   return {
     ...sessionRow,
@@ -240,7 +275,8 @@ async function getSessionFull(sessionId) {
     bills,
     news,
     history,
-    messages
+    messages,
+    caucus_deals: caucusDeals
   };
 }
 
@@ -526,6 +562,25 @@ router.post('/session/:id/bill/draft', async (req, res) => {
       achievementScore
     );
 
+    // Generate caucus trade offers for this newly drafted bill
+    const freshOffers = generateCaucusDealOffers(session, { id: billId, title });
+    const insertDeal = db.prepare(`
+      INSERT INTO political_caucus_deals (
+        id, session_id, caucus_id, caucus_name, caucus_leader, member_count, ideology,
+        docket_bill_title, docket_bill_summary, docket_bill_category, docket_bill_impact,
+        user_target_bill_id, user_target_bill_title, pledged_votes, demands_description, status,
+        year_proposed, month_proposed
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+    `);
+    for (const d of freshOffers) {
+      insertDeal.run(
+        d.id, session.id, d.caucus_id, d.caucus_name, d.caucus_leader, d.member_count, d.ideology,
+        d.docket_bill_title, d.docket_bill_summary, d.docket_bill_category, d.docket_bill_impact,
+        d.user_target_bill_id, d.user_target_bill_title, d.pledged_votes, d.demands_description,
+        session.current_year, session.current_month
+      );
+    }
+
     const updated = await getSessionFull(session.id);
     res.json({ session: updated, bill_id: billId });
   } catch (err) {
@@ -533,35 +588,214 @@ router.post('/session/:id/bill/draft', async (req, res) => {
   }
 });
 
-// Submit bill to committee / vote out of committee
+// Committee markup: sway members with political capital OR hold markup vote
 router.post('/session/:id/bill/:billId/committee', async (req, res) => {
   try {
-    const { billId } = req.params;
-    const bill = db.prepare('SELECT * FROM political_bills WHERE id = ?').get(billId);
-    if (!bill) return res.status(404).json({ error: 'Bill not found' });
+    const { action, sway_type, capital_spent } = req.body;
+    const session = await getSessionFull(req.params.id);
+    const bill = db.prepare('SELECT * FROM political_bills WHERE id = ?').get(req.params.billId);
+    if (!session || !bill) return res.status(404).json({ error: 'Session or bill not found' });
 
-    // Committee markup vote
-    const ayes = 14 + Math.floor(Math.random() * 8);
-    const nays = 6 + Math.floor(Math.random() * 6);
-    const passed = ayes > nays;
+    const pState = session.political_state;
 
-    db.prepare(`
-      UPDATE political_bills SET
-        status = ?,
-        committee_vote_aye = ?,
-        committee_vote_nay = ?
-      WHERE id = ?
-    `).run(
-      passed ? 'floor_debate' : 'in_committee',
-      ayes,
-      nays,
-      billId
-    );
+    // 1. ACTION: SWAY COMMITTEE MEMBERS WITH POLITICAL CAPITAL
+    if (action === 'sway') {
+      const isAmendment = sway_type === 'amendment';
+      const cost = isAmendment ? 10 : 5;
+
+      if ((pState.political_capital || 0) < cost) {
+        return res.status(400).json({ 
+          error: `Insufficient political capital. You need at least ${cost} capital (you have ${pState.political_capital || 0}).` 
+        });
+      }
+
+      // Deduct political capital
+      pState.political_capital = Math.max(0, (pState.political_capital || 0) - cost);
+
+      // Increment bill sway metrics
+      const newCapitalSpent = (bill.committee_capital_spent || 0) + cost;
+      const swayIncrement = isAmendment ? 2 : 1;
+      const newSwayLevel = (bill.committee_sway_level || 0) + swayIncrement;
+      const newAmendmentsCount = (bill.committee_amendments_count || 0) + (isAmendment ? 1 : 0);
+      const newPublicSupport = Math.min(95, (bill.public_support || 55) + (isAmendment ? 4 : 2));
+
+      db.transaction(() => {
+        db.prepare(`
+          UPDATE political_bills SET
+            committee_capital_spent = ?,
+            committee_sway_level = ?,
+            committee_amendments_count = ?,
+            public_support = ?
+          WHERE id = ?
+        `).run(
+          newCapitalSpent,
+          newSwayLevel,
+          newAmendmentsCount,
+          newPublicSupport,
+          bill.id
+        );
+
+        db.prepare('UPDATE political_sessions SET political_state = ? WHERE id = ?')
+          .run(JSON.stringify(pState), session.id);
+      })();
+
+      const updated = await getSessionFull(req.params.id);
+      const floorBonus = Math.round(newSwayLevel * 3.5 + newAmendmentsCount * 6);
+      const message = isAmendment
+        ? `Adopted bipartisan committee markup amendment (-10 Capital). Committee sway level is now ${newSwayLevel} with ${newAmendmentsCount} compromise amendments adopted. Primed +${floorBonus} floor momentum votes!`
+        : `Swayed key moderate committee member (-5 Capital). Committee sway level is now ${newSwayLevel}. Primed +${floorBonus} floor momentum votes!`;
+
+      return res.json({
+        session: updated,
+        sway_result: {
+          cost,
+          sway_level: newSwayLevel,
+          amendments_count: newAmendmentsCount,
+          floor_momentum_votes: floorBonus,
+          message
+        }
+      });
+    }
+
+    // 2. ACTION: HOLD COMMITTEE MARKUP VOTE (Vote out to floor)
+    // Total committee seats = 24. Majority threshold = 13 votes.
+    const baselineMajorityAyes = 8;
+    const baselineOppCrossover = 1;
+    const swayBonus = Math.round((bill.committee_sway_level || 0) * 1.8 + (bill.committee_amendments_count || 0) * 2.5);
+    const randomFriction = Math.floor(Math.random() * 3); // 0, 1, or 2
+
+    const ayes = Math.min(24, Math.max(4, baselineMajorityAyes + baselineOppCrossover + swayBonus + randomFriction));
+    const nays = 24 - ayes;
+    const passed = ayes >= 13;
+
+    db.transaction(() => {
+      db.prepare(`
+        UPDATE political_bills SET
+          status = ?,
+          committee_vote_aye = ?,
+          committee_vote_nay = ?
+        WHERE id = ?
+      `).run(
+        passed ? 'floor_debate' : 'in_committee',
+        ayes,
+        nays,
+        bill.id
+      );
+    })();
 
     const updated = await getSessionFull(req.params.id);
+    const floorBonus = Math.round((bill.committee_sway_level || 0) * 3.5 + (bill.committee_amendments_count || 0) * 6);
+    const message = passed
+      ? `Voted out of committee with favorable recommendation (${ayes} Ayes to ${nays} Nays)! Bill cleared for floor debate carrying +${floorBonus} floor momentum votes.`
+      : `Failed in committee markup (${ayes} Ayes to ${nays} Nays — needed 13 to report out). Spend political capital to sway more members before calling another vote.`;
+
     res.json({ 
       session: updated, 
-      committee_result: { passed, ayes, nays, message: passed ? 'Voted out of committee with favorable recommendation!' : 'Failed in committee markup.' } 
+      committee_result: { passed, ayes, nays, message } 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List all caucus deal offers
+router.get('/session/:id/caucus-deals', async (req, res) => {
+  try {
+    const deals = db.prepare('SELECT * FROM political_caucus_deals WHERE session_id = ? ORDER BY created_at DESC').all(req.params.id);
+    
+    // If fewer than 2 pending deals, generate fresh offers
+    const pending = deals.filter(d => d.status === 'pending');
+    if (pending.length < 2) {
+      const session = await getSessionFull(req.params.id);
+      if (session) {
+        const activeBill = session.bills.find(b => b.status === 'in_committee' || b.status === 'floor_debate') || session.bills[0];
+        const newDeals = generateCaucusDealOffers(session, activeBill);
+        const insertDeal = db.prepare(`
+          INSERT INTO political_caucus_deals (
+            id, session_id, caucus_id, caucus_name, caucus_leader, member_count, ideology,
+            docket_bill_title, docket_bill_summary, docket_bill_category, docket_bill_impact,
+            user_target_bill_id, user_target_bill_title, pledged_votes, demands_description, status,
+            year_proposed, month_proposed
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+        `);
+        for (const d of newDeals) {
+          insertDeal.run(
+            d.id, session.id, d.caucus_id, d.caucus_name, d.caucus_leader, d.member_count, d.ideology,
+            d.docket_bill_title, d.docket_bill_summary, d.docket_bill_category, d.docket_bill_impact,
+            d.user_target_bill_id, d.user_target_bill_title, d.pledged_votes, d.demands_description,
+            session.current_year, session.current_month
+          );
+        }
+        const fresh = db.prepare('SELECT * FROM political_caucus_deals WHERE session_id = ? ORDER BY created_at DESC').all(req.params.id);
+        return res.json({ deals: fresh });
+      }
+    }
+    
+    res.json({ deals });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Negotiate caucus deal (accept, counter, or reject)
+router.post('/session/:id/caucus-deals/:dealId/negotiate', async (req, res) => {
+  try {
+    const { action } = req.body; // 'accept', 'counter', 'reject'
+    const session = await getSessionFull(req.params.id);
+    const deal = db.prepare('SELECT * FROM political_caucus_deals WHERE id = ? AND session_id = ?').get(req.params.dealId, req.params.id);
+    if (!session || !deal) return res.status(404).json({ error: 'Session or deal not found' });
+
+    const pState = session.political_state;
+
+    if (action === 'reject') {
+      db.prepare("UPDATE political_caucus_deals SET status = 'rejected' WHERE id = ?").run(deal.id);
+      const updated = await getSessionFull(session.id);
+      return res.json({
+        session: updated,
+        message: `Declined deal with ${deal.caucus_leader}. ${deal.caucus_name} will vote their ideological baseline.`
+      });
+    }
+
+    if (action === 'counter') {
+      // Counter-offer: spend 8 capital to insert carve-out and secure +5 extra votes
+      if ((pState.political_capital || 0) < 8) {
+        return res.status(400).json({ error: 'You need at least 8 political capital to negotiate an amendment counter-offer.' });
+      }
+      pState.political_capital = Math.max(0, (pState.political_capital || 0) - 8);
+      const updatedPledged = deal.pledged_votes + 5;
+
+      // Apply pledged votes to the user target bill
+      if (deal.user_target_bill_id) {
+        db.prepare('UPDATE political_bills SET pledged_caucus_votes = pledged_caucus_votes + ? WHERE id = ?')
+          .run(updatedPledged, deal.user_target_bill_id);
+      }
+
+      db.prepare("UPDATE political_caucus_deals SET status = 'accepted', pledged_votes = ? WHERE id = ?").run(updatedPledged, deal.id);
+      db.prepare('UPDATE political_sessions SET political_state = ? WHERE id = ?').run(JSON.stringify(pState), session.id);
+
+      const updated = await getSessionFull(session.id);
+      return res.json({
+        session: updated,
+        message: `Backroom Counter-Offer Accepted! (-8 Capital). ${deal.caucus_leader} conceded district carve-outs and committed ${updatedPledged} locked floor votes for '${deal.user_target_bill_title}'!`
+      });
+    }
+
+    // Default action: 'accept'
+    if (deal.user_target_bill_id) {
+      db.prepare('UPDATE political_bills SET pledged_caucus_votes = pledged_caucus_votes + ? WHERE id = ?')
+        .run(deal.pledged_votes, deal.user_target_bill_id);
+    }
+
+    // Slight party loyalty / approval trade-off for logrolling
+    pState.party_loyalty = Math.min(100, (pState.party_loyalty || 60) + 1);
+
+    db.prepare("UPDATE political_caucus_deals SET status = 'accepted' WHERE id = ?").run(deal.id);
+    db.prepare('UPDATE political_sessions SET political_state = ? WHERE id = ?').run(JSON.stringify(pState), session.id);
+
+    const updated = await getSessionFull(session.id);
+    return res.json({
+      session: updated,
+      message: `Logrolling Accord Sealed! ${deal.caucus_leader} and ${deal.caucus_name} officially committed ${deal.pledged_votes} locked floor votes for '${deal.user_target_bill_title}' in exchange for your support on '${deal.docket_bill_title}'!`
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

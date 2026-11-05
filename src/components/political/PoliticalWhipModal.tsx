@@ -151,8 +151,8 @@ export const PoliticalWhipModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Faction Breakdown */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              {/* Faction Breakdown & Deal Leverage */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className="p-3.5 rounded-xl bg-stone-950 border border-stone-800">
                   <div className="font-bold text-amber-300 mb-1">Ruling Party Coalition</div>
                   <div className="text-stone-400 space-y-1">
@@ -161,18 +161,18 @@ export const PoliticalWhipModal: React.FC<Props> = ({
                       <span className="font-mono text-emerald-400">{whipResult.breakdown.party_ayes}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Party Nays:</span>
+                      <span>Party Nays / Rebels:</span>
                       <span className="font-mono text-red-400">{whipResult.breakdown.party_nays}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Undecided:</span>
+                      <span>Undecided Benchers:</span>
                       <span className="font-mono text-amber-400">{whipResult.breakdown.party_undecided}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-stone-950 border border-stone-800">
-                  <div className="font-bold text-cyan-300 mb-1">Opposition Bipartisan Cross</div>
+                  <div className="font-bold text-cyan-300 mb-1">Opposition Crossover</div>
                   <div className="text-stone-400 space-y-1">
                     <div className="flex justify-between">
                       <span>Opposition Ayes:</span>
@@ -182,12 +182,23 @@ export const PoliticalWhipModal: React.FC<Props> = ({
                       <span>Opposition Nays:</span>
                       <span className="font-mono text-red-400">{whipResult.breakdown.opposition_nays}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Cross-Aisle Ratio:</span>
-                      <span className="font-mono text-stone-300">
-                        {Math.round((whipResult.breakdown.opposition_ayes / (whipResult.total_seats - 350)) * 100)}%
-                      </span>
-                    </div>
+                  </div>
+                </div>
+
+                {/* Backroom & Committee Momentum Callout */}
+                <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-600/40">
+                  <div className="font-bold text-emerald-300 mb-1">🏛️ Committee Momentum</div>
+                  <div className="flex justify-between text-stone-300 font-mono">
+                    <span>Swayed Members & Amendments:</span>
+                    <span className="font-bold text-emerald-400">+{whipResult.breakdown.committee_momentum_votes || 0} Votes</span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-600/40">
+                  <div className="font-bold text-amber-300 mb-1">🤝 Backroom Caucus Logrolling</div>
+                  <div className="flex justify-between text-stone-300 font-mono">
+                    <span>Pledged Caucus Accords:</span>
+                    <span className="font-bold text-amber-400">+{whipResult.breakdown.pledged_caucus_votes || 0} Votes</span>
                   </div>
                 </div>
               </div>

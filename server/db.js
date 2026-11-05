@@ -257,6 +257,21 @@ try {
   db.exec('ALTER TABLE political_bills ADD COLUMN achievement_score INTEGER DEFAULT 5');
 } catch (e) {}
 try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN committee_capital_spent INTEGER DEFAULT 0');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN committee_sway_level INTEGER DEFAULT 0');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN committee_amendments_count INTEGER DEFAULT 0');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN pledged_caucus_votes INTEGER DEFAULT 0');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN caucus_deals TEXT');
+} catch (e) {}
+try {
   db.exec('ALTER TABLE political_sessions ADD COLUMN declared_campaign TEXT');
 } catch (e) {}
 try {
@@ -268,6 +283,33 @@ try {
 try {
   db.exec('ALTER TABLE political_sessions ADD COLUMN volatility TEXT DEFAULT \'normal\'');
 } catch (e) {}
+
+// Create table for backroom caucus dealings and logrolling
+db.exec(`
+  CREATE TABLE IF NOT EXISTS political_caucus_deals (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    caucus_id TEXT NOT NULL,
+    caucus_name TEXT NOT NULL,
+    caucus_leader TEXT NOT NULL,
+    member_count INTEGER NOT NULL,
+    ideology TEXT NOT NULL,
+    docket_bill_title TEXT NOT NULL,
+    docket_bill_summary TEXT NOT NULL,
+    docket_bill_category TEXT NOT NULL,
+    docket_bill_impact REAL DEFAULT 0,
+    user_target_bill_id TEXT,
+    user_target_bill_title TEXT,
+    pledged_votes INTEGER NOT NULL,
+    demands_description TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'accepted', 'rejected', 'countered'
+    year_proposed INTEGER,
+    month_proposed INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_caucus_deals_session ON political_caucus_deals(session_id);
+`);
 
 // Seed default admin and guest users if they don't exist
 const checkAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');

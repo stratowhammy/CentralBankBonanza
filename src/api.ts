@@ -410,9 +410,37 @@ export const api = {
 
   async submitBillToCommittee(sessionId: string, billId: string) {
     const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/${billId}/committee`, {
-      method: 'POST'
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'markup_vote' })
     });
-    if (!res.ok) throw new Error('Failed to submit bill to committee');
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to conduct committee markup'));
+    return res.json();
+  },
+
+  async swayCommittee(sessionId: string, billId: string, swayType: 'member' | 'amendment') {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/${billId}/committee`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'sway', sway_type: swayType })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to sway committee members'));
+    return res.json();
+  },
+
+  async getCaucusDeals(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/caucus-deals`);
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to fetch caucus deals'));
+    return res.json();
+  },
+
+  async negotiateCaucusDeal(sessionId: string, dealId: string, action: 'accept' | 'counter' | 'reject') {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/caucus-deals/${dealId}/negotiate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to negotiate caucus deal'));
     return res.json();
   },
 

@@ -184,21 +184,254 @@ function getInitialPoliticalState(systemType = 'parliamentary', selectedTrack = 
   };
 }
 
-// Calculate floor whip counts based on party wings, capital spent, and bill attributes
+// Congressional & Parliamentary Faction Caucuses for Backroom Negotiations & Logrolling
+const CONGRESSIONAL_CAUCUSES = [
+  {
+    id: 'progressive_caucus',
+    name: 'Progressive Working-Class Caucus',
+    leader: 'Rep. Alexandria Rivera',
+    member_count: 42,
+    ideology: 'Progressive Democratic Left',
+    priorities: ['healthcare', 'labor', 'climate', 'social_welfare'],
+    docket_bills: [
+      {
+        title: 'Universal Hospital Nurse Staffing & Living Wage Mandate',
+        summary: 'Enforces safe nurse-to-patient ratios across federally funded hospital systems and establishes mandatory overtime protections.',
+        category: 'healthcare',
+        fiscal_impact: 14.5
+      },
+      {
+        title: 'Green Infrastructure Public Apprenticeship Accord',
+        summary: 'Mandates prevailing union wages and high-school apprenticeships on all federally subsidized renewable energy transmission grids.',
+        category: 'energy',
+        fiscal_impact: 22.0
+      }
+    ]
+  },
+  {
+    id: 'freedom_faction',
+    name: 'Conservative Freedom Faction',
+    leader: 'Rep. Wyatt Vance',
+    member_count: 36,
+    ideology: 'Constitutional Fiscal Conservatives',
+    priorities: ['fiscal', 'deregulation', 'defense', 'trade'],
+    docket_bills: [
+      {
+        title: 'Statutory Federal Spending Brake & Regulatory Audit Act',
+        summary: 'Imposes a mandatory statutory cap on discretionary agency expansions and requires a two-for-one repeal of industrial regulations.',
+        category: 'fiscal',
+        fiscal_impact: -18.0
+      },
+      {
+        title: 'Domestic Energy Leasing & Pipeline Permitting Acceleration Act',
+        summary: 'Eliminates judicial NEPA delays for interstate gas pipeline expansions and domestic mineral refining facilities.',
+        category: 'energy',
+        fiscal_impact: -4.5
+      }
+    ]
+  },
+  {
+    id: 'problem_solvers',
+    name: 'Problem Solvers Centrist Coalition',
+    leader: 'Rep. Evelyn Mercer',
+    member_count: 28,
+    ideology: 'Bipartisan Pragmatic Moderates',
+    priorities: ['infrastructure', 'technology', 'trade', 'fiscal'],
+    docket_bills: [
+      {
+        title: 'Bipartisan Grid Resiliency & Freight Corridor Modernization Act',
+        summary: 'Deploys matching federal grants to municipal ports, freight railways, and regional microgrids with public-private financing matches.',
+        category: 'infrastructure',
+        fiscal_impact: 18.0
+      },
+      {
+        title: 'Rural High-Speed Gigabit & Agricultural Broadband Accord',
+        summary: 'Directs universal telecommunications service fees toward unserved rural counties and precision agricultural sensor networks.',
+        category: 'technology',
+        fiscal_impact: 9.5
+      }
+    ]
+  },
+  {
+    id: 'rust_belt_alliance',
+    name: 'Rust Belt Industrial & Energy Alliance',
+    leader: 'Rep. Frank Kowalski',
+    member_count: 31,
+    ideology: 'Pro-Labor Domestic Manufacturing',
+    priorities: ['trade', 'manufacturing', 'infrastructure', 'labor'],
+    docket_bills: [
+      {
+        title: 'Strategic Steel Sourcing & Anti-Dumping Tariff Protection Act',
+        summary: 'Imposes punitive reciprocal tariffs on state-subsidized steel and requires 100% domestic iron procurement on federal civil works.',
+        category: 'trade',
+        fiscal_impact: 6.0
+      },
+      {
+        title: 'Heavy Industry Decarbonization & Clean Hydrogen Grant Act',
+        summary: 'Provides direct federal capital co-investments to retrofit legacy blast furnaces and chemical processing plants with clean hydrogen.',
+        category: 'infrastructure',
+        fiscal_impact: 16.0
+      }
+    ]
+  },
+  {
+    id: 'main_street_bloc',
+    name: 'Main Street Merchants & Small Enterprise Bloc',
+    leader: 'Rep. Dwight Caldwell',
+    member_count: 22,
+    ideology: 'Independent Commercial Reformers',
+    priorities: ['taxation', 'banking', 'labor', 'fiscal'],
+    docket_bills: [
+      {
+        title: 'Small Business Credit Transparency & Interchange Fee Relief Act',
+        summary: 'Caps commercial credit card transaction processing fees on independent merchants and expands community bank SBA loan guarantees.',
+        category: 'banking',
+        fiscal_impact: -2.0
+      }
+    ]
+  }
+];
+
+const PARLIAMENTARY_CAUCUSES = [
+  {
+    id: 'socialist_campaign_group',
+    name: 'Trade Union & Socialist Campaign Group',
+    leader: 'Arthur Pendelton MP',
+    member_count: 44,
+    ideology: 'Democratic Socialist & Union Benchers',
+    priorities: ['healthcare', 'labor', 'housing', 'social_welfare'],
+    docket_bills: [
+      {
+        title: 'National Rail & Municipal Water Re-Nationalization Statute',
+        summary: 'Transfers privatized regional passenger rail and wastewater operating franchises into statutory public trusts.',
+        category: 'infrastructure',
+        fiscal_impact: 28.0
+      },
+      {
+        title: 'Statutory Living Wage & Fair Rent Tenancy Protection Act',
+        summary: 'Bans no-fault evictions, caps private residential annual rent adjustments to CPI, and ties minimum wage to median earnings.',
+        category: 'housing',
+        fiscal_impact: 8.0
+      }
+    ]
+  },
+  {
+    id: 'one_nation_moderates',
+    name: 'One-Nation Moderate Benchers',
+    leader: 'Victoria Ashworth MP',
+    member_count: 36,
+    ideology: 'Centrist Civic Reformers',
+    priorities: ['infrastructure', 'healthcare', 'climate', 'fiscal'],
+    docket_bills: [
+      {
+        title: 'Community Hospital & Mental Health Emergency Facility Accord',
+        summary: 'Allocates statutory capital funding to construct 25 regional urgent community clinics to alleviate emergency ward bottlenecks.',
+        category: 'healthcare',
+        fiscal_impact: 15.0
+      },
+      {
+        title: 'Green Belt Clean Energy Permitting & Biodiversity Net-Gain Act',
+        summary: 'Authorizes municipal renewable solar arrays and offshore transmission landing stations with strict local conservation offsets.',
+        category: 'energy',
+        fiscal_impact: 11.0
+      }
+    ]
+  },
+  {
+    id: 'free_enterprise_group',
+    name: 'Fiscal Prudence & Free Enterprise Faction',
+    leader: 'Sir Alistair Finch MP',
+    member_count: 39,
+    ideology: 'Free-Market Conservative Backbenchers',
+    priorities: ['fiscal', 'deregulation', 'taxation', 'trade'],
+    docket_bills: [
+      {
+        title: 'Corporate Investment Expensing & Planning Deregulation Act',
+        summary: 'Establishes permanent 100% capital expensing for corporate machinery and curtails local planning vetoes for commercial industrial parks.',
+        category: 'fiscal',
+        fiscal_impact: -14.0
+      },
+      {
+        title: 'Statutory Fiscal Deficit Rule & Public Sector Headcount Cap',
+        summary: 'Requires government departments to achieve a cyclically adjusted current budget surplus within three financial years.',
+        category: 'fiscal',
+        fiscal_impact: -12.0
+      }
+    ]
+  },
+  {
+    id: 'regional_devolution_bloc',
+    name: 'Northern & Regional Devolution Faction',
+    leader: 'Sean Gallagher MP',
+    member_count: 27,
+    ideology: 'Regional Economic Champions',
+    priorities: ['infrastructure', 'manufacturing', 'trade'],
+    docket_bills: [
+      {
+        title: 'Trans-Pennine High-Speed Electrification & Freight Corridor Act',
+        summary: 'Directs statutory capital guarantees to complete regional high-speed rail electrification connecting peripheral industrial hubs.',
+        category: 'infrastructure',
+        fiscal_impact: 24.0
+      }
+    ]
+  }
+];
+
+// Generate dynamic backroom caucus deal trade proposals
+function generateCaucusDealOffers(session, currentBill = null) {
+  const isParliamentary = session.system_type === 'parliamentary';
+  const caucuses = isParliamentary ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+  
+  // Pick 2-3 distinct caucuses
+  const shuffled = [...caucuses].sort(() => 0.5 - Math.random());
+  const selectedCaucuses = shuffled.slice(0, 3);
+
+  const targetBillId = currentBill ? currentBill.id : null;
+  const targetBillTitle = currentBill ? currentBill.title : 'Pending Priority Statute';
+
+  return selectedCaucuses.map(caucus => {
+    const docketBill = caucus.docket_bills[Math.floor(Math.random() * caucus.docket_bills.length)];
+    // Pledged votes: between 75% and 95% of their caucus members
+    const pledged = Math.round(caucus.member_count * (0.75 + Math.random() * 0.20));
+
+    return {
+      id: 'cd_' + Math.random().toString(36).substring(2, 10),
+      session_id: session.id,
+      caucus_id: caucus.id,
+      caucus_name: caucus.name,
+      caucus_leader: caucus.leader,
+      member_count: caucus.member_count,
+      ideology: caucus.ideology,
+      docket_bill_title: docketBill.title,
+      docket_bill_summary: docketBill.summary,
+      docket_bill_category: docketBill.category,
+      docket_bill_impact: docketBill.fiscal_impact,
+      user_target_bill_id: targetBillId,
+      user_target_bill_title: targetBillTitle,
+      pledged_votes: pledged,
+      demands_description: `Pledge your vote to pass '${docketBill.title}' on the floor. In exchange, our caucus will deliver ${pledged} locked votes for '${targetBillTitle}'.`,
+      status: 'pending',
+      year_proposed: session.current_year,
+      month_proposed: session.current_month
+    };
+  });
+}
+
+// Calculate floor whip counts based on party wings, capital spent, committee sway, caucus deals, and bill attributes
 function calculateWhipVoteCount(bill, politicalState, capitalSpent = 0) {
   const isParliamentary = politicalState.system_type === 'parliamentary';
   const totalSeats = isParliamentary ? 650 : (politicalState.current_stage_id === 'senator' ? 100 : 435);
   const majorityThreshold = Math.floor(totalSeats / 2) + 1;
 
-  // Ruling party seats vs opposition seats
-  const partySharePct = 0.54; // 54% majority
+  // Ruling party seats vs opposition seats (rebalanced realistic tight majorities)
+  const condition = politicalState.starting_condition || 'normal';
+  const partySharePct = condition === 'easy' ? 0.528 : (condition === 'hard' ? 0.505 : 0.516);
   const partySeats = Math.round(totalSeats * partySharePct);
   const oppositionSeats = totalSeats - partySeats;
 
-  // Base faction alignment
-  const loyaltyFactor = (politicalState.party_loyalty || 60) / 100;
-  const capitalBonus = Math.min(25, capitalSpent * 1.5); // extra persuasion
-  const publicSupportBonus = ((bill.public_support || 50) - 50) * 0.4;
+  // Base faction alignment (substantially tighter loyalty baseline: passage is difficult without deals)
+  const loyaltyFactor = (politicalState.party_loyalty || 55) / 100;
+  const publicSupportBonus = ((bill.public_support || 50) - 50) * 0.25;
 
   let partyAyes = 0;
   let partyNays = 0;
@@ -206,35 +439,54 @@ function calculateWhipVoteCount(bill, politicalState, capitalSpent = 0) {
 
   for (const wing of (politicalState.party_wings || [])) {
     const wingSeats = Math.round(partySeats * (wing.share / 100));
-    let wingSupportChance = (wing.base_loyalty / 100) * 0.7 + (loyaltyFactor * 0.2) + (capitalBonus / 100) + (publicSupportBonus / 100);
+    // Balanced base party loyalty: ~68% - 78% of party seats without deals (yields ~155-175 party ayes out of 226)
+    let wingSupportChance = (wing.base_loyalty / 100) * 0.66 + (loyaltyFactor * 0.20) + (publicSupportBonus / 100);
     
-    // Fiscal impact friction
-    if (bill.fiscal_impact_billions > 30 && wing.priority === 'fiscal_pragmatism') {
-      wingSupportChance -= 0.18;
+    // Faction policy tensions & ideological friction
+    if (bill.fiscal_impact_billions > 25 && (wing.priority === 'spending_caps' || wing.priority === 'tax_relief' || wing.priority === 'fiscal_pragmatism' || wing.priority === 'free_market')) {
+      wingSupportChance -= 0.18; // Deficit hawk defection on big spending bills!
     }
-    if (bill.category === 'social_welfare' && wing.priority === 'public_welfare') {
-      wingSupportChance += 0.25;
+    if (bill.category === 'social_welfare' && (wing.priority === 'public_welfare' || wing.priority === 'social_solidarity')) {
+      wingSupportChance += 0.16;
+    }
+    if (['climate', 'energy'].includes(bill.category) && (wing.priority === 'green_transition' || wing.priority === 'efficiency')) {
+      wingSupportChance += 0.16;
+    }
+    if (bill.fiscal_impact_billions < 0 && (wing.priority === 'public_welfare' || wing.priority === 'social_solidarity')) {
+      wingSupportChance -= 0.16; // Social wing opposes austerity cuts
     }
 
-    wingSupportChance = Math.max(0.05, Math.min(0.98, wingSupportChance));
+    wingSupportChance = Math.max(0.15, Math.min(0.92, wingSupportChance));
 
     const ayes = Math.round(wingSeats * wingSupportChance);
-    const nays = Math.round(wingSeats * (1 - wingSupportChance) * 0.75);
-    const undecided = wingSeats - ayes - nays;
+    const nays = Math.round(wingSeats * (1 - wingSupportChance) * 0.90);
+    const undecided = Math.max(0, wingSeats - ayes - nays);
 
     partyAyes += ayes;
     partyNays += nays;
     partyUndecided += undecided;
   }
 
-  // Opposition crossover votes (usually 10-25% on bipartisan bills)
-  const isBipartisanCategory = ['infrastructure', 'national_security', 'veterans', 'technology'].includes(bill.category);
-  const oppositionCrossoverRate = isBipartisanCategory ? 0.28 : 0.08;
-  const oppAyes = Math.round(oppositionSeats * oppositionCrossoverRate + (publicSupportBonus > 5 ? oppositionSeats * 0.05 : 0));
+  // Opposition crossover votes: polarized gridlock defaults to 2-4%, or 6-9% on bipartisan categories
+  const isBipartisanCategory = ['infrastructure', 'defense', 'national_security', 'veterans', 'technology'].includes(bill.category);
+  const oppositionCrossoverRate = isBipartisanCategory ? 0.07 : 0.03;
+  const oppAyes = Math.round(oppositionSeats * oppositionCrossoverRate + (publicSupportBonus > 8 ? oppositionSeats * 0.03 : 0));
   const oppNays = oppositionSeats - oppAyes;
 
-  const totalAyes = partyAyes + oppAyes;
-  const totalNays = partyNays + oppNays;
+  // Committee Momentum Bonus (earned while in committee through member sway & markup amendments)
+  const swayLevel = Number(bill.committee_sway_level) || 0;
+  const amendmentsCount = Number(bill.committee_amendments_count) || 0;
+  const committeeMomentumVotes = Math.round(swayLevel * 3.5 + amendmentsCount * 6);
+
+  // Backroom Caucus Logrolling Pledged Votes
+  const pledgedCaucusVotes = Number(bill.pledged_caucus_votes) || 0;
+
+  // Floor Whip Capital Bonus (direct arm-twisting on the floor)
+  const capitalBonusVotes = Math.min(22, Math.round(capitalSpent * 1.25));
+
+  // Total floor vote calculation
+  const totalAyes = Math.min(totalSeats, partyAyes + oppAyes + committeeMomentumVotes + pledgedCaucusVotes + capitalBonusVotes);
+  const totalNays = Math.max(0, totalSeats - totalAyes);
   const passed = totalAyes >= majorityThreshold;
 
   return {
@@ -249,11 +501,14 @@ function calculateWhipVoteCount(bill, politicalState, capitalSpent = 0) {
       party_nays: partyNays,
       party_undecided: partyUndecided,
       opposition_ayes: oppAyes,
-      opposition_nays: oppNays
+      opposition_nays: oppNays,
+      committee_momentum_votes: committeeMomentumVotes,
+      pledged_caucus_votes: pledgedCaucusVotes,
+      capital_bonus_votes: capitalBonusVotes
     },
     whip_assessment: passed 
-      ? `Clear floor majority of ${totalAyes} to ${totalNays}. Measure is primed for passage.` 
-      : `Deficit of ${majorityThreshold - totalAyes} votes. Additional capital spending or committee concessions required.`
+      ? `Floor division secured with ${totalAyes} Ayes to ${totalNays} Nays (Threshold: ${majorityThreshold}). Prime for passage.` 
+      : `Deficit of ${majorityThreshold - totalAyes} floor votes. Engage caucuses in the backroom or sway committee members to cross the finish line.`
   };
 }
 
@@ -1274,5 +1529,8 @@ module.exports = {
   calculateElectionOdds,
   generateDonorQuestions,
   DONOR_QUESTION_BANK,
+  CONGRESSIONAL_CAUCUSES,
+  PARLIAMENTARY_CAUCUSES,
+  generateCaucusDealOffers,
   politicalEventWeb
 };

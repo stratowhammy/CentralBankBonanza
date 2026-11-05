@@ -6,7 +6,7 @@ import {
   FileText, Vote, Sparkles, Building2, Calendar, Shield, 
   DollarSign, ArrowRight, CheckCircle2, AlertTriangle, Plus,
   Megaphone, MessageSquare, Briefcase, Star, Clock, FolderOpen,
-  UserCircle, LogOut
+  UserCircle, LogOut, Handshake
 } from 'lucide-react';
 import { PoliticalAdvisorDrawer } from './PoliticalAdvisorDrawer';
 import { PoliticalBillModal } from './PoliticalBillModal';
@@ -15,6 +15,7 @@ import { PoliticalEventModal } from './PoliticalEventModal';
 import { PoliticalElectionModal } from './PoliticalElectionModal';
 import { PoliticalEventWebModal } from './PoliticalEventWebModal';
 import { PoliticalCampaignModal } from './PoliticalCampaignModal';
+import { PoliticalCaucusModal } from './PoliticalCaucusModal';
 import { AudioPlayButton } from '../AudioPlayButton';
 
 interface Props {
@@ -47,6 +48,7 @@ export const PoliticalDashboard: React.FC<Props> = ({
   const [selectedBillForWhip, setSelectedBillForWhip] = useState<PoliticalBill | null>(null);
   const [isEventWebOpen, setIsEventWebOpen] = useState(false);
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [isCaucusModalOpen, setIsCaucusModalOpen] = useState(false);
   
   // Active event & election results
   const [activeEvent, setActiveEvent] = useState<any | null>(() => {
@@ -585,7 +587,20 @@ export const PoliticalDashboard: React.FC<Props> = ({
               </p>
             </div>
 
-            <div className="flex items-center space-x-3 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => setIsCaucusModalOpen(true)}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl border border-amber-600/40 bg-amber-950/40 hover:bg-amber-950/70 text-amber-300 transition-colors flex items-center space-x-1.5"
+              >
+                <Handshake className="w-3.5 h-3.5 text-amber-400" />
+                <span>Backroom Cloakroom</span>
+                {session.caucus_deals && session.caucus_deals.filter(d => d.status === 'pending').length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-stone-950 text-[10px] font-mono font-bold">
+                    {session.caucus_deals.filter(d => d.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+
               <button
                 onClick={() => setIsEventWebOpen(true)}
                 className="px-3.5 py-2 text-xs font-bold rounded-xl border border-stone-700 bg-stone-800 hover:bg-stone-700 text-stone-300 transition-colors flex items-center space-x-1.5"
@@ -617,7 +632,7 @@ export const PoliticalDashboard: React.FC<Props> = ({
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
                           {bill.category}
                         </span>
@@ -625,6 +640,16 @@ export const PoliticalDashboard: React.FC<Props> = ({
                           <Star className="w-3 h-3 text-amber-400 fill-current" />
                           <span>Achievement: {bill.achievement_score || 5}/20 pts</span>
                         </span>
+                        {bill.status === 'in_committee' && (
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-800/40 text-cyan-300">
+                            🤝 Sway: {bill.committee_sway_level || 0} (+{Math.round((bill.committee_sway_level || 0) * 3.5 + (bill.committee_amendments_count || 0) * 6)} momentum)
+                          </span>
+                        )}
+                        {Number(bill.pledged_caucus_votes || 0) > 0 && (
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950/70 border border-emerald-800/40 text-emerald-300">
+                            🏛️ +{bill.pledged_caucus_votes} Caucus Votes
+                          </span>
+                        )}
                       </div>
                       <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
                         bill.status === 'passed'
@@ -795,6 +820,13 @@ export const PoliticalDashboard: React.FC<Props> = ({
       <PoliticalCampaignModal
         isOpen={isCampaignModalOpen}
         onClose={() => setIsCampaignModalOpen(false)}
+        session={session}
+        onRefreshSession={onRefreshSession}
+      />
+
+      <PoliticalCaucusModal
+        isOpen={isCaucusModalOpen}
+        onClose={() => setIsCaucusModalOpen(false)}
         session={session}
         onRefreshSession={onRefreshSession}
       />

@@ -488,6 +488,11 @@ export interface PoliticalBill {
   committee_name?: string;
   committee_vote_aye?: number;
   committee_vote_nay?: number;
+  committee_capital_spent?: number;
+  committee_sway_level?: number;
+  committee_amendments_count?: number;
+  pledged_caucus_votes?: number;
+  caucus_deals?: string;
   whip_count?: string; // JSON
   floor_vote_aye?: number;
   floor_vote_nay?: number;
@@ -513,8 +518,33 @@ export interface WhipCountResult {
     party_undecided: number;
     opposition_ayes: number;
     opposition_nays: number;
+    committee_momentum_votes?: number;
+    pledged_caucus_votes?: number;
+    capital_bonus_votes?: number;
   };
   whip_assessment: string;
+}
+
+export interface CaucusDeal {
+  id: string;
+  session_id: string;
+  caucus_id: string;
+  caucus_name: string;
+  caucus_leader: string;
+  member_count: number;
+  ideology: string;
+  docket_bill_title: string;
+  docket_bill_summary: string;
+  docket_bill_category: string;
+  docket_bill_impact: number;
+  user_target_bill_id?: string;
+  user_target_bill_title?: string;
+  pledged_votes: number;
+  demands_description: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  year_proposed: number;
+  month_proposed: number;
+  created_at?: string;
 }
 
 export interface PoliticalNewsArticle {
@@ -600,6 +630,7 @@ export interface PoliticalSession {
   news?: PoliticalNewsArticle[];
   history?: PoliticalTurnHistoryItem[];
   messages?: PoliticalAdvisorMessage[];
+  caucus_deals?: CaucusDeal[];
   created_at: string;
   updated_at: string;
 }
