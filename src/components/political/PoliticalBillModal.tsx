@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { PoliticalBill, PoliticalSession, PoliticalDonorPromise } from '../../types';
+import { PoliticalBill, PoliticalSession, PoliticalDonorPromise, LobbyingContract } from '../../types';
 import { api } from '../../api';
 import { 
   X, FileText, CheckCircle2, AlertCircle, Plus, Sparkles, Building2, 
-  Users, Award, Shield, Vote, ArrowRight, DollarSign, Handshake, Zap, Star 
+  Users, Award, Shield, Vote, ArrowRight, DollarSign, Handshake, Zap, Star,
+  Briefcase
 } from 'lucide-react';
 
 interface Props {
@@ -31,13 +32,16 @@ export const PoliticalBillModal: React.FC<Props> = ({
   const [newFiscalImpact, setNewFiscalImpact] = useState(20);
   const [newSummary, setNewSummary] = useState('');
   const [selectedDonorPromiseId, setSelectedDonorPromiseId] = useState<string | null>(null);
-  const [createSubTab, setCreateSubTab] = useState<'donor_promises' | 'manual'>('donor_promises');
+  const [selectedLobbyingContractId, setSelectedLobbyingContractId] = useState<string | null>(null);
+  const [createSubTab, setCreateSubTab] = useState<'donor_promises' | 'lobbying' | 'manual'>('donor_promises');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const pendingPromises = session.donor_promises?.filter(p => p.status === 'pending') || [];
   const selectedPromise = session.donor_promises?.find(p => p.id === selectedDonorPromiseId);
+  const acceptedLobbyingContracts = session.lobbying_contracts?.filter(c => c.status === 'accepted') || [];
+  const selectedLobbying = session.lobbying_contracts?.find(c => c.id === selectedLobbyingContractId);
 
   const handleSelectDonorPromise = (p: PoliticalDonorPromise) => {
     setNewTitle(p.suggested_bill_title || p.promise_title);
@@ -45,6 +49,17 @@ export const PoliticalBillModal: React.FC<Props> = ({
     setNewFiscalImpact(p.suggested_fiscal_impact || 15);
     setNewSummary(p.suggested_summary || p.promise_description);
     setSelectedDonorPromiseId(p.id);
+    setSelectedLobbyingContractId(null);
+    setCreateSubTab('manual');
+  };
+
+  const handleSelectLobbyingContract = (c: LobbyingContract) => {
+    setNewTitle(c.suggested_bill_title || c.favor_title);
+    setNewCategory(c.statutory_category || 'commerce');
+    setNewFiscalImpact(c.suggested_fiscal_impact || 15);
+    setNewSummary(c.suggested_bill_summary || c.favor_description);
+    setSelectedLobbyingContractId(c.id);
+    setSelectedDonorPromiseId(null);
     setCreateSubTab('manual');
   };
 
@@ -98,7 +113,8 @@ export const PoliticalBillModal: React.FC<Props> = ({
         category: newCategory,
         fiscal_impact_billions: Number(newFiscalImpact),
         summary: newSummary.trim(),
-        donor_promise_id: selectedDonorPromiseId || undefined
+        donor_promise_id: selectedDonorPromiseId || undefined,
+        lobbying_contract_id: selectedLobbyingContractId || undefined
       });
       alert(`Legislation '${newTitle}' drafted and submitted to committee!`);
       onRefreshSession();
@@ -216,6 +232,40 @@ export const PoliticalBillModal: React.FC<Props> = ({
                       ) : (
                         <span className="px-2.5 py-1 rounded-lg bg-amber-900/60 border border-amber-600/40 text-amber-300">
                           💰 +${linkedPromise.war_chest_reward_millions}M on Passage
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Linked K-Street Lobbying Compact Banner */}
+              {(() => {
+                const linkedContract = bill.lobbying_contract_id 
+                  ? session.lobbying_contracts?.find(c => c.id === bill.lobbying_contract_id)
+                  : session.lobbying_contracts?.find(c => c.legislated_bill_id === bill.id || c.suggested_bill_title === bill.title);
+                if (!linkedContract) return null;
+                return (
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between text-xs ${
+                    linkedContract.status === 'fulfilled'
+                      ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                      : 'bg-amber-950/60 border-amber-500/40 text-amber-200'
+                  }`}>
+                    <div className="flex items-center space-x-2.5">
+                      <Briefcase className="w-4 h-4 text-amber-400 shrink-0" />
+                      <div>
+                        <span className="font-bold">K-Street Compact: {linkedContract.trade_group}</span>
+                        <p className="text-[11px] opacity-80 mt-0.5">Favor: "{linkedContract.favor_title}" (Chief Lobbyist: {linkedContract.chief_lobbyist})</p>
+                      </div>
+                    </div>
+                    <div className="text-right font-mono font-bold shrink-0">
+                      {linkedContract.status === 'fulfilled' ? (
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-900/60 border border-emerald-600/40 text-emerald-300">
+                          ✅ +${linkedContract.completion_bounty_millions}M Bounty Paid
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-900/60 border border-amber-600/40 text-amber-300">
+                          💰 +${linkedContract.completion_bounty_millions}M Bounty on Enactment
                         </span>
                       )}
                     </div>
@@ -369,7 +419,7 @@ export const PoliticalBillModal: React.FC<Props> = ({
             <div className="space-y-5">
               
               {/* Sub-tab Navigation */}
-              <div className="flex items-center space-x-2 border-b border-stone-800 pb-3">
+              <div className="flex items-center space-x-2 border-b border-stone-800 pb-3 flex-wrap gap-y-2">
                 <button
                   type="button"
                   onClick={() => setCreateSubTab('donor_promises')}
@@ -380,10 +430,28 @@ export const PoliticalBillModal: React.FC<Props> = ({
                   }`}
                 >
                   <Handshake className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Donor Commitments & Pledges</span>
+                  <span>Donor Pledges</span>
                   {pendingPromises.length > 0 && (
                     <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-stone-950 text-[10px] font-mono font-bold">
                       {pendingPromises.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCreateSubTab('lobbying')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    createSubTab === 'lobbying'
+                      ? 'bg-amber-950/80 border border-amber-600/50 text-amber-300 shadow'
+                      : 'bg-stone-950 border border-stone-800 text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-amber-400" />
+                  <span>K-Street Favors</span>
+                  {acceptedLobbyingContracts.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-stone-950 text-[10px] font-mono font-bold">
+                      {acceptedLobbyingContracts.length}
                     </span>
                   )}
                 </button>
@@ -489,6 +557,89 @@ export const PoliticalBillModal: React.FC<Props> = ({
                 </div>
               )}
 
+              {/* Sub-tab: Accepted K-Street Lobbying Compacts List */}
+              {createSubTab === 'lobbying' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-stone-950 border border-stone-800">
+                    <h4 className="text-sm font-bold text-stone-200 font-serif mb-1">
+                      Draft Legislation For Accepted K-Street Lobbying Compacts
+                    </h4>
+                    <p className="text-xs text-stone-400">
+                      You have accepted retainer pacts with these trade organizations. Introduce their model legislation below. When the statute passes the floor, your campaign war chest receives the agreed completion bounty!
+                    </p>
+                  </div>
+
+                  {acceptedLobbyingContracts.length > 0 ? (
+                    <div className="space-y-3">
+                      {acceptedLobbyingContracts.map((c) => (
+                        <div
+                          key={c.id}
+                          className="p-4 rounded-xl bg-stone-950 border border-stone-800 hover:border-amber-600/50 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+                        >
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-300">
+                                {c.trade_group}
+                              </span>
+                              <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
+                                {c.sector}
+                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-amber-300 flex items-center gap-1">
+                                <span>Chief Lobbyist: {c.chief_lobbyist}</span>
+                              </span>
+                              {c.ethics_risk_level === 'high' ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-950/80 border border-red-800/40 text-red-300">
+                                  ⚡ High Scrutiny Risk
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950/80 border border-amber-800/40 text-amber-300">
+                                  ⚖️ Moderate Risk
+                                </span>
+                              )}
+                            </div>
+
+                            <h5 className="font-bold text-sm text-stone-100 font-serif group-hover:text-amber-200">
+                              {c.suggested_bill_title || c.favor_title}
+                            </h5>
+                            <p className="text-xs text-stone-400 line-clamp-2">
+                              {c.suggested_bill_summary || c.favor_description}
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono text-stone-400">
+                              <span className="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded">
+                                💰 +${c.completion_bounty_millions}M Bounty on Enactment
+                              </span>
+                              <span>Category: <strong className="text-stone-300 capitalize">{c.statutory_category}</strong></span>
+                              <span>Fiscal: <strong className="text-stone-300">{c.suggested_fiscal_impact > 0 ? `+$${c.suggested_fiscal_impact}B` : `-$${Math.abs(c.suggested_fiscal_impact)}B`}</strong></span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectLobbyingContract(c)}
+                            className="shrink-0 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center space-x-1.5 shadow-md cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Draft Statute</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-stone-950 rounded-xl border border-stone-800 text-xs text-stone-500 space-y-3">
+                      <p>No active accepted lobbying contracts awaiting introduction.</p>
+                      <button
+                        type="button"
+                        onClick={() => setCreateSubTab('manual')}
+                        className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold text-xs"
+                      >
+                        Proceed to Custom Bill Drafting
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Sub-tab 2: Bill Drafting Form */}
               {createSubTab === 'manual' && (
                 <form onSubmit={handleCreateBill} className="space-y-5">
@@ -504,6 +655,25 @@ export const PoliticalBillModal: React.FC<Props> = ({
                       <button
                         type="button"
                         onClick={() => setSelectedDonorPromiseId(null)}
+                        className="px-2 py-1 rounded bg-stone-900 hover:bg-stone-800 text-stone-400 text-[10px] font-bold"
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedLobbying && (
+                    <div className="p-3.5 rounded-xl bg-amber-950/50 border border-amber-600/40 flex items-center justify-between text-xs text-amber-200">
+                      <div className="flex items-center space-x-2">
+                        <Briefcase className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>
+                          Introducing Model Bill for <strong>{selectedLobbying.trade_group}</strong>: "{selectedLobbying.favor_title}" 
+                          <span className="ml-1 text-emerald-400 font-mono font-bold">(+${selectedLobbying.completion_bounty_millions}M bounty on passage)</span>
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLobbyingContractId(null)}
                         className="px-2 py-1 rounded bg-stone-900 hover:bg-stone-800 text-stone-400 text-[10px] font-bold"
                       >
                         Unlink

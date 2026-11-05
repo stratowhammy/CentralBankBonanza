@@ -333,7 +333,91 @@ export interface EventCatalogItem {
 // POLITICAL SIMULATOR (STATECRAFT) TYPES
 // ==========================================
 
-export type PoliticalSystemType = 'parliamentary' | 'congressional';
+export type PoliticalSystemType = 'unicameral' | 'bicameral' | 'parliamentary' | 'congressional';
+
+export interface IndicatorTag {
+  category: string;
+  direction: 'favorable' | 'unfavorable' | 'neutral' | 'alert';
+}
+
+export interface PoliticalAlignmentOption {
+  id: string;
+  label: string;
+  description: string;
+  indicators: IndicatorTag[];
+}
+
+export interface PoliticalAlignmentQuestion {
+  id: string;
+  number: number;
+  category: string;
+  title: string;
+  prompt: string;
+  options: PoliticalAlignmentOption[];
+}
+
+export interface QuizEvaluationResult {
+  assigned_caucus_id: string;
+  assigned_caucus_name: string;
+  assigned_caucus_ideology: string;
+  assigned_caucus_member_count: number;
+  original_leader: string;
+  player_title: string;
+  scores: Record<string, number>;
+  alignment_summary: string;
+}
+
+export interface MajorNationalIssue {
+  id: string;
+  category: 'social' | 'geopolitical' | 'economic' | 'national_political';
+  title: string;
+  description: string;
+  salience: number; // 0-100
+  trend: 'surging' | 'stable' | 'cooling';
+  attribute_type: 'standard' | 'scandal_risk' | 'corruption_concern' | 'civic_strength';
+  public_sentiment: 'reformist' | 'conservative' | 'divided' | 'neutral';
+  caucus_stances: Record<string, 'champion' | 'oppose' | 'compromise' | 'neutral' | 'divided'>;
+}
+
+export interface LobbyingContract {
+  id: string;
+  session_id: string;
+  trade_group: string;
+  sector: string;
+  chief_lobbyist: string;
+  favor_title: string;
+  favor_description: string;
+  statutory_category: string;
+  campaign_contribution_millions: number;
+  completion_bounty_millions: number;
+  ethics_risk_level: 'low' | 'medium' | 'high' | 'toxic';
+  suggested_bill_title?: string;
+  suggested_bill_summary?: string;
+  suggested_fiscal_impact?: number;
+  indicators?: IndicatorTag[];
+  status: 'pending' | 'accepted' | 'fulfilled' | 'rejected';
+  legislated_bill_id?: string | null;
+  created_year: number;
+  created_month: number;
+  created_at?: string;
+  resolved_at?: string | null;
+}
+
+export interface PoliticalCaucus {
+  id: string;
+  name: string;
+  leader: string;
+  member_count: number;
+  ideology: string;
+  priorities: string[];
+  is_player_led?: boolean;
+  docket_bills?: Array<{
+    title: string;
+    summary: string;
+    category: string;
+    fiscal_impact: number;
+  }>;
+}
 
 export type PoliticalTrackId = 
   | 'backbencher' 
@@ -357,10 +441,18 @@ export interface PoliticalState {
   current_stage_id: PoliticalTrackId;
   chamber: string;
   system_type: PoliticalSystemType;
+  legislature_name?: string;
+  executive_title?: string;
   party_name: string;
   party_ideology: string;
   party_wings: PartyWing[];
   district_name: string;
+  
+  // Caucus Leadership
+  player_caucus_id?: string | null;
+  player_caucus_name?: string | null;
+  is_caucus_leader?: boolean;
+  quiz_alignment?: string | null;
   
   // Telemetry
   district_approval: number; // 0-100
@@ -390,6 +482,7 @@ export interface PoliticalState {
   months_to_election: number;
   election_year_span: number;
   declared_campaign?: DeclaredCampaign | null;
+  major_issues?: MajorNationalIssue[];
 }
 
 export interface DonorQuestionPromiseMetadata {
@@ -503,6 +596,7 @@ export interface PoliticalBill {
   achievement_score?: number; // Magnitude 1-20
   status: 'drafting' | 'in_committee' | 'floor_debate' | 'passed' | 'failed' | 'vetoed';
   donor_promise_id?: string | null;
+  lobbying_contract_id?: string | null;
   committee_name?: string;
   committee_vote_aye?: number;
   committee_vote_nay?: number;
@@ -675,6 +769,12 @@ export interface PoliticalSession {
   messages?: PoliticalAdvisorMessage[];
   caucus_deals?: CaucusDeal[];
   donor_promises?: PoliticalDonorPromise[];
+  lobbying_contracts?: LobbyingContract[];
+  major_issues?: MajorNationalIssue[];
+  caucuses?: PoliticalCaucus[];
+  player_caucus?: PoliticalCaucus | null;
+  player_caucus_id?: string | null;
+  player_caucus_name?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -14,10 +14,60 @@ const {
   generateDonorQuestions,
   PARLIAMENTARY_TRACKS,
   CONGRESSIONAL_TRACKS,
-  generateCaucusDealOffers
+  UNICAMERAL_TRACKS,
+  BICAMERAL_TRACKS,
+  generateCaucusDealOffers,
+  CONGRESSIONAL_CAUCUSES,
+  PARLIAMENTARY_CAUCUSES,
+  MAJOR_NATIONAL_ISSUES,
+  POLITICAL_ALIGNMENT_QUIZ,
+  evaluateQuizAlignment,
+  TRADE_LOBBYING_GROUPS,
+  generateLobbyingOffers,
+  isUnicameralSystem,
+  isBicameralSystem
 } = require('../politicalEngine');
 const { getInitialEconomicState, evolveEconomy } = require('../simulationEngine');
 const { handlePoliticalAdvisorChat, draftStatutoryBill } = require('../politicalAdvisorEngine');
+
+// Get 7-question political alignment quiz
+router.get('/quiz', (req, res) => {
+  try {
+    // Deliver quiz questions with options & categorical indicator signals (no internal raw scores exposed)
+    const clientQuiz = POLITICAL_ALIGNMENT_QUIZ.map(q => ({
+      id: q.id,
+      number: q.number,
+      category: q.category,
+      title: q.title,
+      prompt: q.prompt,
+      options: q.options.map(o => ({
+        id: o.id,
+        label: o.label,
+        description: o.description,
+        indicators: o.indicators
+      }))
+    }));
+    res.json({ questions: clientQuiz });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve political alignment quiz' });
+  }
+});
+
+// Evaluate quiz answers and preview assigned caucus
+router.post('/quiz/evaluate', (req, res) => {
+  try {
+    const { answers, system_type } = req.body;
+    const result = evaluateQuizAlignment(answers || {}, system_type || 'bicameral');
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to evaluate political alignment' });
+  }
+});
+
+// Get major national issues definitions & current status
+router.get('/major-issues', (req, res) => {
+  res.json({ issues: MAJOR_NATIONAL_ISSUES });
+});
 
 // Get full political events catalog
 router.get('/events-catalog', (req, res) => {
@@ -42,7 +92,8 @@ router.post('/new', async (req, res) => {
       linked_cbs_session_id,
       economy_type,
       starting_condition,
-      volatility
+      volatility,
+      quiz_answers
     } = req.body;
 
     if (!user_id || !politician_name) {
@@ -57,9 +108,10 @@ router.post('/new', async (req, res) => {
       });
     }
 
-    const effectiveSystem = system_type || 'parliamentary';
-    const effectiveParty = party_name || (effectiveSystem === 'parliamentary' ? 'Democratic Alliance' : 'Conservative Union');
-    const effectiveDistrict = district_name || (effectiveSystem === 'parliamentary' ? 'Highland Greenshire' : 'Industrial 4th Congressional District');
+    const effectiveSystem = system_type || 'bicameral';
+    const isUnicameral = isUnicameralSystem(effectiveSystem);
+    const effectiveParty = party_name || (isUnicameral ? 'Democratic Alliance' : 'Conservative Union');
+    const effectiveDistrict = district_name || (isUnicameral ? 'Highland Greenshire' : 'Industrial 4th Congressional District');
     const effectiveEconomyType = economy_type || 'large_hegemon';
     const effectiveCondition = starting_condition || 'normal';
     const effectiveVolatility = volatility || 'normal';
@@ -72,6 +124,28 @@ router.post('/new', async (req, res) => {
     politicalState.economy_type = effectiveEconomyType;
     politicalState.starting_condition = effectiveCondition;
     politicalState.volatility = effectiveVolatility;
+
+    // Evaluate 7-Question Political Alignment Quiz to determine Player's Caucus Leadership
+    let quizResult = null;
+    if (quiz_answers && Object.keys(quiz_answers).length > 0) {
+      quizResult = evaluateQuizAlignment(quiz_answers, effectiveSystem);
+      politicalState.player_caucus_id = quizResult.assigned_caucus_id;
+      politicalState.player_caucus_name = quizResult.assigned_caucus_name;
+      politicalState.is_caucus_leader = true;
+      politicalState.quiz_alignment = JSON.stringify(quizResult);
+    } else {
+      const defaultCaucusId = isUnicameral
+        ? (effectiveParty.includes('Conservative') ? 'free_enterprise_group' : (effectiveParty.includes('Independent') ? 'one_nation_moderates' : 'socialist_campaign_group'))
+        : (effectiveParty.includes('Conservative') ? 'freedom_faction' : (effectiveParty.includes('Independent') ? 'problem_solvers' : 'progressive_caucus'));
+      const caucusList = isUnicameral ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+      const foundC = caucusList.find(c => c.id === defaultCaucusId) || caucusList[0];
+      politicalState.player_caucus_id = foundC.id;
+      politicalState.player_caucus_name = foundC.name;
+      politicalState.is_caucus_leader = true;
+    }
+
+    // Attach initial major national issues landscape
+    politicalState.major_issues = MAJOR_NATIONAL_ISSUES;
 
     // Starting climate adjustments
     if (effectiveCondition === 'easy') {
@@ -98,7 +172,7 @@ router.post('/new', async (req, res) => {
 
     // Initial starter bill
     const initialBillId = 'pb_' + uuidv4().substring(0, 8);
-    const starterBillTitle = effectiveSystem === 'parliamentary' 
+    const starterBillTitle = isUnicameral 
       ? 'Regional Energy & Transit Infrastructure Accord' 
       : 'District Manufacturing & Clean Grid Investment Act';
 
@@ -113,9 +187,9 @@ router.post('/new', async (req, res) => {
         INSERT INTO political_sessions (
           id, user_id, politician_name, system_type, political_track, party_name, party_ideology, district_name,
           status, current_year, current_month, total_months_elapsed, months_to_election, linked_cbs_session_id,
-          economy_type, starting_condition, volatility,
+          economy_type, starting_condition, volatility, player_caucus_id, player_caucus_name, quiz_alignment,
           political_state, economic_state, active_events
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         sessionId,
         user_id,
@@ -130,6 +204,9 @@ router.post('/new', async (req, res) => {
         effectiveEconomyType,
         effectiveCondition,
         effectiveVolatility,
+        politicalState.player_caucus_id,
+        politicalState.player_caucus_name,
+        politicalState.quiz_alignment || null,
         JSON.stringify(politicalState),
         JSON.stringify(economicState),
         JSON.stringify([])
@@ -182,16 +259,21 @@ router.post('/new', async (req, res) => {
       const initialGreeting = `<think>
 [INAUGURAL BRIEFING]
 - Welcome ${politician_name} as the newly appointed ${politicalState.politician_title} for ${politicalState.district_name}.
+- Caucus Chair: ${politicalState.player_caucus_name}.
 - Current mandate: Maintain district support, advance legislative priority bills, and navigate macroeconomic headwinds.
 </think>
 
 Welcome to your office, ${politicalState.politician_title} ${politician_name}.
 
+Congratulations on your election as Chair of the **${politicalState.player_caucus_name}**! Your caucus colleagues stand ready to support your floor agenda.
+
 As your Chief of Staff, my team and I are at your complete disposal. We have already prepared our inaugural legislative docket and referred the **${starterBillTitle}** to our committee for markup.
 
 You can instruct me anytime to:
 * **Draft legislation** on any policy issue.
-* **Run a floor whip count** to assess our party votes.
+* **Run a floor whip count** to assess our party and caucus votes.
+* **Negotiate vote trades** with rival caucus leaders.
+* **Manage lobbying trade group overtures** in K-Street for campaign funds.
 * **Organize town halls, fundraisers, or press blitzes**.
 
 Let us make your tenure a landmark success. What are your immediate directives for this month?`;
@@ -214,7 +296,7 @@ Let us make your tenure a landmark success. What are your immediate directives f
 
       // Seed initial caucus delegation trade offers for the starter bill
       const initialDeals = generateCaucusDealOffers(
-        { id: sessionId, system_type: effectiveSystem, current_year: 1, current_month: 1 },
+        { id: sessionId, system_type: effectiveSystem, current_year: 1, current_month: 1, political_state: politicalState },
         { id: initialBillId, title: starterBillTitle }
       );
       const insertDeal = db.prepare(`
@@ -244,6 +326,40 @@ Let us make your tenure a landmark success. What are your immediate directives f
           d.demands_description
         );
       }
+
+      // Seed initial lobbying industry offers from trade groups
+      const initialLobbying = generateLobbyingOffers({
+        id: sessionId,
+        current_year: 1,
+        current_month: 1,
+        political_state: politicalState
+      });
+      const insertLobbying = db.prepare(`
+        INSERT INTO political_lobbying_contracts (
+          id, session_id, trade_group, sector, chief_lobbyist, favor_title, favor_description,
+          statutory_category, campaign_contribution_millions, completion_bounty_millions,
+          ethics_risk_level, suggested_bill_title, suggested_bill_summary, suggested_fiscal_impact,
+          status, created_year, created_month
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 1, 1)
+      `);
+      for (const lob of initialLobbying) {
+        insertLobbying.run(
+          lob.id,
+          sessionId,
+          lob.trade_group,
+          lob.sector,
+          lob.chief_lobbyist,
+          lob.favor_title,
+          lob.favor_description,
+          lob.statutory_category,
+          lob.campaign_contribution_millions,
+          lob.completion_bounty_millions,
+          lob.ethics_risk_level,
+          lob.suggested_bill_title,
+          lob.suggested_bill_summary,
+          lob.suggested_fiscal_impact
+        );
+      }
     });
 
     createTx();
@@ -267,10 +383,30 @@ async function getSessionFull(sessionId) {
   const messages = db.prepare('SELECT * FROM political_advisor_messages WHERE session_id = ? ORDER BY created_at ASC').all(sessionId);
   const caucusDeals = db.prepare('SELECT * FROM political_caucus_deals WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
   const donorPromises = db.prepare('SELECT * FROM political_donor_promises WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
+  const lobbyingContracts = db.prepare('SELECT * FROM political_lobbying_contracts WHERE session_id = ? ORDER BY created_at DESC').all(sessionId);
+
+  const isUnicameral = isUnicameralSystem(sessionRow.system_type);
+  const baseCaucuses = isUnicameral ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+  const pState = JSON.parse(sessionRow.political_state);
+
+  // Mark player's caucus and ensure each caucus has its defined leader
+  const caucuses = baseCaucuses.map(c => {
+    if (c.id === pState.player_caucus_id) {
+      return {
+        ...c,
+        leader: `${pState.politician_title} ${sessionRow.politician_name}`,
+        is_player_led: true
+      };
+    }
+    return {
+      ...c,
+      is_player_led: false
+    };
+  });
 
   return {
     ...sessionRow,
-    political_state: JSON.parse(sessionRow.political_state),
+    political_state: pState,
     economic_state: JSON.parse(sessionRow.economic_state),
     active_events: JSON.parse(sessionRow.active_events || '[]'),
     bills,
@@ -278,7 +414,11 @@ async function getSessionFull(sessionId) {
     history,
     messages,
     caucus_deals: caucusDeals,
-    donor_promises: donorPromises
+    donor_promises: donorPromises,
+    lobbying_contracts: lobbyingContracts,
+    caucuses,
+    player_caucus: caucuses.find(c => c.is_player_led) || null,
+    major_issues: pState.major_issues || MAJOR_NATIONAL_ISSUES
   };
 }
 
@@ -541,7 +681,7 @@ router.post('/session/:id/action', async (req, res) => {
 // Draft new bill manually
 router.post('/session/:id/bill/draft', async (req, res) => {
   try {
-    const { title, category, fiscal_impact_billions, summary, donor_promise_id } = req.body;
+    const { title, category, fiscal_impact_billions, summary, donor_promise_id, lobbying_contract_id } = req.body;
     const session = await getSessionFull(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
@@ -550,6 +690,11 @@ router.post('/session/:id/bill/draft', async (req, res) => {
       const promiseRow = db.prepare('SELECT * FROM political_donor_promises WHERE id = ?').get(donor_promise_id);
       if (promiseRow && promiseRow.public_support) {
         publicSupport = promiseRow.public_support;
+      }
+    } else if (lobbying_contract_id) {
+      const lobRow = db.prepare('SELECT * FROM political_lobbying_contracts WHERE id = ?').get(lobbying_contract_id);
+      if (lobRow) {
+        publicSupport = lobRow.ethics_risk_level === 'toxic' ? 32 : (lobRow.ethics_risk_level === 'low' ? 64 : 48);
       }
     }
 
@@ -564,8 +709,8 @@ router.post('/session/:id/bill/draft', async (req, res) => {
 
     db.prepare(`
       INSERT INTO political_bills (
-        id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced, achievement_score, donor_promise_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, ?, ?, ?, ?, ?)
+        id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status, committee_name, public_support, year_introduced, month_introduced, achievement_score, donor_promise_id, lobbying_contract_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'in_committee', ?, ?, ?, ?, ?, ?, ?)
     `).run(
       billId,
       session.id,
@@ -579,7 +724,8 @@ router.post('/session/:id/bill/draft', async (req, res) => {
       session.current_year,
       session.current_month,
       achievementScore,
-      donor_promise_id || null
+      donor_promise_id || null,
+      lobbying_contract_id || null
     );
 
     // Generate caucus trade offers for this newly drafted bill
@@ -822,6 +968,142 @@ router.post('/session/:id/caucus-deals/:dealId/negotiate', async (req, res) => {
   }
 });
 
+// Get lobbying contracts / trade group pitches for a session
+router.get('/session/:id/lobbying', (req, res) => {
+  try {
+    const contracts = db.prepare('SELECT * FROM political_lobbying_contracts WHERE session_id = ? ORDER BY created_at DESC').all(req.params.id);
+    res.json({ contracts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Respond to a lobbying offer (accept or reject)
+router.post('/session/:id/lobbying/:contractId/respond', async (req, res) => {
+  try {
+    const { id, contractId } = req.params;
+    const { action } = req.body; // 'accept' or 'reject'
+
+    const session = await getSessionFull(id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    const contract = db.prepare('SELECT * FROM political_lobbying_contracts WHERE id = ? AND session_id = ?').get(contractId, id);
+    if (!contract) return res.status(404).json({ error: 'Lobbying offer not found' });
+    if (contract.status !== 'pending') return res.status(400).json({ error: 'This lobbying offer is already resolved' });
+
+    const pState = session.political_state;
+
+    if (action === 'accept') {
+      const contribution = Number(contract.campaign_contribution_millions) || 2.0;
+      pState.war_chest_millions = Number(((pState.war_chest_millions || 0) + contribution).toFixed(2));
+
+      // Ethics scrutiny penalty based on risk tier
+      const riskScores = { low: 3, medium: 7, high: 14, toxic: 22 };
+      const penalty = riskScores[contract.ethics_risk_level] || 7;
+      pState.ethics_scrutiny = Math.min(100, (pState.ethics_scrutiny || 10) + penalty);
+
+      // Public approval fallout / boost
+      if (contract.ethics_risk_level === 'toxic' || contract.ethics_risk_level === 'high') {
+        pState.district_approval = Math.max(10, (pState.district_approval || 50) - 2.5);
+        pState.national_approval = Math.max(10, (pState.national_approval || 50) - 3.0);
+        pState.polling_margin = Number(((pState.polling_margin || 0) - 1.5).toFixed(1));
+      } else if (contract.ethics_risk_level === 'low') {
+        pState.district_approval = Math.min(99, (pState.district_approval || 50) + 1.5);
+        pState.polling_margin = Number(((pState.polling_margin || 0) + 0.8).toFixed(1));
+      }
+
+      // Mark contract accepted
+      db.prepare("UPDATE political_lobbying_contracts SET status = 'accepted', resolved_at = CURRENT_TIMESTAMP WHERE id = ?").run(contractId);
+
+      // Automatically introduce model statute onto the legislative docket
+      const modelBillId = 'pb_' + uuidv4().substring(0, 8);
+      const achievement = calculateBillAchievementScore({
+        category: contract.statutory_category,
+        fiscal_impact_billions: contract.suggested_fiscal_impact,
+        public_support: contract.ethics_risk_level === 'toxic' ? 32 : (contract.ethics_risk_level === 'low' ? 62 : 48)
+      });
+
+      db.prepare(`
+        INSERT INTO political_bills (
+          id, session_id, title, summary, statutory_text, category, fiscal_impact_billions, status,
+          committee_name, public_support, year_introduced, month_introduced, achievement_score, lobbying_contract_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'drafting', ?, ?, ?, ?, ?, ?)
+      `).run(
+        modelBillId,
+        id,
+        contract.suggested_bill_title,
+        contract.suggested_bill_summary,
+        `Statutory model legislation introduced on behalf of ${contract.trade_group}: ${contract.favor_description}`,
+        contract.statutory_category,
+        contract.suggested_fiscal_impact || 5,
+        pState.committee_name,
+        contract.ethics_risk_level === 'toxic' ? 32 : 52,
+        session.current_year,
+        session.current_month,
+        achievement,
+        contractId
+      );
+
+      // Publish breaking news dispatch
+      db.prepare(`
+        INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+        VALUES (?, ?, ?, ?, 'capital_gazette', ?, ?, 'critical', 'high', ?)
+      `).run(
+        'pn_' + uuidv4().substring(0, 8),
+        id,
+        session.current_year,
+        session.current_month,
+        `K-STREET EXPEDITION: ${contract.trade_group} Delivers $${contribution}M Contribution to ${session.politician_name}`,
+        `K-Street insiders confirmed today that ${contract.chief_lobbyist} of the ${contract.trade_group} finalized a major campaign pact with ${session.politician_name}'s war chest, providing $${contribution}M immediately as the lawmaker introduced the '${contract.suggested_bill_title}'. Watchdog groups sounded the alarm on special-interest influence.`,
+        contract.statutory_category
+      );
+
+      db.prepare('UPDATE political_sessions SET political_state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(JSON.stringify(pState), id);
+
+      const updated = await getSessionFull(id);
+      return res.json({
+        session: updated,
+        message: `🤝 LOBBYING ACCORD SEALED! ${contract.trade_group} deposited +$${contribution}M into your campaign war chest. Model bill "${contract.suggested_bill_title}" has been introduced into your legislative docket!`
+      });
+    } else {
+      // Rejecting special-interest money
+      pState.ethics_scrutiny = Math.max(0, (pState.ethics_scrutiny || 10) - 6);
+      pState.district_approval = Math.min(99, (pState.district_approval || 50) + 2.5);
+      pState.national_approval = Math.min(99, (pState.national_approval || 50) + 2.0);
+      pState.polling_margin = Number(((pState.polling_margin || 0) + 1.2).toFixed(1));
+
+      db.prepare("UPDATE political_lobbying_contracts SET status = 'rejected', resolved_at = CURRENT_TIMESTAMP WHERE id = ?").run(contractId);
+
+      // Publish praise news dispatch
+      db.prepare(`
+        INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+        VALUES (?, ?, ?, ?, 'daily_tribune', ?, ?, 'celebratory', 'normal', ?)
+      `).run(
+        'pn_' + uuidv4().substring(0, 8),
+        id,
+        session.current_year,
+        session.current_month,
+        `${session.politician_name} Rebuffs Special-Interest Overtures from ${contract.trade_group}`,
+        `In an unexpected show of legislative independence, ${pState.politician_title} ${session.politician_name} publicly declined a multi-million-dollar campaign donation and policy request from ${contract.trade_group}. Civic watchdog alliances praised the lawmaker for putting integrity ahead of political cash.`,
+        contract.statutory_category
+      );
+
+      db.prepare('UPDATE political_sessions SET political_state = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(JSON.stringify(pState), id);
+
+      const updated = await getSessionFull(id);
+      return res.json({
+        session: updated,
+        message: `🛡️ INFLUENCE REJECTED! You rejected the lobbying offer from ${contract.trade_group}. Your ethics scrutiny dropped (-6 pts) and public approval rose!`
+      });
+    }
+  } catch (err) {
+    console.error('Error responding to lobbying contract:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Calculate whip count
 router.post('/session/:id/bill/:billId/whip', async (req, res) => {
   try {
@@ -916,6 +1198,47 @@ router.post('/session/:id/bill/:billId/floor', async (req, res) => {
           session.current_month,
           `DONOR PAYOUT: ${fulfilledPromise.donor_group} Rewards Passage of '${bill.title}' with +$${bounty}M`,
           `Following the landmark floor passage of '${bill.title}', ${fulfilledPromise.donor_group} has delivered on its fundraising commitment, bundling $${bounty}M into ${pState.politician_name}'s campaign accounts.`
+        );
+      }
+
+      // Check if this legislated statute fulfills an accepted lobbying contract
+      let fulfilledLobbying = null;
+      if (bill.lobbying_contract_id) {
+        fulfilledLobbying = db.prepare("SELECT * FROM political_lobbying_contracts WHERE id = ? AND status = 'accepted'").get(bill.lobbying_contract_id);
+      }
+      if (!fulfilledLobbying) {
+        fulfilledLobbying = db.prepare(`
+          SELECT * FROM political_lobbying_contracts 
+          WHERE session_id = ? AND status = 'accepted' AND (suggested_bill_title = ? OR statutory_category = ?)
+          LIMIT 1
+        `).get(session.id, bill.title, bill.category);
+      }
+
+      if (fulfilledLobbying) {
+        const lobBounty = Number(fulfilledLobbying.completion_bounty_millions) || 12.0;
+        pState.war_chest_millions = Number(((pState.war_chest_millions || 0) + lobBounty).toFixed(2));
+
+        db.prepare(`
+          UPDATE political_lobbying_contracts SET
+            status = 'fulfilled',
+            legislated_bill_id = ?,
+            resolved_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(bill.id, fulfilledLobbying.id);
+
+        donorPromiseMsg += ` 🏛️ LOBBYING BOUNTY DELIVERED: ${fulfilledLobbying.trade_group} released +$${lobBounty}M in victory contributions to your Campaign War Chest!`;
+
+        db.prepare(`
+          INSERT INTO political_news_dispatches (id, session_id, year, month, publisher, headline, body, tone, urgency, featured_issue)
+          VALUES (?, ?, ?, ?, 'capital_gazette', ?, ?, 'bullish', 'high', ?)
+        `).run(
+          'pn_' + uuidv4().substring(0, 8),
+          session.id,
+          session.current_year,
+          session.current_month,
+          `K-STREET VICTORY: ${fulfilledLobbying.trade_group} Delivers +$${lobBounty}M Following Passage of '${bill.title}'`,
+          `With '${bill.title}' successfully enacted into sovereign law, chief lobbyist ${fulfilledLobbying.chief_lobbyist} commended the legislative leadership of ${pState.politician_name}, finalizing a major victory contribution for their re-election war chest.`,
+          fulfilledLobbying.statutory_category
         );
       }
 

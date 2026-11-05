@@ -14,60 +14,71 @@ try {
   console.warn('Could not load political_event_web.json:', e.message);
 }
 
+// Helper helpers for system types
+function isUnicameralSystem(sys) {
+  return sys === 'unicameral' || sys === 'parliamentary';
+}
+
+function isBicameralSystem(sys) {
+  return sys === 'bicameral' || sys === 'congressional';
+}
+
 // Track definitions
 const PARLIAMENTARY_TRACKS = [
   {
     id: 'backbencher',
-    title: 'Member of Parliament (Backbencher)',
+    title: 'Member of Parliament',
     chamber: 'House of Commons',
-    description: 'Freshly elected constituency MP representing local interests, tabling parliamentary questions and building faction alliances.',
+    description: 'Constituency MP tabling parliamentary questions, debating white papers, and building cross-faction alliances.',
     next_stage: 'committee_chair',
     min_seniority: 1,
     promotion_requirements: { seniority: 3, district_approval: 52, bills_passed: 1, party_loyalty: 55 }
   },
   {
     id: 'committee_chair',
-    title: 'Chair of Select Committee',
-    chamber: 'Select Committee on Economic & Treasury Affairs',
-    description: 'Influential committee leader with subpoena and inquiry power over ministries and central bank governors.',
+    title: 'Chair of Commons Select Committee',
+    chamber: 'House of Commons',
+    description: 'Influential parliamentary scrutiny chair with inquiry power over ministers and central bank governors.',
     next_stage: 'cabinet_minister',
     min_seniority: 3,
     promotion_requirements: { seniority: 5, national_approval: 55, political_capital: 35, party_loyalty: 65 }
   },
   {
     id: 'cabinet_minister',
-    title: 'Cabinet Minister of State',
-    chamber: 'Cabinet / HM Government',
-    description: 'Senior minister directing a major national department, shaping legislative agendas and leading party messaging.',
+    title: 'Cabinet Minister',
+    chamber: 'House of Commons / Cabinet',
+    description: 'Senior minister directing major national ministries, formulating statutory bills, and steering treasury allocations.',
     next_stage: 'prime_minister',
     min_seniority: 5,
     promotion_requirements: { seniority: 7, national_approval: 60, party_loyalty: 75, political_capital: 60 }
   },
   {
     id: 'prime_minister',
-    title: 'Prime Minister & Head of Government',
-    chamber: '10 Downing / Executive Suite',
-    description: 'Chief executive leader directing government policy, commanding parliamentary majority, and managing national crises.',
+    title: 'Prime Minister',
+    chamber: 'House of Commons / Executive',
+    description: 'Chief executive leader directing government policy, commanding parliamentary majority, and managing sovereign governance.',
     next_stage: null,
     min_seniority: 7,
     promotion_requirements: null
   }
 ];
 
+const UNICAMERAL_TRACKS = PARLIAMENTARY_TRACKS;
+
 const CONGRESSIONAL_TRACKS = [
   {
     id: 'representative',
-    title: 'United States Representative',
-    chamber: 'House of Representatives',
-    description: 'District Congressperson fighting for local community funding, serving on subcommittees and fighting every 2-year election cycle.',
+    title: 'Representative',
+    chamber: 'Lower House',
+    description: 'Lower House Representative fighting for local community funding and district constituent needs in every 2-year election cycle.',
     next_stage: 'committee_chair',
     min_seniority: 1,
     promotion_requirements: { seniority: 3, district_approval: 54, war_chest: 5.0, bills_passed: 1 }
   },
   {
     id: 'committee_chair',
-    title: 'Ranking Committee Chair / House Whip',
-    chamber: 'Ways & Means / Energy & Commerce',
+    title: 'Lower House Committee Chair',
+    chamber: 'Lower House',
     description: 'Powerful legislative powerbroker orchestrating whip counts, floor amendments, and high-dollar PAC fundraising.',
     next_stage: 'senator',
     min_seniority: 3,
@@ -75,23 +86,25 @@ const CONGRESSIONAL_TRACKS = [
   },
   {
     id: 'senator',
-    title: 'United States Senator',
-    chamber: 'United States Senate',
-    description: 'Statewide statesman with 6-year term security, filibuster authority, judicial confirmation power, and treaty votes.',
+    title: 'Senator',
+    chamber: 'Upper House',
+    description: 'Upper House Senator with 6-year tenure, filibuster authority, judicial confirmation power, and treaty votes.',
     next_stage: 'president',
     min_seniority: 5,
     promotion_requirements: { seniority: 8, national_approval: 62, war_chest: 45.0, political_capital: 75 }
   },
   {
     id: 'president',
-    title: 'President of the United States',
-    chamber: 'The Oval Office',
-    description: 'Head of State, Commander-in-Chief, with executive order authority, veto power, and international summit leadership.',
+    title: 'President',
+    chamber: 'Office of the President',
+    description: 'Head of State, Commander-in-Chief, with executive order authority, statutory veto power, and international summit leadership.',
     next_stage: null,
     min_seniority: 8,
     promotion_requirements: null
   }
 ];
+
+const BICAMERAL_TRACKS = CONGRESSIONAL_TRACKS;
 
 // District and party archetypes
 const PARTY_ARCHETYPES = [
@@ -126,10 +139,10 @@ const PARTY_ARCHETYPES = [
   }
 ];
 
-function getInitialPoliticalState(systemType = 'parliamentary', selectedTrack = null, partyName = 'Democratic Alliance', districtName = 'Metro-Industrial 4th') {
-  const isParliamentary = systemType === 'parliamentary';
-  const tracks = isParliamentary ? PARLIAMENTARY_TRACKS : CONGRESSIONAL_TRACKS;
-  const initialTrackId = selectedTrack || (isParliamentary ? 'backbencher' : 'representative');
+function getInitialPoliticalState(systemType = 'bicameral', selectedTrack = null, partyName = 'Democratic Alliance', districtName = 'Metro-Industrial 4th') {
+  const isUnicameral = isUnicameralSystem(systemType);
+  const tracks = isUnicameral ? PARLIAMENTARY_TRACKS : CONGRESSIONAL_TRACKS;
+  const initialTrackId = selectedTrack || (isUnicameral ? 'backbencher' : 'representative');
   const trackObj = tracks.find(t => t.id === initialTrackId) || tracks[0];
 
   const party = PARTY_ARCHETYPES.find(p => p.name === partyName) || PARTY_ARCHETYPES[0];
@@ -139,6 +152,8 @@ function getInitialPoliticalState(systemType = 'parliamentary', selectedTrack = 
     current_stage_id: trackObj.id,
     chamber: trackObj.chamber,
     system_type: systemType,
+    legislature_name: isUnicameral ? 'House of Commons' : 'Congress',
+    executive_title: isUnicameral ? 'Prime Minister' : 'President',
     party_name: party.name,
     party_ideology: party.ideology,
     party_wings: party.wings,
@@ -149,10 +164,10 @@ function getInitialPoliticalState(systemType = 'parliamentary', selectedTrack = 
     national_approval: 48.0, // National name recognition & favorability
     party_loyalty: 72.0,    // Whip confidence & party standing
     political_capital: 30,   // Currency spent to whip votes & advance bills (0-100)
-    war_chest_millions: isParliamentary ? 1.5 : 4.2, // Campaign fundraising funds ($M)
+    war_chest_millions: isUnicameral ? 1.5 : 4.2, // Campaign fundraising funds ($M)
     ethics_scrutiny: 12.0,   // Scandal / investigative risk (0-100, low is good)
     polling_margin: 3.5,     // Polling margin vs upcoming election challenger (+/- %)
-    coalition_stability: 68.0,// Parliamentary/congressional floor stability
+    coalition_stability: 68.0,// Floor stability
     media_sentiment: 15.0,   // -100 to +100 press tone
     
     // Legislative Stats & Pedigree
@@ -167,16 +182,21 @@ function getInitialPoliticalState(systemType = 'parliamentary', selectedTrack = 
     fundraisers_held: 0,
     declared_campaign: null, // Active higher office bid & donor gauntlet state
     
+    // Caucus Leadership
+    player_caucus_id: null,
+    player_caucus_name: null,
+    is_caucus_leader: true,
+    
     // Committee assignment
-    committee_name: isParliamentary ? 'Select Committee on Finance & Public Accounts' : 'House Committee on Ways & Means',
+    committee_name: isUnicameral ? 'Commons Select Committee on Economic & Treasury Affairs' : 'Lower House Committee on Ways & Means',
     
     // Promotion readiness
     promotion_available: false,
     next_stage_id: trackObj.next_stage,
 
     // Election cycle
-    months_to_election: isParliamentary ? 36 : 24, // 3 years or 2 years cycle
-    election_year_span: isParliamentary ? 3 : 2,
+    months_to_election: isUnicameral ? 36 : 24, // 3 years or 2 years cycle
+    election_year_span: isUnicameral ? 3 : 2,
     
     // Recent actions & active campaign
     recent_actions: [],
@@ -374,16 +394,42 @@ const PARLIAMENTARY_CAUCUSES = [
         fiscal_impact: 24.0
       }
     ]
+  },
+  {
+    id: 'green_reform_caucus',
+    name: 'Green Horizon & Civic Reform Benchers',
+    leader: 'Dr. Helena Zhang MP',
+    member_count: 24,
+    ideology: 'Eco-Modernist & Transparency Champions',
+    priorities: ['climate', 'technology', 'ethics', 'housing'],
+    docket_bills: [
+      {
+        title: 'Clean Urban Transit & Low-Emission Zone Mandate',
+        summary: 'Directs statutory funding to convert municipal bus fleets to zero emissions and empowers councils to enact clean-air zones.',
+        category: 'energy',
+        fiscal_impact: 12.0
+      },
+      {
+        title: 'Statutory Anti-Graft & Ministerial Revolving-Door Prohibition Act',
+        summary: 'Imposes a mandatory 5-year lobbying ban on former cabinet ministers and enforces strict public transparency on procurement contracts.',
+        category: 'ethics',
+        fiscal_impact: 0.5
+      }
+    ]
   }
 ];
 
 // Generate dynamic backroom caucus deal trade proposals
 function generateCaucusDealOffers(session, currentBill = null) {
-  const isParliamentary = session.system_type === 'parliamentary';
-  const caucuses = isParliamentary ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+  const isUnicameral = isUnicameralSystem(session.system_type);
+  const caucuses = isUnicameral ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+  const playerCaucusId = session.political_state?.player_caucus_id;
+  
+  // Filter out the player's own caucus (their own caucus already votes with their chair)
+  const availableCaucuses = playerCaucusId ? caucuses.filter(c => c.id !== playerCaucusId) : caucuses;
   
   // Pick 2-3 distinct caucuses
-  const shuffled = [...caucuses].sort(() => 0.5 - Math.random());
+  const shuffled = [...availableCaucuses].sort(() => 0.5 - Math.random());
   const selectedCaucuses = shuffled.slice(0, 3);
 
   const targetBillId = currentBill ? currentBill.id : null;
@@ -484,8 +530,19 @@ function calculateWhipVoteCount(bill, politicalState, capitalSpent = 0) {
   // Floor Whip Capital Bonus (direct arm-twisting on the floor)
   const capitalBonusVotes = Math.min(22, Math.round(capitalSpent * 1.25));
 
+  // Player's Own Caucus Loyalty Votes (As Caucus Chair, your members rally behind your agenda)
+  let playerCaucusVotes = 0;
+  if (politicalState.player_caucus_id) {
+    const isUnicameral = isUnicameralSystem(politicalState.system_type);
+    const caucusList = isUnicameral ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+    const playerCaucus = caucusList.find(c => c.id === politicalState.player_caucus_id);
+    if (playerCaucus) {
+      playerCaucusVotes = Math.round(playerCaucus.member_count * 0.85);
+    }
+  }
+
   // Total floor vote calculation
-  const totalAyes = Math.min(totalSeats, partyAyes + oppAyes + committeeMomentumVotes + pledgedCaucusVotes + capitalBonusVotes);
+  const totalAyes = Math.min(totalSeats, partyAyes + oppAyes + committeeMomentumVotes + pledgedCaucusVotes + capitalBonusVotes + playerCaucusVotes);
   const totalNays = Math.max(0, totalSeats - totalAyes);
   const passed = totalAyes >= majorityThreshold;
 
@@ -504,7 +561,8 @@ function calculateWhipVoteCount(bill, politicalState, capitalSpent = 0) {
       opposition_nays: oppNays,
       committee_momentum_votes: committeeMomentumVotes,
       pledged_caucus_votes: pledgedCaucusVotes,
-      capital_bonus_votes: capitalBonusVotes
+      capital_bonus_votes: capitalBonusVotes,
+      player_caucus_votes: playerCaucusVotes
     },
     whip_assessment: passed 
       ? `Floor division secured with ${totalAyes} Ayes to ${totalNays} Nays (Threshold: ${majorityThreshold}). Prime for passage.` 
@@ -795,36 +853,36 @@ function calculateBillAchievementScore(bill) {
 
 // Offices available for election campaigns
 const CAMPAIGN_OFFICE_DEFINITIONS = {
-  // Congressional System
+  // Bicameral System Offices
   representative: {
     id: 'representative',
-    title: 'United States Representative',
-    chamber: 'House of Representatives',
-    system_type: 'congressional',
+    title: 'Representative',
+    chamber: 'Lower House',
+    system_type: 'bicameral',
     target_war_chest: 6.0,
     target_achievement: 18,
     min_terms: 1,
     term_months: 24,
-    description: 'District Congressperson fighting for local community funding and district constituent needs in every 2-year election cycle.',
+    description: 'Lower House Representative fighting for local community funding and district constituent needs in every 2-year election cycle.',
     powers_summary: 'Originate revenue legislation, table amendments, vote on federal appropriations.'
   },
   senator: {
     id: 'senator',
-    title: 'United States Senator',
-    chamber: 'United States Senate',
-    system_type: 'congressional',
+    title: 'Senator',
+    chamber: 'Upper House',
+    system_type: 'bicameral',
     target_war_chest: 32.0,
     target_achievement: 48,
     min_terms: 2,
     term_months: 72,
-    description: 'Statewide statesman with 6-year tenure, filibuster authority, judicial confirmation power, and treaty ratification votes.',
+    description: 'Upper House Senator with 6-year tenure, filibuster authority, judicial confirmation power, and treaty ratification votes.',
     powers_summary: 'Advise and consent on cabinet secretaries & judges, ratify treaties, command statewide media attention.'
   },
   president: {
     id: 'president',
-    title: 'President of the United States',
-    chamber: 'The Oval Office / Executive Branch',
-    system_type: 'congressional',
+    title: 'President',
+    chamber: 'Office of the President',
+    system_type: 'bicameral',
     target_war_chest: 125.0,
     target_achievement: 90,
     min_terms: 3,
@@ -833,24 +891,24 @@ const CAMPAIGN_OFFICE_DEFINITIONS = {
     powers_summary: 'Executive order decrees, absolute veto over congressional bills, appoint federal reserve governors.'
   },
 
-  // Parliamentary System
+  // Unicameral System (House of Commons) Offices
   backbencher: {
     id: 'backbencher',
-    title: 'Member of Parliament (Backbencher)',
+    title: 'Member of Parliament',
     chamber: 'House of Commons',
-    system_type: 'parliamentary',
+    system_type: 'unicameral',
     target_war_chest: 2.5,
     target_achievement: 14,
     min_terms: 1,
     term_months: 36,
-    description: 'Constituency MP tabling parliamentary questions, debating white papers, and building cross-faction alliances.',
+    description: 'Constituency MP tabling parliamentary questions, debating white papers, and building cross-faction alliances in the House of Commons.',
     powers_summary: 'Table motions, vote on government supply, represent constituency cases.'
   },
   committee_chair: {
     id: 'committee_chair',
-    title: 'Chair of Select Committee',
-    chamber: 'Select Committee on Finance & Public Accounts',
-    system_type: 'parliamentary',
+    title: 'Commons Committee Chair',
+    chamber: 'House of Commons',
+    system_type: 'unicameral',
     target_war_chest: 7.0,
     target_achievement: 30,
     min_terms: 2,
@@ -860,9 +918,9 @@ const CAMPAIGN_OFFICE_DEFINITIONS = {
   },
   cabinet_minister: {
     id: 'cabinet_minister',
-    title: 'Cabinet Minister of State',
-    chamber: 'Cabinet / HM Government',
-    system_type: 'parliamentary',
+    title: 'Cabinet Minister',
+    chamber: 'House of Commons / Cabinet',
+    system_type: 'unicameral',
     target_war_chest: 20.0,
     target_achievement: 55,
     min_terms: 3,
@@ -872,14 +930,14 @@ const CAMPAIGN_OFFICE_DEFINITIONS = {
   },
   prime_minister: {
     id: 'prime_minister',
-    title: 'Prime Minister & Head of Government',
-    chamber: '10 Downing / Executive Suite',
-    system_type: 'parliamentary',
+    title: 'Prime Minister',
+    chamber: 'House of Commons / Executive',
+    system_type: 'unicameral',
     target_war_chest: 70.0,
     target_achievement: 85,
     min_terms: 4,
     term_months: 36,
-    description: 'Chief Executive leading the parliamentary majority, appointing the Cabinet, and managing sovereign governance.',
+    description: 'Chief Executive leading the parliamentary majority in the House of Commons, appointing the Cabinet, and managing sovereign governance.',
     powers_summary: 'Recommend dissolution of parliament, command legislative majority, appoint all government ministers.'
   }
 };
@@ -2201,9 +2259,1021 @@ function generateDonorQuestions(targetOfficeId, currentWarChest = 0) {
   });
 }
 
+// ============================================================================
+// MAJOR NATIONAL ISSUES (Social, Geopolitical, Economic, National Political)
+// ============================================================================
+const MAJOR_NATIONAL_ISSUES = [
+  // --- SOCIAL ISSUES ---
+  {
+    id: 'issue_universal_healthcare',
+    category: 'social',
+    title: 'Universal Healthcare & Prescription Cost Caps',
+    description: 'National debate over federal prescription drug price caps, hospital staffing mandates, and universal health insurance coverage.',
+    salience: 86,
+    trend: 'surging',
+    attribute_type: 'standard',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      progressive_caucus: 'champion',
+      socialist_campaign_group: 'champion',
+      green_reform_caucus: 'champion',
+      one_nation_moderates: 'compromise',
+      problem_solvers: 'compromise',
+      freedom_faction: 'oppose',
+      free_enterprise_group: 'oppose'
+    }
+  },
+  {
+    id: 'issue_housing_affordability',
+    category: 'social',
+    title: 'Housing Supply, Rent Caps & Zoning Deregulation',
+    description: 'Severe urban housing shortages, escalating rent burdens, municipal NIMBY zoning preemption, and tenant eviction protections.',
+    salience: 82,
+    trend: 'surging',
+    attribute_type: 'standard',
+    public_sentiment: 'divided',
+    caucus_stances: {
+      progressive_caucus: 'champion',
+      socialist_campaign_group: 'champion',
+      main_street_bloc: 'compromise',
+      problem_solvers: 'compromise',
+      freedom_faction: 'oppose',
+      free_enterprise_group: 'oppose'
+    }
+  },
+  {
+    id: 'issue_civil_liberties_privacy',
+    category: 'social',
+    title: 'Digital Privacy, Biometrics & AI Surveillance Limits',
+    description: 'Federal standards protecting citizen biometric data, limiting commercial algorithm surveillance, and shielding end-to-end encryption.',
+    salience: 72,
+    trend: 'stable',
+    attribute_type: 'standard',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      green_reform_caucus: 'champion',
+      progressive_caucus: 'champion',
+      freedom_faction: 'champion',
+      problem_solvers: 'compromise'
+    }
+  },
+  {
+    id: 'issue_education_student_debt',
+    category: 'social',
+    title: 'Higher Education Affordability & Technical Apprenticeships',
+    description: 'Reforming federal student loan interest, subsidizing community college tuition, and expanding union trade apprenticeship pipelines.',
+    salience: 68,
+    trend: 'stable',
+    attribute_type: 'standard',
+    public_sentiment: 'divided',
+    caucus_stances: {
+      progressive_caucus: 'champion',
+      socialist_campaign_group: 'champion',
+      rust_belt_alliance: 'compromise',
+      regional_devolution_bloc: 'champion',
+      freedom_faction: 'oppose'
+    }
+  },
+
+  // --- GEOPOLITICAL ISSUES ---
+  {
+    id: 'issue_strategic_trade_tariffs',
+    category: 'geopolitical',
+    title: 'Strategic Import Tariffs & Supply-Chain Independence',
+    description: 'Defending sovereign manufacturing with reciprocal steel/semiconductor tariffs against foreign state dumping vs consumer price risks.',
+    salience: 84,
+    trend: 'surging',
+    attribute_type: 'standard',
+    public_sentiment: 'divided',
+    caucus_stances: {
+      rust_belt_alliance: 'champion',
+      regional_devolution_bloc: 'champion',
+      freedom_faction: 'compromise',
+      problem_solvers: 'compromise',
+      free_enterprise_group: 'oppose'
+    }
+  },
+  {
+    id: 'issue_mutual_defense_alliances',
+    category: 'geopolitical',
+    title: 'Sovereign Mutual Defense Treaties & Military Aid',
+    description: 'Appropriating resources for foreign democratic defense pacts, strategic deterrence, and overseas military replenishment.',
+    salience: 77,
+    trend: 'stable',
+    attribute_type: 'standard',
+    public_sentiment: 'conservative',
+    caucus_stances: {
+      one_nation_moderates: 'champion',
+      problem_solvers: 'champion',
+      freedom_faction: 'divided',
+      progressive_caucus: 'oppose',
+      socialist_campaign_group: 'oppose'
+    }
+  },
+  {
+    id: 'issue_carbon_border_accords',
+    category: 'geopolitical',
+    title: 'International Climate Accords & Carbon Border Taxes',
+    description: 'Levying cross-border carbon border tariffs on high-emissions imports while subsidizing domestic clean manufacturing exports.',
+    salience: 74,
+    trend: 'cooling',
+    attribute_type: 'standard',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      green_reform_caucus: 'champion',
+      progressive_caucus: 'champion',
+      one_nation_moderates: 'compromise',
+      freedom_faction: 'oppose',
+      free_enterprise_group: 'oppose'
+    }
+  },
+  {
+    id: 'issue_cyber_defense_intelligence',
+    category: 'geopolitical',
+    title: 'Critical Infrastructure Cyber Defense & Surveillance Warrants',
+    description: 'Hardening electrical grids and banking networks against foreign hostile cyber incursions while mandating judicial oversight on surveillance.',
+    salience: 69,
+    trend: 'stable',
+    attribute_type: 'standard',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      problem_solvers: 'champion',
+      one_nation_moderates: 'champion',
+      green_reform_caucus: 'compromise'
+    }
+  },
+
+  // --- ECONOMIC ISSUES ---
+  {
+    id: 'issue_central_bank_autonomy',
+    category: 'economic',
+    title: 'Central Bank Autonomy & Interest Rate Pressure',
+    description: 'Political friction between monetary tightening by the Central Bank to crush inflation versus parliamentary demands for borrowing relief.',
+    salience: 89,
+    trend: 'surging',
+    attribute_type: 'standard',
+    public_sentiment: 'divided',
+    caucus_stances: {
+      free_enterprise_group: 'champion',
+      one_nation_moderates: 'champion',
+      problem_solvers: 'champion',
+      progressive_caucus: 'oppose',
+      freedom_faction: 'oppose'
+    }
+  },
+  {
+    id: 'issue_corporate_tax_wealth',
+    category: 'economic',
+    title: 'Corporate Minimum Taxes & Progressive Wealth Levies',
+    description: 'Closing offshore corporate profit shelters, enacting a billionaire minimum tax, versus competitive corporate tax relief.',
+    salience: 81,
+    trend: 'surging',
+    attribute_type: 'standard',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      progressive_caucus: 'champion',
+      socialist_campaign_group: 'champion',
+      freedom_faction: 'oppose',
+      free_enterprise_group: 'oppose',
+      problem_solvers: 'compromise'
+    }
+  },
+  {
+    id: 'issue_energy_grid_nuclear',
+    category: 'economic',
+    title: 'Energy Grid Modernization, Pipeline & Nuclear Permitting',
+    description: 'Fast-tracking environmental approvals for next-generation nuclear reactors, interstate transmission lines, and domestic energy terminals.',
+    salience: 79,
+    trend: 'surging',
+    attribute_type: 'standard',
+    public_sentiment: 'divided',
+    caucus_stances: {
+      freedom_faction: 'champion',
+      problem_solvers: 'champion',
+      rust_belt_alliance: 'champion',
+      green_reform_caucus: 'compromise',
+      progressive_caucus: 'oppose'
+    }
+  },
+  {
+    id: 'issue_small_business_banking',
+    category: 'economic',
+    title: 'Community Banking Lending & Anti-Monopoly Enforcement',
+    description: 'Protecting regional credit unions and independent businesses from mega-bank consolidation and predatory interchange processing fees.',
+    salience: 66,
+    trend: 'stable',
+    attribute_type: 'standard',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      main_street_bloc: 'champion',
+      rust_belt_alliance: 'champion',
+      progressive_caucus: 'champion',
+      free_enterprise_group: 'compromise'
+    }
+  },
+
+  // --- NATIONAL POLITICAL ISSUES (Corruptions, Scandals & Positive Virtues) ---
+  {
+    id: 'issue_dark_money_campaign_finance',
+    category: 'national_political',
+    title: 'Dark Money PACs & Campaign Finance Integrity',
+    description: 'Public outcry over hundreds of millions in untraceable special-interest donations distorting elections and legislative floor votes.',
+    salience: 85,
+    trend: 'surging',
+    attribute_type: 'corruption_concern',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      progressive_caucus: 'champion',
+      green_reform_caucus: 'champion',
+      main_street_bloc: 'compromise',
+      problem_solvers: 'compromise',
+      freedom_faction: 'oppose'
+    }
+  },
+  {
+    id: 'issue_revolving_door_lobbying',
+    category: 'national_political',
+    title: 'Revolving-Door K-Street Lobbying Bans & Ethics Audits',
+    description: 'Scandals over former legislative committee chairs taking lucrative multi-million-dollar lobbying posts for industries they previously regulated.',
+    salience: 80,
+    trend: 'surging',
+    attribute_type: 'scandal_risk',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      green_reform_caucus: 'champion',
+      socialist_campaign_group: 'champion',
+      progressive_caucus: 'champion',
+      one_nation_moderates: 'compromise',
+      freedom_faction: 'compromise'
+    }
+  },
+  {
+    id: 'issue_insider_trading_legislators',
+    category: 'national_political',
+    title: 'Lawmaker Stock Trading Scandals & Blind Trust Mandates',
+    description: 'Investigation into congressional leaders trading single-company equities directly impacted by closed-door committee briefings.',
+    salience: 76,
+    trend: 'surging',
+    attribute_type: 'scandal_risk',
+    public_sentiment: 'reformist',
+    caucus_stances: {
+      progressive_caucus: 'champion',
+      green_reform_caucus: 'champion',
+      problem_solvers: 'champion',
+      freedom_faction: 'compromise'
+    }
+  },
+  {
+    id: 'issue_civic_trust_election_integrity',
+    category: 'national_political',
+    title: 'Civic Trust, Transparent Audits & Whistleblower Shields',
+    description: 'Preserving independent electoral commissions, transparent paper-trail verifications, and strong civil service protections against political retaliation.',
+    salience: 75,
+    trend: 'stable',
+    attribute_type: 'civic_strength',
+    public_sentiment: 'conservative',
+    caucus_stances: {
+      one_nation_moderates: 'champion',
+      problem_solvers: 'champion',
+      green_reform_caucus: 'champion',
+      socialist_campaign_group: 'champion',
+      freedom_faction: 'compromise'
+    }
+  }
+];
+
+// ============================================================================
+// 7-QUESTION POLITICAL ALIGNMENT QUIZ (Categorical & Colored Indicators Only)
+// ============================================================================
+const POLITICAL_ALIGNMENT_QUIZ = [
+  {
+    id: 'q1_fiscal_taxation',
+    number: 1,
+    category: 'Fiscal & Taxation',
+    title: 'National Revenue & Budget Priorities',
+    prompt: 'With federal budget obligations and sovereign debt commanding floor debates, how should statutory tax and spending policy be structured?',
+    options: [
+      {
+        id: 'opt_prog',
+        label: 'Progressive Wealth Levies & Universal Public Services',
+        description: 'Impose targeted surcharges on ultra-wealthy individuals and corporations to fully fund national infrastructure, public healthcare, and free college tuition.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' },
+          { category: 'Donor PACs', direction: 'unfavorable' }
+        ],
+        caucus_scores: {
+          progressive_caucus: 5,
+          socialist_campaign_group: 5,
+          green_reform_caucus: 3,
+          rust_belt_alliance: 2
+        }
+      },
+      {
+        id: 'opt_conserv',
+        label: 'Statutory Deficit Cap & Corporate Deregulation',
+        description: 'Enact an enforceable constitutional spending brake, lower corporate tax rates to stimulate business hiring, and repeal capital gains surtaxes.',
+        indicators: [
+          { category: 'District App', direction: 'neutral' },
+          { category: 'National App', direction: 'neutral' },
+          { category: 'War Chest', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          freedom_faction: 5,
+          free_enterprise_group: 5,
+          main_street_bloc: 2
+        }
+      },
+      {
+        id: 'opt_centrist',
+        label: 'Bipartisan Deficit Stabilization & Infrastructure Bonds',
+        description: 'Close corporate tax loopholes, preserve social safety net solvency with means-tested adjustments, and co-finance regional infrastructure projects.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5,
+          main_street_bloc: 2
+        }
+      },
+      {
+        id: 'opt_industrial',
+        label: 'Strategic Import Tariffs & Domestic Factory Credits',
+        description: 'Impose aggressive reciprocal tariffs on foreign subsidized imports to directly fund tax credits for domestic manufacturing factories and worker pay.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'neutral' },
+          { category: 'Whip Loyalty', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          rust_belt_alliance: 5,
+          regional_devolution_bloc: 5,
+          main_street_bloc: 2
+        }
+      }
+    ]
+  },
+  {
+    id: 'q2_healthcare_safety',
+    number: 2,
+    category: 'Healthcare & Social Safety Net',
+    title: 'Healthcare Architecture & Drug Pricing',
+    prompt: 'Rising healthcare premiums and prescription costs strain household budgets. What is your fundamental vision for national healthcare delivery?',
+    options: [
+      {
+        id: 'opt_single_payer',
+        label: 'Universal Public Healthcare & Government Drug Negotiations',
+        description: 'Establish a universal public health insurance guarantee, cap prescription drug costs at manufacturing parity, and mandate hospital nurse staffing minimums.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Donor PACs', direction: 'unfavorable' }
+        ],
+        caucus_scores: {
+          progressive_caucus: 5,
+          socialist_campaign_group: 5,
+          green_reform_caucus: 3
+        }
+      },
+      {
+        id: 'opt_market_health',
+        label: 'Health Savings Accounts & Interstate Insurance Markets',
+        description: 'Promote consumer choice by deregulating interstate insurance sales, expanding tax-free health savings accounts, and protecting pharmaceutical patent exclusivity.',
+        indicators: [
+          { category: 'War Chest', direction: 'favorable' },
+          { category: 'District App', direction: 'neutral' },
+          { category: 'National App', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          freedom_faction: 5,
+          free_enterprise_group: 5
+        }
+      },
+      {
+        id: 'opt_public_private',
+        label: 'Strengthen Public Clinics & Private Reinsurance Subsidies',
+        description: 'Fund 25 regional community care clinics to reduce emergency room wait times, while subsidizing private insurer reinsurance pools to contain monthly premiums.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5,
+          main_street_bloc: 2
+        }
+      },
+      {
+        id: 'opt_community_health',
+        label: 'Small Enterprise Health Purchasing Alliances',
+        description: 'Allow independent small businesses and agricultural cooperatives to band together across county lines to negotiate group healthcare rates without Wall Street fees.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          main_street_bloc: 5,
+          regional_devolution_bloc: 4,
+          rust_belt_alliance: 2
+        }
+      }
+    ]
+  },
+  {
+    id: 'q3_energy_climate',
+    number: 3,
+    category: 'Energy & Climate Transition',
+    title: 'Energy Independence & Climate Policy',
+    prompt: 'How should statutory policy navigate the balance between fossil fuel domestic supplies, nuclear power, and green renewable transitions?',
+    options: [
+      {
+        id: 'opt_green_transition',
+        label: 'Rapid Renewable Shift & Strict Emissions Caps',
+        description: 'Mandate zero-emission power grid standards by statutory timeline, end all oil and gas leasing subsidies, and levy carbon fees on major polluters.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'favorable' },
+          { category: 'Donor PACs', direction: 'unfavorable' }
+        ],
+        caucus_scores: {
+          green_reform_caucus: 5,
+          progressive_caucus: 5,
+          socialist_campaign_group: 3
+        }
+      },
+      {
+        id: 'opt_energy_drilling',
+        label: 'Expedited Fossil Extraction & NEPA Deregulation',
+        description: 'Unleash domestic energy drilling on sovereign lands, curtail judicial environmental review delays for interstate pipelines, and export liquefied natural gas.',
+        indicators: [
+          { category: 'War Chest', direction: 'favorable' },
+          { category: 'District App', direction: 'neutral' },
+          { category: 'Ethics Scrutiny', direction: 'alert' }
+        ],
+        caucus_scores: {
+          freedom_faction: 5,
+          free_enterprise_group: 5
+        }
+      },
+      {
+        id: 'opt_all_above_nuclear',
+        label: 'All-of-the-Above: Advanced Nuclear & Hydrogen Co-Investment',
+        description: 'Deploy federal loan guarantees to construct small modular nuclear reactors, expand regional clean hydrogen hubs, and modernize grid transmission reliability.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5,
+          rust_belt_alliance: 3
+        }
+      },
+      {
+        id: 'opt_industrial_baseload',
+        label: 'Protect Energy Worker Wages & Heavy Metallurgy Grants',
+        description: 'Safeguard union baseload coal/gas power plants with federal carbon-capture retrofit grants, preventing industrial factory shutdowns and blackouts.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          rust_belt_alliance: 5,
+          regional_devolution_bloc: 4
+        }
+      }
+    ]
+  },
+  {
+    id: 'q4_labor_wages',
+    number: 4,
+    category: 'Labor & Economic Rights',
+    title: 'Workplace Protections & Minimum Wage',
+    prompt: 'What stance should national legislation take on union collective bargaining rights, corporate wage boards, and statutory minimum earnings?',
+    options: [
+      {
+        id: 'opt_union_rights',
+        label: 'National Living Wage Mandate & Worker Board Seats',
+        description: 'Index the federal minimum wage directly to real living costs, ban anti-union captive audience meetings, and guarantee worker representation on corporate boards.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          progressive_caucus: 5,
+          socialist_campaign_group: 5,
+          rust_belt_alliance: 3
+        }
+      },
+      {
+        id: 'opt_right_to_work',
+        label: 'Right-to-Work Protections & Flexible Employment Contracts',
+        description: 'Protect employee choice by shielding voluntary union membership laws, reducing employer overtime litigation, and supporting independent gig contractor freedom.',
+        indicators: [
+          { category: 'War Chest', direction: 'favorable' },
+          { category: 'District App', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          freedom_faction: 5,
+          free_enterprise_group: 5
+        }
+      },
+      {
+        id: 'opt_regional_wages',
+        label: 'Regional Cost-of-Living Pegs & Skilled Apprenticeships',
+        description: 'Establish regional minimum wage tiers that reflect rural vs metropolitan living costs, paired with federal matching tax credits for technical apprenticeships.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5,
+          main_street_bloc: 3
+        }
+      },
+      {
+        id: 'opt_domestic_labor',
+        label: 'Buy-Domestic Labor Enforcement & Strike Protections',
+        description: 'Disqualify companies that offshore manufacturing from receiving federal contracts, while protecting union strike funds and prevailing wage mandates.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          rust_belt_alliance: 5,
+          regional_devolution_bloc: 5
+        }
+      }
+    ]
+  },
+  {
+    id: 'q5_trade_globalization',
+    number: 5,
+    category: 'Trade & Foreign Commerce',
+    title: 'International Trade Pacts & Tariff Policy',
+    prompt: 'How should the sovereign government approach multilateral trade treaties, foreign manufacturing competition, and protective import duties?',
+    options: [
+      {
+        id: 'opt_fair_trade',
+        label: 'Fair Trade Accords with Binding Labor & Climate Standards',
+        description: 'Condition all bilateral trade access on strict compliance with international human rights, collective bargaining rights, and binding carbon reductions.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          green_reform_caucus: 5,
+          progressive_caucus: 4,
+          socialist_campaign_group: 4
+        }
+      },
+      {
+        id: 'opt_free_markets',
+        label: 'Unilateral Free Trade & Elimination of Protective Duties',
+        description: 'Eliminate punitive import tariffs and agricultural quotas to reduce consumer prices and open overseas markets for high-value sovereign exports.',
+        indicators: [
+          { category: 'War Chest', direction: 'favorable' },
+          { category: 'District App', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          free_enterprise_group: 5,
+          freedom_faction: 4
+        }
+      },
+      {
+        id: 'opt_friend_shoring',
+        label: 'Allied Supply-Chain Rebalancing & Semiconductor Security',
+        description: 'Negotiate high-standard trade compacts with allied democratic nations while subsidizing critical semiconductor fabrication and pharmaceutical raw materials.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5
+        }
+      },
+      {
+        id: 'opt_protectionism',
+        label: 'Punitive Reciprocal Tariffs & Industrial Sourcing Mandates',
+        description: 'Impose steep 25%+ tariffs on imported steel, vehicles, and manufactured goods to revive sovereign factories and halt industrial de-industrialization.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          rust_belt_alliance: 5,
+          regional_devolution_bloc: 5
+        }
+      }
+    ]
+  },
+  {
+    id: 'q6_ethics_campaign_finance',
+    number: 6,
+    category: 'Ethics & Anti-Corruption',
+    title: 'Campaign Finance, Lobbying Bans & Institutional Integrity',
+    prompt: 'Special-interest lobbying and campaign contributions dominate national politics. How aggressively should ethics and lobbying laws be enforced?',
+    options: [
+      {
+        id: 'opt_ban_pacs',
+        label: 'Ban Corporate Super PACs & Create Anti-Graft Commission',
+        description: 'Outlaw dark money campaign donations, enact a lifetime lobbying ban for former lawmakers, and empower a non-partisan investigative anti-graft commission.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'favorable' },
+          { category: 'Donor PACs', direction: 'unfavorable' }
+        ],
+        caucus_scores: {
+          green_reform_caucus: 5,
+          progressive_caucus: 5,
+          socialist_campaign_group: 4
+        }
+      },
+      {
+        id: 'opt_free_speech',
+        label: 'Protect Donor Speech & Eliminate Campaign Expenditure Caps',
+        description: 'Defend political donations as constitutionally protected speech, oppose federal speech bureaucracies, and allow grassroots donors and businesses to advocate freely.',
+        indicators: [
+          { category: 'War Chest', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'neutral' }
+        ],
+        caucus_scores: {
+          freedom_faction: 5,
+          free_enterprise_group: 5
+        }
+      },
+      {
+        id: 'opt_realtime_transparency',
+        label: 'Real-Time Digital Disclosure & Strict Conflict Audits',
+        description: 'Require instant 48-hour online disclosure of all campaign gifts, mandate independent blind trusts for lawmakers, and strengthen parliamentary ethics committees.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5
+        }
+      },
+      {
+        id: 'opt_main_street_integrity',
+        label: 'Level the Playing Field Against Wall Street Mega-Lobbies',
+        description: 'Place strict caps on high-dollar corporate K-Street lobbying expenses so community merchants, farmers, and regional civic groups cannot be silenced.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'Ethics Scrutiny', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          main_street_bloc: 5,
+          regional_devolution_bloc: 4
+        }
+      }
+    ]
+  },
+  {
+    id: 'q7_governing_philosophy',
+    number: 7,
+    category: 'Legislative Philosophy',
+    title: 'Governing Strategy & Floor Coalition Building',
+    prompt: 'When deciding how to navigate committee markups, contentious floor votes, and backroom negotiations, what is your core operational approach?',
+    options: [
+      {
+        id: 'opt_disruptor',
+        label: 'Uncompromising Advocacy for Working Families',
+        description: 'Stand resolute against backroom corporate compromises, using committee microphones and public town halls to mobilize popular pressure on party leadership.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'neutral' },
+          { category: 'National App', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          progressive_caucus: 5,
+          socialist_campaign_group: 5
+        }
+      },
+      {
+        id: 'opt_constitutionalist',
+        label: 'Strict Constitutional Restraint & Individual Freedom',
+        description: 'Hold the line against federal overreach, voting against omnibus spending measures and administrative expansions regardless of party whip pressure.',
+        indicators: [
+          { category: 'Whip Loyalty', direction: 'neutral' },
+          { category: 'War Chest', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          freedom_faction: 5,
+          free_enterprise_group: 5
+        }
+      },
+      {
+        id: 'opt_pragmatist',
+        label: 'Bipartisan Coalition Builder & Pragmatic Dealmaker',
+        description: 'Engage constructively across the aisle to assemble durable 60% floor majorities, believing that partial progress is vastly superior to perpetual partisan gridlock.',
+        indicators: [
+          { category: 'National App', direction: 'favorable' },
+          { category: 'Coalition', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          problem_solvers: 5,
+          one_nation_moderates: 5
+        }
+      },
+      {
+        id: 'opt_local_champion',
+        label: 'Constituency-First Industrial Realist',
+        description: 'Judge every statute solely by how many dollars, jobs, and infrastructure assets it secures for your home frontline district and its industrial workforce.',
+        indicators: [
+          { category: 'District App', direction: 'favorable' },
+          { category: 'Whip Loyalty', direction: 'favorable' }
+        ],
+        caucus_scores: {
+          rust_belt_alliance: 5,
+          regional_devolution_bloc: 5,
+          main_street_bloc: 3
+        }
+      }
+    ]
+  }
+];
+
+// Evaluate alignment quiz and determine which caucus the player should lead
+function evaluateQuizAlignment(answers = {}, systemType = 'bicameral') {
+  const isUnicameral = isUnicameralSystem(systemType);
+  const caucuses = isUnicameral ? PARLIAMENTARY_CAUCUSES : CONGRESSIONAL_CAUCUSES;
+  
+  // Initialize tally
+  const tally = {};
+  caucuses.forEach(c => { tally[c.id] = 0; });
+
+  POLITICAL_ALIGNMENT_QUIZ.forEach(q => {
+    const selectedOptId = answers[q.id];
+    if (selectedOptId) {
+      const opt = q.options.find(o => o.id === selectedOptId);
+      if (opt && opt.caucus_scores) {
+        Object.entries(opt.caucus_scores).forEach(([caucusId, pts]) => {
+          if (tally[caucusId] !== undefined) {
+            tally[caucusId] += pts;
+          }
+        });
+      }
+    }
+  });
+
+  // Find winning caucus
+  let bestCaucus = caucuses[0];
+  let maxScore = -1;
+
+  caucuses.forEach(c => {
+    const score = tally[c.id] || 0;
+    if (score > maxScore) {
+      maxScore = score;
+      bestCaucus = c;
+    }
+  });
+
+  return {
+    assigned_caucus_id: bestCaucus.id,
+    assigned_caucus_name: bestCaucus.name,
+    assigned_caucus_ideology: bestCaucus.ideology,
+    assigned_caucus_member_count: bestCaucus.member_count,
+    original_leader: bestCaucus.leader,
+    player_title: isUnicameral ? 'Parliamentary Faction Chair' : 'Caucus Chair',
+    scores: tally,
+    alignment_summary: `Your policy answers align most closely with the ${bestCaucus.name} (${bestCaucus.ideology}). As its newly elected leader, you command the locked floor votes of its ${bestCaucus.member_count} lawmakers.`
+  };
+}
+
+// ============================================================================
+// ROBUST LOBBYING INDUSTRY OF TRADE GROUPS (Contributions for Legislative Favors)
+// ============================================================================
+const TRADE_LOBBYING_GROUPS = [
+  {
+    id: 'lobby_banking_markets',
+    trade_group: 'Aurelian Financial Markets & Banking League',
+    sector: 'Banking, Wall Street & FinTech',
+    chief_lobbyist: 'Harrison Sterling',
+    favor_title: 'Exempt Regional Banks from Federal Liquidity Stress Tests',
+    favor_description: 'Insert a statutory amendment into the upcoming banking code exempting mid-tier community and regional lenders from stringent Tier-1 capital stress tests and liquidity reserves.',
+    statutory_category: 'banking',
+    suggested_bill_title: 'Regional Banking Liquidity & Capital Growth Act',
+    suggested_bill_summary: 'Raises the asset threshold for federal bank stress testing and broadens municipal bond eligibility for statutory liquidity reserves.',
+    suggested_fiscal_impact: 4.5,
+    base_contribution: 3.5,
+    base_bounty: 18.0,
+    ethics_risk_level: 'medium',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'alert' },
+      { category: 'District App', direction: 'unfavorable' },
+      { category: 'National App', direction: 'unfavorable' }
+    ]
+  },
+  {
+    id: 'lobby_manufacturers_metallurgy',
+    trade_group: 'National Association of Manufacturers & Heavy Metallurgy Guild',
+    sector: 'Manufacturing, Steel & Heavy Industry',
+    chief_lobbyist: 'Col. Bradley Stone (Ret.)',
+    favor_title: 'Mandate 100% Domestic Steel on Civil Infrastructure Works',
+    favor_description: 'Legislate a strict "Buy Sovereign" procurement mandate requiring all federally subsidized bridges, rails, and pipelines to utilize domestically smelted steel and aluminum.',
+    statutory_category: 'trade',
+    suggested_bill_title: 'National Strategic Metallurgy & Domestic Procurement Act',
+    suggested_bill_summary: 'Enforces 100% domestic iron, steel, and aluminum sourcing on all federal civil construction works and establishes capital expensing for blast furnace retrofits.',
+    suggested_fiscal_impact: 8.0,
+    base_contribution: 2.8,
+    base_bounty: 14.0,
+    ethics_risk_level: 'low',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'District App', direction: 'favorable' },
+      { category: 'National App', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'neutral' }
+    ]
+  },
+  {
+    id: 'lobby_pharma_biotech',
+    trade_group: 'Biomedical Innovation & Pharmaceutical Research Alliance (PhRMA)',
+    sector: 'Pharmaceuticals & Biotechnology',
+    chief_lobbyist: 'Dr. Genevieve Vance-Caine',
+    favor_title: 'Block Government Price Negotiation on Biologic Therapies',
+    favor_description: 'Sponsor a statutory rider preserving 12-year patent exclusivity periods for biologic therapies and prohibiting state health ministries from establishing reference-based price ceilings.',
+    statutory_category: 'healthcare',
+    suggested_bill_title: 'Biomedical Discovery Preservation & Patent Certainty Act',
+    suggested_bill_summary: 'Shields advanced biologic and gene therapies from government price controls while establishing federal research tax credits for rare disease clinical trials.',
+    suggested_fiscal_impact: 6.2,
+    base_contribution: 4.8,
+    base_bounty: 24.0,
+    ethics_risk_level: 'toxic',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'alert' },
+      { category: 'District App', direction: 'unfavorable' },
+      { category: 'National App', direction: 'unfavorable' }
+    ]
+  },
+  {
+    id: 'lobby_clean_energy',
+    trade_group: 'Clean Tech Transition & Solar Developers League',
+    sector: 'Clean Energy & Power Infrastructure',
+    chief_lobbyist: 'Maya Chen',
+    favor_title: 'Expand Federal Solar Tax Credits & Expedite Grid Corridors',
+    favor_description: 'Authorize a permanent 30% investment tax credit for commercial battery storage and designate priority federal transmission corridors to connect remote solar arrays to major metropolitan grids.',
+    statutory_category: 'energy',
+    suggested_bill_title: 'Interstate Clean Energy Transmission & Grid Resiliency Act',
+    suggested_bill_summary: 'Directs federal matching grants for regional battery storage microgrids and streamlines environmental permits for interstate high-voltage transmission lines.',
+    suggested_fiscal_impact: 13.5,
+    base_contribution: 2.2,
+    base_bounty: 11.0,
+    ethics_risk_level: 'low',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'National App', direction: 'favorable' },
+      { category: 'District App', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'favorable' }
+    ]
+  },
+  {
+    id: 'lobby_agribusiness_grain',
+    trade_group: 'American Agribusiness & Crop Shippers Federation',
+    sector: 'Agriculture, Livestock & Biofuels',
+    chief_lobbyist: 'Garrison Holt',
+    favor_title: 'Increase Biofuel Blending Mandates & Federal Crop Reinsurance',
+    favor_description: 'Mandate a 15% minimum ethanol blending requirement across commercial motor fuels and expand taxpayer-funded premium subsidies for catastrophic crop reinsurance programs.',
+    statutory_category: 'agriculture',
+    suggested_bill_title: 'National Farm Resiliency & Biofuel Energy Security Act',
+    suggested_bill_summary: 'Enhances federal crop reinsurance coverage thresholds for drought losses and raises commercial renewable fuel standard blending requirements.',
+    suggested_fiscal_impact: 5.5,
+    base_contribution: 2.4,
+    base_bounty: 12.0,
+    ethics_risk_level: 'medium',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'District App', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'alert' }
+    ]
+  },
+  {
+    id: 'lobby_big_tech_ai',
+    trade_group: 'Frontier Artificial Intelligence & Cloud Consortium',
+    sector: 'Technology, Silicon Valley & AI Compute',
+    chief_lobbyist: 'Julian Croft',
+    favor_title: 'Federal Preemption of State AI Audits & Supercomputer Credits',
+    favor_description: 'Preempt a patchwork of state-level artificial intelligence algorithmic auditing laws in favor of a uniform voluntary federal disclosure framework, paired with tax credits for data center energy purchases.',
+    statutory_category: 'technology',
+    suggested_bill_title: 'National AI Innovation & Federal Regulatory Uniformity Act',
+    suggested_bill_summary: 'Establishes a uniform federal standards framework for advanced frontier AI models, preempting divergent state statutes, and grants energy expensing for data centers.',
+    suggested_fiscal_impact: 7.0,
+    base_contribution: 4.5,
+    base_bounty: 22.0,
+    ethics_risk_level: 'high',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'alert' },
+      { category: 'National App', direction: 'unfavorable' }
+    ]
+  },
+  {
+    id: 'lobby_commercial_realtors',
+    trade_group: 'Commercial Realtors & Land Developers Coalition',
+    sector: 'Real Estate, Construction & Housing Finance',
+    chief_lobbyist: 'Devon Brooks',
+    favor_title: 'Withhold Federal Transit Funds from Restrictive Zoning Cities',
+    favor_description: 'Tie municipal federal highway and transit capital grants directly to the elimination of local single-family zoning restrictions, while permanently shielding commercial like-kind property exchange tax deferrals.',
+    statutory_category: 'housing',
+    suggested_bill_title: 'Federal Housing Supply Expansion & Municipal Zoning Reform Act',
+    suggested_bill_summary: 'Withholds federal transit discretionary funds from municipalities with exclusionary density caps and extends capital gains deferrals on commercial housing redevelopments.',
+    suggested_fiscal_impact: 9.0,
+    base_contribution: 3.2,
+    base_bounty: 15.0,
+    ethics_risk_level: 'medium',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'Ethics Scrutiny', direction: 'alert' },
+      { category: 'District App', direction: 'neutral' },
+      { category: 'National App', direction: 'favorable' }
+    ]
+  },
+  {
+    id: 'lobby_public_unions',
+    trade_group: 'United Federation of Healthcare & Public Labor Unions',
+    sector: 'Public Sector Labor, Nursing & Education',
+    chief_lobbyist: 'Maria Santos',
+    favor_title: 'Legislate Federal Nurse Ratios & Protect Public Pension Solvency',
+    favor_description: 'Enact binding patient-to-nurse staffing ratios for all federally subsidized hospitals, prohibit federal procurement from contracting with anti-union employers, and guarantee public pension insolvency backstops.',
+    statutory_category: 'labor',
+    suggested_bill_title: 'Fair Healthcare Staffing & Public Service Protection Accord',
+    suggested_bill_summary: 'Establishes mandatory nurse-to-patient staffing maximums in federally reimbursed hospital networks and bolsters civil service pension insurance guarantees.',
+    suggested_fiscal_impact: 11.0,
+    base_contribution: 2.0,
+    base_bounty: 9.5,
+    ethics_risk_level: 'low',
+    indicators: [
+      { category: 'Campaign War Chest', direction: 'favorable' },
+      { category: 'District App', direction: 'favorable' },
+      { category: 'National App', direction: 'favorable' },
+      { category: 'Whip Loyalty', direction: 'favorable' }
+    ]
+  }
+];
+
+// Generate active lobbying pitches for a session
+function generateLobbyingOffers(session) {
+  const pState = session.political_state || {};
+  const currentStage = pState.current_stage_id || 'representative';
+  
+  // Office tier multiplier for lobbying money
+  const officeMultiplier = (currentStage === 'president' || currentStage === 'prime_minister') 
+    ? 4.5 
+    : ((currentStage === 'senator' || currentStage === 'cabinet_minister') ? 2.2 : 1.0);
+
+  // Shuffle and pick 4 trade groups
+  const shuffled = [...TRADE_LOBBYING_GROUPS].sort(() => 0.5 - Math.random());
+  const selected = shuffled.slice(0, 4);
+
+  return selected.map(tg => {
+    const jitter = 0.88 + Math.random() * 0.28;
+    const contribution = Number((tg.base_contribution * officeMultiplier * jitter).toFixed(2));
+    const bounty = Number((tg.base_bounty * officeMultiplier * jitter).toFixed(2));
+
+    return {
+      id: 'lob_' + Math.random().toString(36).substring(2, 10),
+      session_id: session.id,
+      trade_group: tg.trade_group,
+      sector: tg.sector,
+      chief_lobbyist: tg.chief_lobbyist,
+      favor_title: tg.favor_title,
+      favor_description: tg.favor_description,
+      statutory_category: tg.statutory_category,
+      campaign_contribution_millions: contribution,
+      completion_bounty_millions: bounty,
+      ethics_risk_level: tg.ethics_risk_level,
+      suggested_bill_title: tg.suggested_bill_title,
+      suggested_bill_summary: tg.suggested_bill_summary,
+      suggested_fiscal_impact: tg.suggested_fiscal_impact,
+      indicators: tg.indicators,
+      status: 'pending',
+      created_year: session.current_year || 1,
+      created_month: session.current_month || 1
+    };
+  });
+}
+
 module.exports = {
   PARLIAMENTARY_TRACKS,
   CONGRESSIONAL_TRACKS,
+  UNICAMERAL_TRACKS,
+  BICAMERAL_TRACKS,
   PARTY_ARCHETYPES,
   CAMPAIGN_OFFICE_DEFINITIONS,
   getInitialPoliticalState,
@@ -2218,5 +3288,12 @@ module.exports = {
   CONGRESSIONAL_CAUCUSES,
   PARLIAMENTARY_CAUCUSES,
   generateCaucusDealOffers,
-  politicalEventWeb
+  politicalEventWeb,
+  MAJOR_NATIONAL_ISSUES,
+  POLITICAL_ALIGNMENT_QUIZ,
+  evaluateQuizAlignment,
+  TRADE_LOBBYING_GROUPS,
+  generateLobbyingOffers,
+  isUnicameralSystem,
+  isBicameralSystem
 };

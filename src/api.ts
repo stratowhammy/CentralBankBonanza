@@ -337,7 +337,7 @@ export const api = {
   async startNewPoliticalCareer(params: {
     user_id: string;
     politician_name: string;
-    system_type: 'parliamentary' | 'congressional';
+    system_type: PoliticalSystemType;
     selected_track?: string;
     party_name?: string;
     district_name?: string;
@@ -345,6 +345,7 @@ export const api = {
     economy_type?: string;
     starting_condition?: string;
     volatility?: string;
+    quiz_answers?: Record<string, string>;
   }) {
     const res = await fetch(`${API_BASE}/political/new`, {
       method: 'POST',
@@ -354,6 +355,28 @@ export const api = {
     if (!res.ok) {
       throw new Error(await safeErrorMessage(res, 'Failed to start political career'));
     }
+    return res.json();
+  },
+
+  async getPoliticalAlignmentQuiz() {
+    const res = await fetch(`${API_BASE}/political/quiz`);
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to load alignment quiz'));
+    return res.json();
+  },
+
+  async evaluatePoliticalQuiz(answers: Record<string, string>, system_type: PoliticalSystemType) {
+    const res = await fetch(`${API_BASE}/political/quiz/evaluate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers, system_type })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to evaluate quiz'));
+    return res.json();
+  },
+
+  async getMajorIssues() {
+    const res = await fetch(`${API_BASE}/political/major-issues`);
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to load major issues'));
     return res.json();
   },
 
@@ -399,6 +422,7 @@ export const api = {
     fiscal_impact_billions: number;
     summary?: string;
     donor_promise_id?: string;
+    lobbying_contract_id?: string;
   }) {
     const res = await fetch(`${API_BASE}/political/session/${sessionId}/bill/draft`, {
       method: 'POST',
@@ -506,6 +530,22 @@ export const api = {
       body: JSON.stringify({ question_id, option_id })
     });
     if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to submit donor answer'));
+    return res.json();
+  },
+
+  async getLobbyingContracts(sessionId: string) {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/lobbying`);
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to fetch lobbying contracts'));
+    return res.json();
+  },
+
+  async respondToLobbyingOffer(sessionId: string, contractId: string, action: 'accept' | 'reject') {
+    const res = await fetch(`${API_BASE}/political/session/${sessionId}/lobbying/${contractId}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (!res.ok) throw new Error(await safeErrorMessage(res, 'Failed to respond to lobbying offer'));
     return res.json();
   }
 };

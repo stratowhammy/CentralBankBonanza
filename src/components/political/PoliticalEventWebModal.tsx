@@ -188,25 +188,53 @@ export const PoliticalEventWebModal: React.FC<Props> = ({ isOpen, onClose }) => 
                         </div>
                         <p className="text-xs text-stone-400 pl-7">{c.description}</p>
                         
-                        <div className="pl-7 flex flex-wrap gap-2 text-[10px] font-mono pt-1">
+                        <div className="pl-7 flex flex-wrap gap-2 text-[10px] font-sans font-medium pt-1">
                           {c.political_effects?.district_approval !== undefined && (
-                            <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-300">
-                              District: {c.political_effects.district_approval > 0 ? `+${c.political_effects.district_approval}%` : `${c.political_effects.district_approval}%`}
+                            <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
+                              c.political_effects.district_approval > 0 
+                                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400' 
+                                : c.political_effects.district_approval < 0
+                                ? 'bg-rose-950/60 border-rose-500/40 text-rose-400'
+                                : 'bg-stone-800/60 border-stone-700 text-stone-400'
+                            }`}>
+                              <span>District App</span>
+                              <span className="font-bold">{c.political_effects.district_approval > 0 ? '▲' : c.political_effects.district_approval < 0 ? '▼' : '▬'}</span>
                             </span>
                           )}
                           {c.political_effects?.national_approval !== undefined && (
-                            <span className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">
-                              National: {c.political_effects.national_approval > 0 ? `+${c.political_effects.national_approval}%` : `${c.political_effects.national_approval}%`}
+                            <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
+                              c.political_effects.national_approval > 0 
+                                ? 'bg-cyan-950/60 border-cyan-500/40 text-cyan-400' 
+                                : c.political_effects.national_approval < 0
+                                ? 'bg-rose-950/60 border-rose-500/40 text-rose-400'
+                                : 'bg-stone-800/60 border-stone-700 text-stone-400'
+                            }`}>
+                              <span>National App</span>
+                              <span className="font-bold">{c.political_effects.national_approval > 0 ? '▲' : c.political_effects.national_approval < 0 ? '▼' : '▬'}</span>
                             </span>
                           )}
                           {c.political_effects?.party_loyalty !== undefined && (
-                            <span className="px-2 py-0.5 rounded bg-amber-950 border border-amber-800 text-amber-300">
-                              Party Whip: {c.political_effects.party_loyalty > 0 ? `+${c.political_effects.party_loyalty}%` : `${c.political_effects.party_loyalty}%`}
+                            <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
+                              c.political_effects.party_loyalty > 0 
+                                ? 'bg-amber-950/60 border-amber-500/40 text-amber-400' 
+                                : c.political_effects.party_loyalty < 0
+                                ? 'bg-rose-950/60 border-rose-500/40 text-rose-400'
+                                : 'bg-stone-800/60 border-stone-700 text-stone-400'
+                            }`}>
+                              <span>Party Whip</span>
+                              <span className="font-bold">{c.political_effects.party_loyalty > 0 ? '▲' : c.political_effects.party_loyalty < 0 ? '▼' : '▬'}</span>
                             </span>
                           )}
                           {c.political_effects?.war_chest !== undefined && (
-                            <span className="px-2 py-0.5 rounded bg-stone-800 border border-stone-700 text-stone-300">
-                              War Chest: {c.political_effects.war_chest > 0 ? `+$${c.political_effects.war_chest}M` : `-$${Math.abs(c.political_effects.war_chest)}M`}
+                            <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
+                              c.political_effects.war_chest > 0 
+                                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400' 
+                                : c.political_effects.war_chest < 0
+                                ? 'bg-rose-950/60 border-rose-500/40 text-rose-400'
+                                : 'bg-stone-800/60 border-stone-700 text-stone-400'
+                            }`}>
+                              <span>War Chest</span>
+                              <span className="font-bold">{c.political_effects.war_chest > 0 ? '▲' : c.political_effects.war_chest < 0 ? '▼' : '▬'}</span>
                             </span>
                           )}
                         </div>

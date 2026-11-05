@@ -287,6 +287,18 @@ try {
 try {
   db.exec('ALTER TABLE political_bills ADD COLUMN donor_promise_id TEXT');
 } catch (e) {}
+try {
+  db.exec('ALTER TABLE political_bills ADD COLUMN lobbying_contract_id TEXT');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_sessions ADD COLUMN player_caucus_id TEXT');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_sessions ADD COLUMN player_caucus_name TEXT');
+} catch (e) {}
+try {
+  db.exec('ALTER TABLE political_sessions ADD COLUMN quiz_alignment TEXT');
+} catch (e) {}
 
 // Create table for backroom caucus dealings and logrolling
 db.exec(`
@@ -340,6 +352,31 @@ db.exec(`
     FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_donor_promises_session ON political_donor_promises(session_id);
+
+  CREATE TABLE IF NOT EXISTS political_lobbying_contracts (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    trade_group TEXT NOT NULL,
+    sector TEXT NOT NULL,
+    chief_lobbyist TEXT NOT NULL,
+    favor_title TEXT NOT NULL,
+    favor_description TEXT NOT NULL,
+    statutory_category TEXT NOT NULL,
+    campaign_contribution_millions REAL NOT NULL,
+    completion_bounty_millions REAL NOT NULL,
+    ethics_risk_level TEXT NOT NULL, -- 'low', 'medium', 'high', 'toxic'
+    suggested_bill_title TEXT,
+    suggested_bill_summary TEXT,
+    suggested_fiscal_impact REAL DEFAULT 0,
+    status TEXT DEFAULT 'pending', -- 'pending', 'accepted', 'fulfilled', 'rejected'
+    legislated_bill_id TEXT,
+    created_year INTEGER DEFAULT 1,
+    created_month INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME,
+    FOREIGN KEY(session_id) REFERENCES political_sessions(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_lobbying_contracts_session ON political_lobbying_contracts(session_id);
 `);
 
 // Seed default admin and guest users if they don't exist

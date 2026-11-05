@@ -279,32 +279,40 @@ export const PoliticalCampaignModal: React.FC<Props> = ({
                       </div>
                     )}
 
-                    <div className="pl-8 flex flex-wrap gap-2 text-[10px] font-mono">
+                    {/* Indicators Strip (Category and Color only - no numerical weights) */}
+                    <div className="pl-8 flex flex-wrap gap-2 text-[10px] font-sans font-medium">
                       {choice.political_effects?.polling_margin !== undefined && (
-                        <span className={`px-2 py-0.5 rounded border ${
-                          choice.political_effects.polling_margin >= 0
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                        <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
+                          choice.political_effects.polling_margin > 0
+                            ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
+                            : choice.political_effects.polling_margin < 0
+                            ? 'bg-rose-950/60 text-rose-400 border-rose-500/30'
+                            : 'bg-stone-800 text-stone-400 border-stone-700'
                         }`}>
-                          Polling: {choice.political_effects.polling_margin >= 0 ? '+' : ''}{choice.political_effects.polling_margin}%
+                          <span>Polling Margin</span>
+                          <span className="font-bold">{choice.political_effects.polling_margin > 0 ? '▲' : choice.political_effects.polling_margin < 0 ? '▼' : '▬'}</span>
                         </span>
                       )}
                       {choice.political_effects?.party_loyalty !== undefined && (
-                        <span className={`px-2 py-0.5 rounded border ${
-                          choice.political_effects.party_loyalty >= 0
-                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                        <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
+                          choice.political_effects.party_loyalty > 0
+                            ? 'bg-blue-950/60 text-blue-400 border-blue-500/30'
+                            : choice.political_effects.party_loyalty < 0
+                            ? 'bg-rose-950/60 text-rose-400 border-rose-500/30'
                             : 'bg-stone-800 text-stone-400 border-stone-700'
                         }`}>
-                          Wing Loyalty: {choice.political_effects.party_loyalty >= 0 ? '+' : ''}{choice.political_effects.party_loyalty}
+                          <span>Wing Loyalty</span>
+                          <span className="font-bold">{choice.political_effects.party_loyalty > 0 ? '▲' : choice.political_effects.party_loyalty < 0 ? '▼' : '▬'}</span>
                         </span>
                       )}
                       {choice.political_effects?.ethics_scrutiny !== undefined && (
-                        <span className={`px-2 py-0.5 rounded border ${
+                        <span className={`px-2.5 py-0.5 rounded-full border flex items-center space-x-1 ${
                           choice.political_effects.ethics_scrutiny <= 0
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                            ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-950/60 text-amber-400 border-amber-500/30'
                         }`}>
-                          Ethics Scrutiny: {choice.political_effects.ethics_scrutiny >= 0 ? '+' : ''}{choice.political_effects.ethics_scrutiny}
+                          <span>Ethics Scrutiny</span>
+                          <span className="font-bold">{choice.political_effects.ethics_scrutiny > 0 ? '▲' : choice.political_effects.ethics_scrutiny < 0 ? '▼' : '▬'}</span>
                         </span>
                       )}
                     </div>

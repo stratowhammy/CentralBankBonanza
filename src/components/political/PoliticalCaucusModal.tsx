@@ -84,14 +84,39 @@ export const PoliticalCaucusModal: React.FC<Props> = ({
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 font-sans">
           
+          {/* Player's Own Caucus Leadership Banner */}
+          {pState.player_caucus_name && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-stone-950 to-stone-900 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold text-lg shadow">
+                  🏛️
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold block">
+                    Your Legislative Command • Caucus Chairperson
+                  </span>
+                  <div className="text-sm font-bold text-stone-100 font-serif">
+                    {pState.player_caucus_name}
+                  </div>
+                  <p className="text-xs text-stone-400">
+                    Leader: <span className="text-stone-200 font-semibold">{pState.politician_title} {session.politician_name}</span> • Members stand united behind your floor docket.
+                  </p>
+                </div>
+              </div>
+              <div className="px-3 py-1 rounded-xl bg-emerald-950/70 border border-emerald-600/40 text-emerald-300 text-xs font-mono font-bold whitespace-nowrap">
+                Base Bloc Locked
+              </div>
+            </div>
+          )}
+
           {/* Explanation Banner */}
           <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-300 flex items-start space-x-3">
             <Handshake className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold text-stone-100 mb-0.5">The Art of Legislative Logrolling</p>
               <p className="text-stone-400 leading-relaxed">
-                Passing landmark legislation requires cutting backroom deals with independent caucuses. 
-                Faction chairs will support your priority docket on the floor in exchange for your commitment to vote YES on their signature bills.
+                As a caucus leader, passing landmark statutes requires negotiating directly with the leaders of rival caucuses. 
+                Faction chairs will deliver their caucus's votes for your priority bill in exchange for your commitment to support their signature legislation.
               </p>
             </div>
           </div>

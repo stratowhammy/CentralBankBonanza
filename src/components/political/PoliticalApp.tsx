@@ -36,7 +36,7 @@ export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs, onOpenAuth,
 
   const handleStartCareer = async (params: {
     politician_name: string;
-    system_type: 'parliamentary' | 'congressional';
+    system_type: PoliticalSystemType;
     selected_track?: string;
     party_name: string;
     district_name: string;
@@ -44,6 +44,7 @@ export const PoliticalApp: React.FC<Props> = ({ user, onSwitchToCbs, onOpenAuth,
     economy_type?: string;
     starting_condition?: string;
     volatility?: string;
+    quiz_answers?: Record<string, string>;
   }) => {
     if (!user || user.username === 'guest') {
       if (onOpenAuth) onOpenAuth();

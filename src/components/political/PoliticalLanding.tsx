@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { PoliticalSystemType, PoliticalSession, User } from '../../types';
+import { 
+  PoliticalSystemType, PoliticalSession, User, 
+  PoliticalAlignmentQuestion, QuizEvaluationResult 
+} from '../../types';
 import { api } from '../../api';
 import { 
   Landmark, Scale, Users, Shield, Award, Sparkles, Building2, Vote, 
-  ArrowRight, Play, Trash2, UserCircle, LogOut, Flame, Globe2, AlertTriangle, CheckCircle2
+  ArrowRight, Play, Trash2, UserCircle, LogOut, Flame, Globe2, AlertTriangle, 
+  CheckCircle2, X, ChevronRight, Check
 } from 'lucide-react';
 
 interface Props {
@@ -18,6 +22,7 @@ interface Props {
     economy_type?: string;
     starting_condition?: string;
     volatility?: string;
+    quiz_answers?: Record<string, string>;
   }) => void;
   onResumeCareer: (session: PoliticalSession) => void;
   onSwitchToCbs: () => void;
@@ -33,17 +38,26 @@ export const PoliticalLanding: React.FC<Props> = ({
   onOpenAuth, 
   onLogout 
 }) => {
-  const [systemType, setSystemType] = useState<PoliticalSystemType>('parliamentary');
-  const [politicianName, setPoliticianName] = useState('Eleanor Vance');
-  const [selectedTrack, setSelectedTrack] = useState('backbencher');
+  const [systemType, setSystemType] = useState<PoliticalSystemType>('bicameral');
+  const [politicianName, setPoliticianName] = useState('Representative Marcus Vance');
+  const [selectedTrack, setSelectedTrack] = useState('representative');
   const [partyName, setPartyName] = useState('Democratic Alliance');
-  const [districtName, setDistrictName] = useState('Highland Greenshire');
+  const [districtName, setDistrictName] = useState('Metro-Industrial 4th Congressional District');
   const [linkedCbsSessionId, setLinkedCbsSessionId] = useState('');
   
   // Starting Conditions
   const [economyType, setEconomyType] = useState<'large_hegemon' | 'middle_advanced' | 'small_emerging'>('large_hegemon');
   const [startingCondition, setStartingCondition] = useState<'easy' | 'normal' | 'hard'>('normal');
   const [volatility, setVolatility] = useState<'low' | 'normal' | 'high' | 'extreme'>('normal');
+
+  // Alignment Quiz State
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [quizQuestions, setQuizQuestions] = useState<PoliticalAlignmentQuestion[]>([]);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
+  const [evaluatedResult, setEvaluatedResult] = useState<QuizEvaluationResult | null>(null);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
+  const [isEvaluatingQuiz, setIsEvaluatingQuiz] = useState(false);
 
   // User's Saved Careers
   const [savedSessions, setSavedSessions] = useState<PoliticalSession[]>([]);
@@ -84,16 +98,18 @@ export const PoliticalLanding: React.FC<Props> = ({
   // Update starter defaults when switching system type
   const handleSystemChange = (sys: PoliticalSystemType) => {
     setSystemType(sys);
-    if (sys === 'parliamentary') {
+    setEvaluatedResult(null);
+    setQuizAnswers({});
+    if (sys === 'unicameral' || sys === 'parliamentary') {
       setSelectedTrack('backbencher');
       setPartyName('Democratic Alliance');
       setDistrictName('Highland Greenshire');
-      if (politicianName.includes('Representative')) setPoliticianName('Eleanor Vance MP');
+      setPoliticianName('Eleanor Vance MP');
     } else {
       setSelectedTrack('representative');
       setPartyName('Democratic Alliance');
       setDistrictName('Metro-Industrial 4th Congressional District');
-      if (politicianName.includes('MP')) setPoliticianName('Representative Marcus Vance');
+      setPoliticianName('Representative Marcus Vance');
     }
   };
 
@@ -116,7 +132,7 @@ export const PoliticalLanding: React.FC<Props> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleStartCareerQuiz = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isRegistered) {
       if (onOpenAuth) onOpenAuth();
@@ -129,6 +145,59 @@ export const PoliticalLanding: React.FC<Props> = ({
       return;
     }
 
+    // If quiz is already completed, launch directly
+    if (evaluatedResult) {
+      onStartCareer({
+        politician_name: politicianName.trim(),
+        system_type: systemType,
+        selected_track: selectedTrack,
+        party_name: partyName,
+        district_name: districtName.trim() || 'General District',
+        linked_cbs_session_id: linkedCbsSessionId.trim() || undefined,
+        economy_type: economyType,
+        starting_condition: startingCondition,
+        volatility: volatility,
+        quiz_answers: quizAnswers
+      });
+      return;
+    }
+
+    // Load quiz questions and open alignment assessment
+    setIsLoadingQuiz(true);
+    try {
+      const res = await api.getPoliticalAlignmentQuiz();
+      setQuizQuestions(res.questions || []);
+      setCurrentQuizIndex(0);
+      setIsQuizOpen(true);
+    } catch (err: any) {
+      alert('Failed to load alignment quiz: ' + err.message);
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  };
+
+  const handleSelectQuizOption = async (questionId: string, optionId: string) => {
+    const updated = { ...quizAnswers, [questionId]: optionId };
+    setQuizAnswers(updated);
+
+    if (currentQuizIndex < quizQuestions.length - 1) {
+      setCurrentQuizIndex(prev => prev + 1);
+    } else {
+      // Completed all 7 questions! Evaluate alignment
+      setIsEvaluatingQuiz(true);
+      try {
+        const result = await api.evaluatePoliticalQuiz(updated, systemType);
+        setEvaluatedResult(result);
+      } catch (err: any) {
+        alert('Failed to evaluate political alignment: ' + err.message);
+      } finally {
+        setIsEvaluatingQuiz(false);
+      }
+    }
+  };
+
+  const handleFinalInaugurate = () => {
+    setIsQuizOpen(false);
     onStartCareer({
       politician_name: politicianName.trim(),
       system_type: systemType,
@@ -138,9 +207,12 @@ export const PoliticalLanding: React.FC<Props> = ({
       linked_cbs_session_id: linkedCbsSessionId.trim() || undefined,
       economy_type: economyType,
       starting_condition: startingCondition,
-      volatility: volatility
+      volatility: volatility,
+      quiz_answers: quizAnswers
     });
   };
+
+  const activeQuestion = quizQuestions[currentQuizIndex];
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-serif selection:bg-amber-900 selection:text-amber-100">
@@ -330,54 +402,67 @@ export const PoliticalLanding: React.FC<Props> = ({
         {/* ============================================================== */}
         {/* NEW CAREER CONFIGURATION CARD                                  */}
         {/* ============================================================== */}
-        <form onSubmit={handleSubmit} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-8">
+        <form onSubmit={handleStartCareerQuiz} className="bg-stone-900 border border-stone-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-8">
           
           <div className="border-b border-stone-800 pb-4">
             <h3 className="text-xl font-bold font-serif text-amber-200">➕ Inaugurate a New Political Career</h3>
-            <p className="text-xs text-stone-400 font-sans mt-1">Configure constitutional structure, starting conditions, and district mandate</p>
+            <p className="text-xs text-stone-400 font-sans mt-1">Configure constitutional structure, take the 7-question alignment quiz, and assume caucus leadership</p>
           </div>
 
-          {/* 1. Political System Selection */}
+          {/* 1. Constitutional Government Structure: Unicameral vs Bicameral */}
           <div>
             <label className="block text-xs font-sans font-bold uppercase tracking-wider text-amber-400 mb-3">
-              1. Choose Constitutional System
+              1. Choose Constitutional Structure (Unicameral vs. Bicameral)
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {/* Unicameral */}
               <div 
-                onClick={() => handleSystemChange('parliamentary')}
+                onClick={() => handleSystemChange('unicameral')}
                 className={`cursor-pointer p-5 rounded-xl border transition-all ${
-                  systemType === 'parliamentary' 
+                  systemType === 'unicameral' || systemType === 'parliamentary'
                     ? 'border-amber-500 bg-amber-950/20 text-stone-100 ring-1 ring-amber-500' 
                     : 'border-stone-800 bg-stone-950/50 text-stone-400 hover:border-stone-700'
                 }`}
               >
                 <div className="flex items-center space-x-3 mb-2">
                   <Building2 className="w-5 h-5 text-amber-400" />
-                  <h3 className="font-bold text-base text-amber-200">Parliamentary (Westminster)</h3>
+                  <h3 className="font-bold text-base text-amber-200">Unicameral (House of Commons)</h3>
                 </div>
-                <p className="text-xs text-stone-400 font-sans leading-normal">
-                  Progress from Backbench MP to Committee Chair, Cabinet Minister, and Prime Minister. 
-                  Heavy emphasis on party whips, coalition stability, and Question Time scrutiny.
+                <p className="text-xs text-stone-300 font-sans leading-normal mb-2">
+                  The legislature is a single sovereign chamber: the <span className="text-amber-300 font-semibold">House of Commons</span>. 
+                  Lawmakers serve as <span className="text-stone-100 font-semibold">Members of Parliament (MPs)</span>, progressing to Committee Chair, Cabinet Minister, and <span className="text-amber-300 font-semibold">Prime Minister</span>.
                 </p>
+                <div className="flex flex-wrap gap-1.5 text-[10px] font-mono text-stone-400 pt-1">
+                  <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-amber-400">Chamber: House of Commons</span>
+                  <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-300">Executive: Prime Minister</span>
+                  <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-300">Members: MPs</span>
+                </div>
               </div>
 
+              {/* Bicameral */}
               <div 
-                onClick={() => handleSystemChange('congressional')}
+                onClick={() => handleSystemChange('bicameral')}
                 className={`cursor-pointer p-5 rounded-xl border transition-all ${
-                  systemType === 'congressional' 
+                  systemType === 'bicameral' || systemType === 'congressional'
                     ? 'border-amber-500 bg-amber-950/20 text-stone-100 ring-1 ring-amber-500' 
                     : 'border-stone-800 bg-stone-950/50 text-stone-400 hover:border-stone-700'
                 }`}
               >
                 <div className="flex items-center space-x-3 mb-2">
                   <Scale className="w-5 h-5 text-amber-400" />
-                  <h3 className="font-bold text-base text-amber-200">Congressional / Presidential (US)</h3>
+                  <h3 className="font-bold text-base text-amber-200">Bicameral (Lower & Upper House)</h3>
                 </div>
-                <p className="text-xs text-stone-400 font-sans leading-normal">
-                  Progress from US House Representative to Committee Chair / Whip, US Senator, and President. 
-                  High-stakes 2-year district cycles, Senate filibusters, and high-dollar PAC fundraising.
+                <p className="text-xs text-stone-300 font-sans leading-normal mb-2">
+                  Dual legislative chambers: the <span className="text-amber-300 font-semibold">Lower House</span> (members called <span className="text-stone-100 font-semibold">Representatives</span>) and the <span className="text-amber-300 font-semibold">Upper House</span> (members called <span className="text-stone-100 font-semibold">Senators</span>). The Chief Executive is the <span className="text-amber-300 font-semibold">President</span>.
                 </p>
+                <div className="flex flex-wrap gap-1.5 text-[10px] font-mono text-stone-400 pt-1">
+                  <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-amber-400">Houses: Lower & Upper House</span>
+                  <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-300">Executive: President</span>
+                  <span className="px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-300">Members: Representatives & Senators</span>
+                </div>
               </div>
+
             </div>
           </div>
 
@@ -556,22 +641,256 @@ export const PoliticalLanding: React.FC<Props> = ({
             />
           </div>
 
+          {/* Evaluated Caucus Status Banner */}
+          {evaluatedResult && (
+            <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-500/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-sans">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold text-sm shadow">
+                  🏛️
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold block">
+                    Assigned Caucus Mandate
+                  </span>
+                  <div className="text-sm font-bold text-stone-100 font-serif">
+                    Chair of the {evaluatedResult.assigned_caucus_name} ({evaluatedResult.assigned_caucus_member_count} Members)
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuizOpen(true)}
+                className="text-xs text-amber-400 hover:text-amber-300 underline font-mono"
+              >
+                Review Answers
+              </button>
+            </div>
+          )}
+
           {/* Launch Button */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-stone-800">
             <p className="text-xs text-stone-500 font-sans">
-              Full 50-event causal web • Chief of Staff Statutory Drafting • Floor Whip Operations
+              Full 50-event causal web • 7-Question Alignment Quiz • K-Street Trade Lobbying • Floor Whip Operations
             </p>
             <button
               type="submit"
-              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-sans font-bold text-sm uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center space-x-2"
+              disabled={isLoadingQuiz}
+              className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-sans font-bold text-sm uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               <Award className="w-4 h-4" />
-              <span>Inaugurate Political Career</span>
+              <span>
+                {isLoadingQuiz 
+                  ? 'Loading Quiz...' 
+                  : evaluatedResult 
+                  ? 'Inaugurate Career as Caucus Chair' 
+                  : 'Proceed to 7-Question Alignment Quiz'}
+              </span>
             </button>
           </div>
 
         </form>
       </main>
+
+      {/* ============================================================== */}
+      {/* 7-QUESTION POLITICAL ALIGNMENT QUIZ MODAL                      */}
+      {/* ============================================================== */}
+      {isQuizOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/90 backdrop-blur-md font-sans animate-fade-in overflow-y-auto">
+          <div className="relative w-full max-w-3xl bg-stone-900 border border-stone-800 rounded-3xl shadow-2xl overflow-hidden my-6">
+            
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-stone-800 bg-stone-950 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-950 border border-amber-600/40 flex items-center justify-center text-amber-400">
+                  <Vote className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-stone-100 font-serif">
+                    Constitutional Political Alignment Assessment
+                  </h2>
+                  <p className="text-xs text-amber-400 font-mono">
+                    Question {currentQuizIndex + 1} of {quizQuestions.length || 7} • Determines Your Parliamentary or Congressional Caucus Mandate
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsQuizOpen(false)}
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body: Evaluating vs Active Question vs Caucus Mandate Result */}
+            {isEvaluatingQuiz ? (
+              <div className="p-16 text-center space-y-4">
+                <div className="w-10 h-10 mx-auto rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+                <h3 className="font-bold text-stone-100 text-base font-serif">Synthesizing Legislative Ideology...</h3>
+                <p className="text-xs text-stone-400">Calculating your alignment matrix against national party caucuses and floor blocs.</p>
+              </div>
+            ) : evaluatedResult ? (
+              /* Caucus Leadership Mandate View */
+              <div className="p-6 sm:p-8 space-y-6">
+                <div className="p-6 rounded-2xl bg-stone-950 border border-amber-500/50 space-y-4 shadow-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold text-xl shadow-lg">
+                      🏛️
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold block">
+                        Mandate Conferred • Floor Caucus Leadership
+                      </span>
+                      <h3 className="text-2xl font-bold text-stone-100 font-serif">
+                        Elected Chair: {evaluatedResult.assigned_caucus_name}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-stone-300 font-sans leading-relaxed">
+                    {evaluatedResult.alignment_summary}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-stone-800 font-mono text-xs">
+                    <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
+                      <span className="text-[10px] uppercase text-stone-400 block">Caucus Ideology</span>
+                      <span className="text-amber-300 font-bold text-xs">{evaluatedResult.assigned_caucus_ideology}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
+                      <span className="text-[10px] uppercase text-stone-400 block">Voting Strength</span>
+                      <span className="text-emerald-400 font-bold text-xs">{evaluatedResult.assigned_caucus_member_count} Lawmakers</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-stone-900 border border-stone-800">
+                      <span className="text-[10px] uppercase text-stone-400 block">Your Station</span>
+                      <span className="text-stone-200 font-bold text-xs">{evaluatedResult.player_title}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => { setEvaluatedResult(null); setCurrentQuizIndex(0); }}
+                    className="px-4 py-2 text-xs text-stone-400 hover:text-stone-200 transition-colors font-sans"
+                  >
+                    ← Retake Alignment Quiz
+                  </button>
+                  <button
+                    onClick={handleFinalInaugurate}
+                    className="px-8 py-3.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold text-sm uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95 flex items-center space-x-2"
+                  >
+                    <Award className="w-4 h-4" />
+                    <span>Inaugurate Career as Caucus Chair</span>
+                  </button>
+                </div>
+              </div>
+            ) : activeQuestion ? (
+              /* Active Question View */
+              <div className="p-6 sm:p-8 space-y-6">
+                
+                {/* Progress Bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-amber-400 font-bold uppercase">{activeQuestion.category}</span>
+                    <span className="text-stone-400">Step {activeQuestion.number} / {quizQuestions.length}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-amber-500 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${(activeQuestion.number / quizQuestions.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Question Prompt */}
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-stone-100 font-serif">
+                    {activeQuestion.title}
+                  </h3>
+                  <p className="text-sm text-stone-300 font-sans leading-relaxed bg-stone-950/60 p-4 rounded-xl border border-stone-800/60">
+                    "{activeQuestion.prompt}"
+                  </p>
+                </div>
+
+                {/* 4 Choices with Categorical Indicator Pills (NO numbers!) */}
+                <div className="space-y-3">
+                  {activeQuestion.options.map((opt, optIdx) => {
+                    const optLetter = String.fromCharCode(65 + optIdx);
+                    const isChosen = quizAnswers[activeQuestion.id] === opt.id;
+                    return (
+                      <div
+                        key={opt.id}
+                        onClick={() => handleSelectQuizOption(activeQuestion.id, opt.id)}
+                        className={`cursor-pointer p-4 rounded-xl border transition-all ${
+                          isChosen
+                            ? 'border-amber-500 bg-amber-950/30 text-stone-100 ring-1 ring-amber-500'
+                            : 'border-stone-800 bg-stone-950/70 text-stone-300 hover:border-stone-700 hover:bg-stone-900'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-1.5">
+                          <div className="flex items-center space-x-2.5">
+                            <span className={`w-6 h-6 rounded-lg font-mono font-bold text-xs flex items-center justify-center ${
+                              isChosen ? 'bg-amber-500 text-stone-950' : 'bg-stone-900 border border-stone-700 text-amber-400'
+                            }`}>
+                              {optLetter}
+                            </span>
+                            <h4 className="font-bold text-sm text-stone-100">{opt.label}</h4>
+                          </div>
+                          {isChosen && <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />}
+                        </div>
+
+                        <p className="text-xs text-stone-400 leading-relaxed pl-8.5 mb-2.5">
+                          {opt.description}
+                        </p>
+
+                        {/* Indicators (Category & Color only) */}
+                        <div className="pl-8.5 flex flex-wrap gap-1.5">
+                          {opt.indicators?.map((ind, i) => {
+                            const isFav = ind.direction === 'favorable';
+                            const isUnfav = ind.direction === 'unfavorable';
+                            const isAlert = ind.direction === 'alert';
+                            return (
+                              <span
+                                key={i}
+                                className={`px-2 py-0.5 rounded-full border text-[10px] font-sans font-medium flex items-center space-x-1 ${
+                                  isFav 
+                                    ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400' 
+                                    : isUnfav 
+                                    ? 'bg-rose-950/60 border-rose-500/40 text-rose-400' 
+                                    : isAlert 
+                                    ? 'bg-amber-950/60 border-amber-500/40 text-amber-300' 
+                                    : 'bg-stone-900 border-stone-800 text-stone-400'
+                                }`}
+                              >
+                                <span>{ind.category}</span>
+                                <span className="font-bold">{isFav ? '▲' : isUnfav ? '▼' : isAlert ? '⚡' : '▬'}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Navigation Controls */}
+                <div className="flex items-center justify-between pt-2 border-t border-stone-800">
+                  <button
+                    onClick={() => setCurrentQuizIndex(prev => Math.max(0, prev - 1))}
+                    disabled={currentQuizIndex === 0}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-stone-400 hover:text-stone-200 border border-stone-800 disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    Previous Question
+                  </button>
+                  <span className="text-xs text-stone-500 font-mono">
+                    Click an option to select & advance
+                  </span>
+                </div>
+
+              </div>
+            ) : null}
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
